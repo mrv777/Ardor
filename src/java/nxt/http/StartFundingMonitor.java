@@ -1,6 +1,6 @@
 /*
  * Copyright © 2013-2016 The Nxt Core Developers.
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -23,7 +23,9 @@ import nxt.account.FundingMonitor;
 import nxt.account.HoldingType;
 import nxt.ae.Asset;
 import nxt.blockchain.Chain;
+import nxt.blockchain.ChildChain;
 import nxt.blockchain.FxtChain;
+import nxt.blockchain.chaincontrol.PermissionType;
 import nxt.crypto.Crypto;
 import nxt.ms.Currency;
 import org.json.simple.JSONObject;
@@ -91,7 +93,7 @@ public final class StartFundingMonitor extends APIServlet.APIRequestHandler {
         }
         int interval = ParameterParser.getInt(req, "interval", FundingMonitor.MIN_FUND_INTERVAL, Integer.MAX_VALUE, true);
         long feeRateNQTPerFXT = ParameterParser.getLong(req, "feeRateNQTPerFXT", 0, Constants.MAX_BALANCE_NQT, true);
-        String secretPhrase = ParameterParser.getSecretPhrase(req, true);
+        byte[] privateKey = ParameterParser.getPrivateKey(req, true);
         switch (holdingType) {
             case ASSET:
                 if (chain == FxtChain.FXT) {
@@ -116,14 +118,17 @@ public final class StartFundingMonitor extends APIServlet.APIRequestHandler {
                     return JSONResponses.INCORRECT_CHAIN;
                 }
         }
-        Account account = Account.getAccount(Crypto.getPublicKey(secretPhrase));
+        Account account = Account.getAccount(Crypto.getPublicKey(privateKey));
         if (account == null) {
             return UNKNOWN_ACCOUNT;
         }
         if (account.getControls().contains(Account.ControlType.PHASING_ONLY)) {
             return JSONResponses.error("Accounts under phasing only control cannot run a funding monitor");
         }
-        FundingMonitor monitor = FundingMonitor.startMonitor(chain, holdingType, holdingId, property, amount, threshold, interval, secretPhrase, feeRateNQTPerFXT);
+        if (chain instanceof ChildChain) {
+            ((ChildChain)chain).getPermissionChecker().checkPermission(account.getId(), PermissionType.CHAIN_USER);
+        }
+        FundingMonitor monitor = FundingMonitor.startMonitor(chain, holdingType, holdingId, property, amount, threshold, interval, privateKey, feeRateNQTPerFXT);
         if (monitor != null) {
             JSONObject response = new JSONObject();
             response.put("started", true);

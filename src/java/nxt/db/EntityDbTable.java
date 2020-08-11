@@ -1,6 +1,6 @@
 /*
  * Copyright © 2013-2016 The Nxt Core Developers.
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -26,12 +26,10 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.Locale;
 
-public abstract class EntityDbTable<T> extends DerivedDbTable {
+public abstract class EntityDbTable<T> extends TrimmableDbTable<T> {
 
     protected static final DbClause LATEST = new DbClause.FixedClause(" latest = TRUE ");
 
-    private final boolean multiversion;
-    protected final DbKey.Factory<T> dbKeyFactory;
     private final String defaultSort;
     private final String fullTextSearchColumns;
 
@@ -44,9 +42,7 @@ public abstract class EntityDbTable<T> extends DerivedDbTable {
     }
 
     EntityDbTable(String schemaTable, DbKey.Factory<T> dbKeyFactory, boolean multiversion, String fullTextSearchColumns) {
-        super(schemaTable);
-        this.dbKeyFactory = dbKeyFactory;
-        this.multiversion = multiversion;
+        super(schemaTable, dbKeyFactory, multiversion);
         this.defaultSort = " ORDER BY " + (multiversion ? dbKeyFactory.getPKColumns() : " height DESC, db_id DESC ");
         if (fullTextSearchColumns != null) {
             fullTextSearchColumns = fullTextSearchColumns.toUpperCase(Locale.ROOT);
@@ -413,22 +409,31 @@ public abstract class EntityDbTable<T> extends DerivedDbTable {
         }
     }
 
-    @Override
-    public void popOffTo(int height) {
-        if (multiversion) {
-            VersionedEntityDbTable.popOff(db, schema, schemaTable, height, dbKeyFactory);
-        } else {
-            super.popOffTo(height);
+    public final void insertInitial(T t) {
+        if (!db.isInTransaction()) {
+            throw new IllegalStateException("Not in transaction");
         }
-    }
-
-    @Override
-    public void trim(int height) {
-        if (multiversion) {
-            VersionedEntityDbTable.trim(db, schema, schemaTable, height, dbKeyFactory);
-        } else {
-            super.trim(height);
+        DbKey dbKey = dbKeyFactory.newKey(t);
+        if (dbKey == null) {
+            throw new RuntimeException("DbKey not set");
         }
+        try (Connection con = getConnection();
+             PreparedStatement pstmtSelect = con.prepareStatement("SELECT * from " + schemaTable + dbKeyFactory.getPKClause() + " LIMIT 1");
+             PreparedStatement pstmtUpdate = con.prepareStatement("UPDATE " + schemaTable + " SET height = ? " + dbKeyFactory.getPKClause())) {
+            dbKey.setPK(pstmtSelect);
+            try (ResultSet rs = pstmtSelect.executeQuery()) {
+                if (rs.next()) {
+                    throw new IllegalStateException("Previous records found");
+                }
+            }
+            save(con, t);
+            pstmtUpdate.setInt(1, -1);
+            dbKey.setPK(pstmtUpdate, 2);
+            pstmtUpdate.executeUpdate();
+        } catch (SQLException e) {
+            throw new RuntimeException(e.toString(), e);
+        }
+        db.getCache(schemaTable).put(dbKey, t);
     }
 
     @Override

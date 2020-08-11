@@ -1,6 +1,6 @@
 /******************************************************************************
  * Copyright © 2013-2016 The Nxt Core Developers.                             *
- * Copyright © 2016-2019 Jelurida IP B.V.                                     *
+ * Copyright © 2016-2020 Jelurida IP B.V.                                     *
  *                                                                            *
  * See the LICENSE.txt file at the top-level directory of this distribution   *
  * for licensing information.                                                 *
@@ -176,7 +176,7 @@ var ATS = (function(ATS, $, undefined) {
         }
     };
 
-    ATS.submitForm = function(form, fileParameter) {
+    ATS.submitForm = function(form, fileParameters) {
         var url = $('#formAction').val();
         var params = {};
         for (var i = 0; i < form.elements.length; i++) {
@@ -199,24 +199,12 @@ var ATS = (function(ATS, $, undefined) {
         var contentType;
         var processData;
         var formData = null;
-        var uploadField;
+        var uploadFields;
         if (form.encoding == "multipart/form-data") {
-            uploadField = $('#' + fileParameter + requestType);
+            var selector = fileParameters.map(p => '#' + p + requestType).join(", ");
+            uploadFields = $(selector);
         }
-        /*
-        if (params["requestType"] == "downloadPrunableMessage" || params["requestType"] == "downloadTaggedData") {
-            url += "?";
-            for (key in params) {
-                if (!params.hasOwnProperty(key)) {
-                    continue;
-                }
-                url += encodeURIComponent(key) + "=" + encodeURIComponent(params[key]) + "&";
-            }
-            window.location = url;
-            return false;
-        } else
-        */
-        if (uploadField) {
+        if (uploadFields) {
             // inspired by http://stackoverflow.com/questions/5392344/sending-multipart-formdata-with-jquery-ajax
             contentType = false;
             processData = false;
@@ -226,25 +214,32 @@ var ATS = (function(ATS, $, undefined) {
                 if (!params.hasOwnProperty(key)) {
                     continue;
                 }
-                if (key == fileParameter) {
+                if ($.inArray(key, fileParameters) > -1) {
                     continue;
                 }
                 formData.append(key, params[key]);
             }
-            var file = uploadField[0].files[0];
-            if (file) {
-                formData.append(fileParameter, file);
-                if (!formData["filename"]) {
-                    formData.append("filename", file.name);
+            uploadFields.each(function() {
+
+                var file = this.files[0];
+                if (file) {
+                    var fileParameter = this.id.substring(0, this.id.length - requestType.length);
+                    formData.append(fileParameter, file);
+                    if (!formData["filename"]) {
+                        formData.append("filename", file.name);
+                    }
                 }
-            }
+            });
         } else {
             // JQuery defaults
             contentType = "application/x-www-form-urlencoded; charset=UTF-8";
             processData = true;
         }
         url += "?requestType=" + requestType;
-        
+
+        // clear the previous response
+        form.getElementsByClassName("result")[0].textContent = '';
+
         $.ajax({
             url: url,
             type: 'POST',
@@ -337,6 +332,12 @@ var ATS = (function(ATS, $, undefined) {
             ATS.selectedApiCalls.splice(index, 1);
             ATS.selectedApiCallsChange();
         }
+    };
+
+    ATS.fileInputChanged = function(input) {
+        $(input.form)
+            .attr( "enctype", "multipart/form-data" )
+        	.attr( "encoding", "multipart/form-data" );
     };
 
     return ATS;

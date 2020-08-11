@@ -8,6 +8,10 @@ public class SearchPollsCall extends APICall.Builder<SearchPollsCall> {
         super(ApiSpec.searchPolls);
     }
 
+    public static SearchPollsCall create() {
+        return new SearchPollsCall();
+    }
+
     public static SearchPollsCall create(int chain) {
         return new SearchPollsCall().param("chain", chain);
     }

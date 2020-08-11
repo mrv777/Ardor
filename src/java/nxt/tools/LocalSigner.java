@@ -1,5 +1,5 @@
 /*
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -30,6 +30,7 @@ import nxt.http.callers.GetBundlerRatesCall;
 import nxt.http.callers.GetECBlockCall;
 import nxt.util.Convert;
 import nxt.util.JSON;
+import nxt.util.Logger;
 import nxt.util.security.BlockchainPermission;
 
 import java.math.BigDecimal;
@@ -45,7 +46,7 @@ public class LocalSigner {
      * @param childChain child chain
      * @param recipientId recipient
      * @param attachment additional information specific to the transaction type
-     * @param secretPhrase secret phrase
+     * @param privateKey private key
      * @param feeNQT fee, specify -1 to calculate the best bundling fee
      * @param feeRateNQTPerFXT rate between child fee and parent fee
      * @param minBundlerBalanceFXT only consider bundlers with at list this bundling balance
@@ -53,7 +54,7 @@ public class LocalSigner {
      * @param url optional remote node to which to submit the transaction
      * @return the result of broadcasting the transaction
      */
-    public static JO signAndBroadcast(ChildChain childChain, long recipientId, Attachment attachment, String secretPhrase,
+    public static JO signAndBroadcast(ChildChain childChain, long recipientId, Attachment attachment, byte[] privateKey,
                                       long feeNQT, long feeRateNQTPerFXT, long minBundlerBalanceFXT, ChainTransactionId referencedTransaction, URL url) {
         SecurityManager sm = System.getSecurityManager();
         if (sm != null) {
@@ -67,7 +68,7 @@ public class LocalSigner {
         Transaction transaction;
         if (feeNQT == -1) {
             // Create the transaction to calculate transaction fee
-            builder = childChain.newTransactionBuilder(Crypto.getPublicKey(secretPhrase), 0, -1,
+            builder = childChain.newTransactionBuilder(Crypto.getPublicKey(privateKey), 0, -1,
                     (short)15, attachment)
                     .timestamp(((Long) ecBlock.get("timestamp")).intValue())
                     .ecBlockHeight(((Long) ecBlock.get("ecBlockHeight")).intValue())
@@ -75,26 +76,37 @@ public class LocalSigner {
                     .recipientId(recipientId);
             ((ChildTransactionImpl.BuilderImpl)builder).referencedTransaction(referencedTransaction);
             try {
-                transaction = builder.build(secretPhrase);
+                transaction = builder.build(privateKey);
             } catch (NxtException.NotValidException e) {
                 throw new IllegalStateException(e);
             }
             CalculateFeeCall calculateFeeCall = CalculateFeeCall.create().transactionJSON(JSON.toJSONString(transaction.getJSONObject())).remote(url);
             final long minimumFeeFQT = calculateFeeCall.call().getLong("minimumFeeFQT");
-            if (feeRateNQTPerFXT == -1) {
+            int counter = 0;
+            while (feeRateNQTPerFXT == -1 && counter < 10) {
                 List<JO> rates = GetBundlerRatesCall.create().minBundlerBalanceFXT(minBundlerBalanceFXT).remote(url).call().getArray("rates").objects();
                 Long bestRate = rates.stream().filter(r -> r.getInt("chain") == childChain.getId()).filter(r -> r.getLong("currentFeeLimitFQT") > minimumFeeFQT).
                         map(r -> r.getLong("minRateNQTPerFXT")).sorted().findFirst().orElse(null);
                 if (bestRate == null) {
-                    throw new IllegalStateException("Fee not specified and best bundling fee cannot be determined");
+                    counter++;
+                    Logger.logInfoMessage("Fee not specified and best bundling fee cannot be determined, sleep and retry %d", counter);
+                    try {
+                        Thread.sleep(3000);
+                    } catch (InterruptedException e) {
+                        throw new IllegalStateException(e);
+                    }
+                    continue;
                 }
                 feeRateNQTPerFXT = bestRate;
+            }
+            if (counter == 10) {
+                throw new IllegalStateException("Fee not specified and best bundling fee cannot be determined, retry later");
             }
 
             // Calculate the transaction fee and submit the transaction again
             feeNQT = BigDecimal.valueOf(minimumFeeFQT).multiply(BigDecimal.valueOf(feeRateNQTPerFXT)).divide(BigDecimal.valueOf(childChain.ONE_COIN), RoundingMode.HALF_EVEN).longValue();
         }
-        builder = childChain.newTransactionBuilder(Crypto.getPublicKey(secretPhrase), 0, feeNQT,
+        builder = childChain.newTransactionBuilder(Crypto.getPublicKey(privateKey), 0, feeNQT,
                 (short)15, attachment)
                 .timestamp(((Long) ecBlock.get("timestamp")).intValue())
                 .ecBlockHeight(((Long) ecBlock.get("ecBlockHeight")).intValue())
@@ -104,7 +116,7 @@ public class LocalSigner {
         }
         ((ChildTransactionImpl.BuilderImpl)builder).referencedTransaction(referencedTransaction);
         try {
-            transaction = builder.build(secretPhrase);
+            transaction = builder.build(privateKey);
         } catch (NxtException.NotValidException e) {
             throw new IllegalStateException(e);
         }

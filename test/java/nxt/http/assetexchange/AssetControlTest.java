@@ -1,6 +1,6 @@
 /*
  * Copyright © 2013-2016 The Nxt Core Developers.
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -18,6 +18,7 @@ package nxt.http.assetexchange;
 
 import nxt.BlockchainTest;
 import nxt.Nxt;
+import nxt.RequireNonePermissionPolicyTestsCategory;
 import nxt.account.HoldingType;
 import nxt.blockchain.ChildChain;
 import nxt.http.APICall;
@@ -29,6 +30,7 @@ import nxt.util.JSONAssert;
 import nxt.voting.VoteWeighting.VotingModel;
 import org.junit.Assert;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
 import java.math.BigDecimal;
 
@@ -181,6 +183,7 @@ public class AssetControlTest extends BlockchainTest {
         Assert.assertEquals(amount, BOB.getAssetQuantityDiff(Long.parseUnsignedLong(assetId)));
     }
 
+    @Category(RequireNonePermissionPolicyTestsCategory.class)
     @Test
     public void testDividendPaymentOnControlledAsset() {
         String propertyName = "propac2";
@@ -240,10 +243,10 @@ public class AssetControlTest extends BlockchainTest {
 
         generateBlocks(10);
 
-        JSONAssert payment = new JSONAssert(AssetExchangeTest.payDividend(controlledAssetId, ALICE, Nxt.getBlockchain().getHeight(), 1,
-                ChildChain.IGNIS, HoldingType.ASSET.getCode(), dividendAssetId));
+        APICall.InvocationError payment = AssetExchangeTest.failToPayDividend(controlledAssetId, ALICE, Nxt.getBlockchain().getHeight(), 1,
+                ChildChain.IGNIS, HoldingType.ASSET.getCode(), dividendAssetId);
 
-        Assert.assertEquals("Non-phased transaction when phasing asset control is enabled", payment.str("errorDescription"));
+        Assert.assertEquals("Non-phased transaction when phasing asset control is enabled", payment.getErrorDescription());
 
         propBuilder = TestPropertyVoting.createSetPropertyBuilder(CHUCK, ALICE, propertyName, propertyValue);
         propBuilder.build().invoke();
@@ -260,6 +263,7 @@ public class AssetControlTest extends BlockchainTest {
                 new JSONAssert(builder.build().invoke()).str("errorDescription"));
     }
 
+    @Category(RequireNonePermissionPolicyTestsCategory.class)
     @Test
     public void testShufflingOfControlledAsset() {
         String propertyName = "propac2";

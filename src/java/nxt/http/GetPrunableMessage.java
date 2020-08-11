@@ -1,6 +1,6 @@
 /*
  * Copyright © 2013-2016 The Nxt Core Developers.
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -38,9 +38,9 @@ public final class GetPrunableMessage extends APIServlet.APIRequestHandler {
     @Override
     protected JSONStreamAware processRequest(HttpServletRequest req) throws NxtException {
         byte[] transactionFullHash = ParameterParser.getBytes(req, "transactionFullHash", true);
-        String secretPhrase = ParameterParser.getSecretPhrase(req, false);
+        byte[] privateKey = ParameterParser.getPrivateKey(req, false);
         byte[] sharedKey = ParameterParser.getBytes(req, "sharedKey", false);
-        if (sharedKey.length != 0 && secretPhrase != null) {
+        if (sharedKey.length != 0 && privateKey != null) {
             return JSONResponses.either("secretPhrase", "sharedKey");
         }
         boolean retrieve = "true".equalsIgnoreCase(req.getParameter("retrieve"));
@@ -54,7 +54,7 @@ public final class GetPrunableMessage extends APIServlet.APIRequestHandler {
             prunableMessage = prunableMessageHome.getPrunableMessage(transactionFullHash);
         }
         if (prunableMessage != null) {
-            return JSONData.prunableMessage(prunableMessage, secretPhrase, sharedKey);
+            return JSONData.prunableMessage(prunableMessage, privateKey, sharedKey);
         }
         return JSON.emptyJSON;
     }

@@ -8,6 +8,10 @@ public class GetDGSExpiredPurchasesCall extends APICall.Builder<GetDGSExpiredPur
         super(ApiSpec.getDGSExpiredPurchases);
     }
 
+    public static GetDGSExpiredPurchasesCall create() {
+        return new GetDGSExpiredPurchasesCall();
+    }
+
     public static GetDGSExpiredPurchasesCall create(int chain) {
         return new GetDGSExpiredPurchasesCall().param("chain", chain);
     }

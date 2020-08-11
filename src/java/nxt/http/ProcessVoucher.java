@@ -1,6 +1,6 @@
 /*
  * Copyright © 2013-2016 The Nxt Core Developers.
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -43,15 +43,15 @@ public final class ProcessVoucher extends APIServlet.APIRequestHandler {
         JSONObject response = new JSONObject();
         response.put("status", "valid");
         response.put("voucher", voucherJson);
-        String secretPhrase = ParameterParser.getSecretPhrase(req, false);
-        if (secretPhrase == null) {
+        byte[] privateKey = ParameterParser.getPrivateKey(req, false);
+        if (privateKey == null) {
             return response;
         }
         boolean validate = !"false".equalsIgnoreCase(req.getParameter("validate"));
         JSONObject transactionJSON = (JSONObject)voucherJson.get("transactionJSON");
         transactionJSON.put("timestamp", Nxt.getEpochTime()); // renew the voucher transaction since it might have been generated long time ago
         Transaction.Builder builder = ParameterParser.parseTransaction(transactionJSON.toJSONString(), null, null);
-        Transaction transaction = builder.build(secretPhrase);
+        Transaction transaction = builder.build(privateKey);
         if (validate) {
             transaction.validate();
             response.put("verify", transaction.verifySignature());

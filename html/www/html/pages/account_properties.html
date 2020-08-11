@@ -1,6 +1,6 @@
 <!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   ~ Copyright © 2013-2016 The Nxt Core Developers.                            ~
-  ~ Copyright © 2016-2019 Jelurida IP B.V.                                    ~
+  ~ Copyright © 2016-2020 Jelurida IP B.V.                                    ~
   ~                                                                           ~
   ~ See the LICENSE.txt file at the top-level directory of this distribution  ~
   ~ for licensing information.                                                ~
@@ -16,9 +16,9 @@
 
 <div id="account_properties_page" class="paginated page">
     <section class="content-header">
-        <h1 data-i18n="account_properties">ACCOUNT PROPERTIES</h1>
-        <div style="position:absolute;top:9px;right:9px;">
-            <div class="btn-group" data-toggle="buttons" id="account_properties_page_type">
+        <h1 data-i18n="account_properties" class="col-xs-12 col-sm-6">ACCOUNT PROPERTIES</h1>
+        <div class="col-xs-12 col-sm-6">
+            <div class="btn-group text-right " data-toggle="buttons" id="account_properties_page_type" style="display: flex; justify-content: flex-end;">
                 <label class="btn btn-default active" data-type="incoming">
                     <input type="radio" name="account_properties_page_type"> <span data-i18n="incoming">INCOMING</span>
                 </label>
@@ -28,10 +28,11 @@
                 <button type="button" class="btn btn-default" data-toggle="modal" data-target="#set_account_property_modal" data-i18n="set">SET</button>
             </div>
         </div>
+        <div class="clearfix"></div>
     </section>
     <section class="content" id="account_properties_section">
         <script type="text/x-handlebars-template">
-            <div class="data-container {{when isLoading 'data-loading' isEmpty 'data-empty'}}">
+            <div class="data-container {{when isLoading 'data-loading' isEmpty 'data-empty'}} table-responsive">
                 <table class="table table-striped" id="account_properties_table">
                     <thead>
                     <tr>

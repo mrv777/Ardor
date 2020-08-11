@@ -8,6 +8,10 @@ public class GetAccountTaggedDataCall extends APICall.Builder<GetAccountTaggedDa
         super(ApiSpec.getAccountTaggedData);
     }
 
+    public static GetAccountTaggedDataCall create() {
+        return new GetAccountTaggedDataCall();
+    }
+
     public static GetAccountTaggedDataCall create(int chain) {
         return new GetAccountTaggedDataCall().param("chain", chain);
     }

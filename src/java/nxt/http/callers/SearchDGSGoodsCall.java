@@ -8,6 +8,10 @@ public class SearchDGSGoodsCall extends APICall.Builder<SearchDGSGoodsCall> {
         super(ApiSpec.searchDGSGoods);
     }
 
+    public static SearchDGSGoodsCall create() {
+        return new SearchDGSGoodsCall();
+    }
+
     public static SearchDGSGoodsCall create(int chain) {
         return new SearchDGSGoodsCall().param("chain", chain);
     }

@@ -1,6 +1,6 @@
 /*
  * Copyright © 2013-2016 The Nxt Core Developers.
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -80,12 +80,12 @@ public final class ReadMessage extends APIServlet.APIRequestHandler {
             response.put("message", Convert.toString(prunableMessage.getMessage(), prunableMessage.messageIsText()));
             response.put("messageIsPrunable", true);
         }
-        String secretPhrase = ParameterParser.getSecretPhrase(req, false);
+        byte[] privateKey = ParameterParser.getPrivateKey(req, false);
         byte[] sharedKey = ParameterParser.getBytes(req, "sharedKey", false);
-        if (sharedKey.length != 0 && secretPhrase != null) {
+        if (sharedKey.length != 0 && privateKey != null) {
             return JSONResponses.either("secretPhrase", "sharedKey");
         }
-        if (secretPhrase != null || sharedKey.length > 0) {
+        if (privateKey != null || sharedKey.length > 0) {
             EncryptedData encryptedData = null;
             boolean isText = false;
             boolean uncompress = true;
@@ -103,13 +103,13 @@ public final class ReadMessage extends APIServlet.APIRequestHandler {
             if (encryptedData != null) {
                 try {
                     byte[] decrypted = null;
-                    if (secretPhrase != null) {
-                        byte[] readerPublicKey = Crypto.getPublicKey(secretPhrase);
+                    if (privateKey != null) {
+                        byte[] readerPublicKey = Crypto.getPublicKey(privateKey);
                         byte[] senderPublicKey = Account.getPublicKey(transaction.getSenderId());
                         byte[] recipientPublicKey = Account.getPublicKey(transaction.getRecipientId());
                         byte[] publicKey = Arrays.equals(senderPublicKey, readerPublicKey) ? recipientPublicKey : senderPublicKey;
                         if (publicKey != null) {
-                            decrypted = Account.decryptFrom(publicKey, encryptedData, secretPhrase, uncompress);
+                            decrypted = Account.decryptFrom(privateKey, publicKey, encryptedData, uncompress);
                         }
                     } else {
                         decrypted = Crypto.aesDecrypt(encryptedData.getData(), sharedKey);
@@ -123,10 +123,10 @@ public final class ReadMessage extends APIServlet.APIRequestHandler {
                     JSONData.putException(response, e, "Wrong secretPhrase or sharedKey");
                 }
             }
-            if (encryptToSelfMessage != null && secretPhrase != null) {
-                byte[] publicKey = Crypto.getPublicKey(secretPhrase);
+            if (encryptToSelfMessage != null && privateKey != null) {
+                byte[] publicKey = Crypto.getPublicKey(privateKey);
                 try {
-                    byte[] decrypted = Account.decryptFrom(publicKey, encryptToSelfMessage.getEncryptedData(), secretPhrase, encryptToSelfMessage.isCompressed());
+                    byte[] decrypted = Account.decryptFrom(privateKey, publicKey, encryptToSelfMessage.getEncryptedData(), encryptToSelfMessage.isCompressed());
                     response.put("decryptedMessageToSelf", Convert.toString(decrypted, encryptToSelfMessage.isText()));
                 } catch (RuntimeException e) {
                     Logger.logDebugMessage("Decryption of message to self failed: " + e.toString());

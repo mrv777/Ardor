@@ -1,6 +1,6 @@
 /*
  * Copyright © 2013-2016 The Nxt Core Developers.
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -16,7 +16,9 @@
 
 package nxt.addons;
 
+import nxt.crypto.Crypto;
 import nxt.http.callers.StartBundlerCall;
+import nxt.util.Convert;
 import nxt.util.Logger;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
@@ -51,14 +53,18 @@ public final class StartBundling extends StartAuto {
     }
 
     private static JO startBundler(JO bundlerJSON) {
-        String secretPhrase = bundlerJSON.getString("secretPhrase");
-        if (secretPhrase == null) {
-            throw new RuntimeException("Bundler secretPhrase not defined");
+        String privateKey = bundlerJSON.getString("privateKey");
+        if (privateKey == null) {
+            String secretPhrase = bundlerJSON.getString("secretPhrase");
+            if (secretPhrase == null) {
+                throw new IllegalArgumentException("Missing Bundler privateKey and secretPhrase");
+            }
+            privateKey = Convert.toHexString(Crypto.getPrivateKey(secretPhrase));
         }
         return StartBundlerCall.create(bundlerJSON.getInt("chain"))
                 .bundlingRulesJSON(((JSONArray)bundlerJSON.get("bundlingRules")).toJSONString())
                 .totalFeesLimitFQT(bundlerJSON.getLong("totalFeesLimitFQT"))
-                .secretPhrase(secretPhrase)
+                .privateKey(privateKey)
                 .call();
     }
 }

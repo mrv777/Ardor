@@ -8,6 +8,10 @@ public class GetExpectedAssetTransfersCall extends APICall.Builder<GetExpectedAs
         super(ApiSpec.getExpectedAssetTransfers);
     }
 
+    public static GetExpectedAssetTransfersCall create() {
+        return new GetExpectedAssetTransfersCall();
+    }
+
     public static GetExpectedAssetTransfersCall create(int chain) {
         return new GetExpectedAssetTransfersCall().param("chain", chain);
     }

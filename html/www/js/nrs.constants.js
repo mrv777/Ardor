@@ -1,6 +1,6 @@
 /******************************************************************************
  * Copyright © 2013-2016 The Nxt Core Developers.                             *
- * Copyright © 2016-2019 Jelurida IP B.V.                                     *
+ * Copyright © 2016-2020 Jelurida IP B.V.                                     *
  *                                                                            *
  * See the LICENSE.txt file at the top-level directory of this distribution   *
  * for licensing information.                                                 *
@@ -77,14 +77,17 @@ var NRS = (function (NRS, $) {
         'TESTNET_ACCELERATION_BLOCK': 455000,
         'SIGNATURE_POSITION': 69, // bytes before signature from TransactionImpl newTransactionBuilder()
         'SIGNATURE_LENGTH': 64,
-        'SECRET_WORDS_HASH': "9e7c7a62a5c2bbc2b8d9a53c3b3ff2ef1c512939924704a2de584e27023c39b3",
+        'SECRET_WORDS_HASH': "f6523fcde10803c8847bbf34dae731335e5f6b6c52836bf7cb25716bf0dad535",
         'SECRET_WORDS': [],
-        'SECRET_WORDS_MAP': {}
+        'SECRET_WORDS_MAP': {},
+
+        'ACCOUNT_REGEX_STR' : "^([A-Z]+)-[A-Z0-9_]{4}-[A-Z0-9_]{4}-[A-Z0-9_]{4}-[A-Z0-9_]{5}"
     };
     
     var CHAIN_DISPLAY_TO_LOGIC_MAPPING = { "BITS": "BITSWIFT" };
     var CHAIN_LOGIC_TO_DISPLAY_MAPPING = { "BITSWIFT": "BITS" };
     var CHAIN_DESCRIPTION = [];
+    var PERMISSION_POLICY_CHILD_CHAIN = "CHILD_CHAIN";
 
     NRS.loadAlgorithmList = function (algorithmSelect, isPhasingHash) {
         var hashAlgorithms;
@@ -100,9 +103,9 @@ var NRS = (function (NRS, $) {
         }
     };
 
-    NRS.getRsAccountRegex = function(accountPrefix, withoutSeparator) {
+    NRS.getRsAccountRegex = function(withoutSeparator) {
         if (withoutSeparator) {
-            return new RegExp("^(" + (accountPrefix + "|NXT)") + "-[A-Z0-9]{17}", "i");
+            return new RegExp("^([A-Z]+)-[A-Z0-9]{17}", "i");
         }
         return new RegExp(NRS.constants.ACCOUNT_REGEX_STR, "i");
     };
@@ -110,6 +113,9 @@ var NRS = (function (NRS, $) {
     NRS.getNumericAccountRegex = function() {
         return new RegExp("^\\d+$");
     };
+
+    NRS.constants.ACCOUNT_RS_MATCH = NRS.getRsAccountRegex();
+    NRS.constants.ACCOUNT_NUMERIC_MATCH = NRS.getNumericAccountRegex();
 
     NRS.processConstants = function(response, resolve) {
         if (response.genesisBlockId) {
@@ -138,16 +144,9 @@ var NRS = (function (NRS, $) {
             NRS.constants.CURRENCY_TYPES = response.currencyTypes;
             NRS.constants.PROXY_NOT_FORWARDED_REQUESTS = response.proxyNotForwardedRequests;
             NRS.loadTransactionTypeConstants(response);
-            NRS.constants.ACCOUNT_PREFIX = response.accountPrefix;
-            NRS.constants.ACCOUNT_REGEX_STR = `^(${response.accountPrefix}|NXT)-[A-Z0-9_]{4}-[A-Z0-9_]{4}-[A-Z0-9_]{4}-(?!${response.accountPrefix}|NXT)[A-Z0-9_]{5}`;
-            NRS.constants.ACCOUNT_RS_MATCH = NRS.getRsAccountRegex(response.accountPrefix);
-            NRS.constants.ACCOUNT_NUMERIC_MATCH = NRS.getNumericAccountRegex();
-            NRS.constants.ACCOUNT_MASK_ASTERIX = response.accountPrefix + "-****-****-****-*****";
-            NRS.constants.ACCOUNT_MASK_UNDERSCORE = response.accountPrefix + "-____-____-____-_____";
-            NRS.constants.ACCOUNT_MASK_PREFIX = response.accountPrefix + "-";
-            NRS.constants.ACCOUNT_MASK_LEN = NRS.constants.ACCOUNT_MASK_PREFIX.length;
             NRS.constants.INITIAL_BASE_TARGET = parseInt(response.initialBaseTarget);
             NRS.constants.LEASING_DELAY = parseInt(response.leasingDelay);
+            NRS.constants.BIP32_PATH_PREFIX = response.bip32PathPrefix;
             getSecretWords(response.secretPhraseWords);
             console.log("done loading server constants");
             if (resolve) {
@@ -175,9 +174,9 @@ var NRS = (function (NRS, $) {
         function processConstants(response) {
             NRS.processConstants(response, resolve);
         }
-        if (NRS.isMobileApp() || isUnitTest) {
+        if (isUnitTest) {
             jQuery.ajaxSetup({ async: false });
-            if (NRS.mobileSettings && NRS.mobileSettings.is_testnet) {
+            if (NRS.deviceSettings && NRS.deviceSettings.is_testnet) {
                 $.getScript("js/data/constants.testnet.js");
             } else {
                 $.getScript("js/data/constants.mainnet.js");
@@ -261,7 +260,7 @@ var NRS = (function (NRS, $) {
             NRS.constants.PROXY_NOT_FORWARDED_REQUESTS.indexOf(requestType) < 0);
     };
 
-    NRS.isRequirePost = function(requestType) {
+    NRS.isPostRequiredByServer = function(requestType) {
         if (!NRS.constants.REQUEST_TYPES[requestType]) {
             // For requests invoked before the getConstants request returns
             // we implicitly assume that they can use GET
@@ -271,7 +270,7 @@ var NRS = (function (NRS, $) {
     };
 
     NRS.isRequestTypeEnabled = function(requestType) {
-        if ($.isEmptyObject(NRS.constants.REQUEST_TYPES)) {
+        if (NRS.isEmptyObject(NRS.constants.REQUEST_TYPES)) {
             return true;
         }
         if (requestType.indexOf("+") > 0) {
@@ -289,7 +288,8 @@ var NRS = (function (NRS, $) {
             requestType == "startBundler" ||
             requestType == "addBundlingRule" ||
             requestType == "startStandbyShuffler" ||
-            requestType == "signTransaction";
+            requestType == "signTransaction" ||
+            requestType == "splitSecret";
     };
 
     /**
@@ -304,6 +304,7 @@ var NRS = (function (NRS, $) {
 
     NRS.getFileUploadConfig = function (requestType, data) {
         var config = {};
+        config.doNotSubmit = false;
         if (requestType == "uploadTaggedData") {
             config.selector = "#upload_file";
             config.requestParam = "file";
@@ -318,8 +319,9 @@ var NRS = (function (NRS, $) {
             return config;
         } else if (requestType == "sendMessage") {
             config.selector = "#upload_file_message";
-            if (data.encrypt_message) {
+            if (data.encrypt_message === "1") {
                 config.requestParam = "encryptedMessageFile";
+                config.doNotSubmit = true; // message file is encrypted and submitted as data. Do not submit the file as is!
             } else {
                 config.requestParam = "messageFile";
             }
@@ -371,7 +373,7 @@ var NRS = (function (NRS, $) {
 
     NRS.getChainDescription = function(chainId) {
         if (CHAIN_DESCRIPTION.length == 0) {
-            CHAIN_DESCRIPTION = ["", $.t("parent_chain"), $.t("main_child_chain"), $.t("euro_pegged_chain"), $.t("bits_chain"), $.t("mpg_chain") ];
+            CHAIN_DESCRIPTION = ["", $.t("parent_chain"), $.t("main_child_chain"), $.t("euro_pegged_chain"), $.t("bits_chain"), $.t("mpg_chain"), $.t("gps_chain")];
         }
         return CHAIN_DESCRIPTION[chainId];
     };
@@ -387,22 +389,19 @@ var NRS = (function (NRS, $) {
     };
 
     NRS.setActiveChain = function(chain) {
-        NRS.mobileSettings.chain = chain;
-        NRS.setJSONItem("mobile_settings", NRS.mobileSettings);
+        NRS.deviceSettings.chain = chain;
+        NRS.setJSONItem("device_settings", NRS.deviceSettings);
         $(".coin-symbol").html(NRS.getActiveChainName());
         $(".parent-coin-symbol").html(NRS.getParentChainName());
         $(".coin-symbol-separator").html(" " + $.t("per") + " ");
-        $(".shuffling-node-running-warning").html($.t("shuffling_node_running_warning",
-            { deposit: NRS.formatQuantity(NRS.getActiveChain().SHUFFLING_DEPOSIT_NQT, NRS.getActiveChainDecimals()), coin: NRS.getActiveChainName() }
-        ));
     };
 
     NRS.getActiveChain = function() {
-        return NRS.constants.CHAIN_PROPERTIES[NRS.mobileSettings.chain];
+        return NRS.constants.CHAIN_PROPERTIES[NRS.deviceSettings.chain];
     };
 
     NRS.getActiveChainId = function() {
-        return NRS.mobileSettings.chain;
+        return NRS.deviceSettings.chain;
     };
 
     NRS.isParentChain = function() {
@@ -433,6 +432,14 @@ var NRS = (function (NRS, $) {
         return NRS.constants.CHAIN_PROPERTIES[NRS.getActiveChainId()].ONE_COIN;
     };
 
+    NRS.isActivePermissionPolicyChildChain = function() {
+        return NRS.getActiveChainPermissionPolicy() === PERMISSION_POLICY_CHILD_CHAIN;
+    };
+
+    NRS.getActiveChainPermissionPolicy = function() {
+        return NRS.constants.CHAIN_PROPERTIES[NRS.getActiveChainId()].permissionPolicy;
+    };
+
     NRS.getChain = function(chainId) {
         return NRS.constants.CHAIN_PROPERTIES[chainId];
     };
@@ -457,15 +464,16 @@ var NRS = (function (NRS, $) {
         return -1;
     };
 
-    // TODO should we add the chain description to login page as well? This would requires some re-design
-    NRS.createChainSelect = function() {
-        // Build chain select box for login page
-        var chains = $('select[name="chain"]');
-        chains.empty();
-        $.each(NRS.constants.CHAIN_PROPERTIES, function(id, chain) {
-            chains.append('<option value="' + id + '">' + NRS.getChainDisplayName(chain.name) + '</option>');
-        });
-        chains.val(NRS.getActiveChainId());
+    /**
+     * Insert signature into unsigned bytes to create signed bytes
+     * @param unsignedTransactionBytes unsigned bytes hex string
+     * @param signature signature hex string
+     * @returns signed bytes hex string
+     */
+    NRS.insertSignature = function(unsignedTransactionBytes, signature) {
+        let sigPos = 2 * NRS.constants.SIGNATURE_POSITION;
+        let sigLen = 2 * NRS.constants.SIGNATURE_LENGTH;
+        return unsignedTransactionBytes.substr(0, sigPos) + signature + unsignedTransactionBytes.substr(sigPos + sigLen);
     };
 
     return NRS;

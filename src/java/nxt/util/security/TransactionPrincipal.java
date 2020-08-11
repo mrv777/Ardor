@@ -1,5 +1,5 @@
 /*
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -15,16 +15,12 @@
 
 package nxt.util.security;
 
-import nxt.blockchain.Transaction;
-import nxt.util.Convert;
-
 import javax.security.auth.Subject;
 import java.security.Principal;
-import java.util.Objects;
 
 public class TransactionPrincipal implements Principal {
 
-    private String fullHash;
+    private final String fullHash;
 
     public TransactionPrincipal(String fullHash) {
         this.fullHash = fullHash;

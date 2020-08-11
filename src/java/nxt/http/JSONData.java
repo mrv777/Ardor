@@ -1,6 +1,6 @@
 /*
  * Copyright © 2013-2016 The Nxt Core Developers.
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -26,8 +26,17 @@ import nxt.account.BalanceHome;
 import nxt.account.FundingMonitor;
 import nxt.account.HoldingType;
 import nxt.account.Token;
-import nxt.addons.*;
+import nxt.addons.Contract;
+import nxt.addons.ContractAndSetupParameters;
+import nxt.addons.ContractInvocationParameter;
+import nxt.addons.ContractLoader;
 import nxt.addons.ContractRunner.INVOCATION_TYPE;
+import nxt.addons.JA;
+import nxt.addons.JO;
+import nxt.addons.StandbyShuffler;
+import nxt.addons.ValidateChain;
+import nxt.addons.ValidateTransactionType;
+import nxt.addons.ValidationAnnotation;
 import nxt.ae.Asset;
 import nxt.ae.AssetDeleteAttachment;
 import nxt.ae.AssetDividendHome;
@@ -49,13 +58,19 @@ import nxt.blockchain.FxtTransaction;
 import nxt.blockchain.Generator;
 import nxt.blockchain.Transaction;
 import nxt.blockchain.UnconfirmedTransaction;
+import nxt.blockchain.chaincontrol.ChildChainPermission;
 import nxt.ce.CoinExchange;
 import nxt.ce.OrderCancelAttachment;
 import nxt.ce.OrderIssueAttachment;
+import nxt.configuration.ConfigProperty;
+import nxt.configuration.PropertyType;
 import nxt.crypto.Crypto;
 import nxt.crypto.EncryptedData;
+import nxt.crypto.PublicKeyDerivationInfo;
+import nxt.crypto.SerializedMasterPublicKey;
 import nxt.db.DbIterator;
 import nxt.dgs.DigitalGoodsHome;
+import nxt.http.proxy.ConfirmationReport;
 import nxt.lightcontracts.ContractReference;
 import nxt.messaging.PrunableMessageHome;
 import nxt.ms.Currency;
@@ -77,6 +92,7 @@ import nxt.shuffling.ShufflingParticipantHome;
 import nxt.taggeddata.TaggedDataHome;
 import nxt.util.Convert;
 import nxt.util.Filter;
+import nxt.util.JSON;
 import nxt.util.Logger;
 import nxt.voting.PhasingPollHome;
 import nxt.voting.PhasingVoteHome;
@@ -91,6 +107,7 @@ import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
 import java.math.BigDecimal;
 import java.math.MathContext;
+import java.net.URI;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -99,6 +116,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+@SuppressWarnings("unchecked")
 public final class JSONData {
 
     static JSONObject alias(AliasHome.Alias alias) {
@@ -1187,7 +1205,7 @@ public final class JSONData {
         return json;
     }
 
-    static JSONObject prunableMessage(PrunableMessageHome.PrunableMessage prunableMessage, String secretPhrase, byte[] sharedKey) {
+    static JSONObject prunableMessage(PrunableMessageHome.PrunableMessage prunableMessage, byte[] privateKey, byte[] sharedKey) {
         JSONObject json = new JSONObject();
         json.put("transactionFullHash", Convert.toHexString(prunableMessage.getFullHash()));
         if (prunableMessage.getMessage() == null || prunableMessage.getEncryptedData() == null) {
@@ -1205,10 +1223,10 @@ public final class JSONData {
             json.put("encryptedMessageIsText", prunableMessage.encryptedMessageIsText());
             byte[] decrypted = null;
             try {
-                if (secretPhrase != null) {
-                    decrypted = prunableMessage.decrypt(secretPhrase);
+                if (privateKey != null) {
+                    decrypted = prunableMessage.decryptUsingPrivateKey(privateKey);
                 } else if (sharedKey != null && sharedKey.length > 0) {
-                    decrypted = prunableMessage.decrypt(sharedKey);
+                    decrypted = prunableMessage.decryptUsingSharedKey(sharedKey);
                 }
                 if (decrypted != null) {
                     json.put("decryptedMessage", Convert.toString(decrypted, prunableMessage.encryptedMessageIsText()));
@@ -1257,8 +1275,12 @@ public final class JSONData {
     static JSONObject apiRequestHandler(APIServlet.APIRequestHandler handler) {
         JSONObject json = new JSONObject();
         json.put("allowRequiredBlockParameters", handler.allowRequiredBlockParameters());
-        if (handler.getFileParameter() != null) {
-            json.put("fileParameter", handler.getFileParameter());
+        if (!handler.getFileParameters().isEmpty()) {
+            //TODO preserved for backward compatibility. Remove in future versions
+            json.put("fileParameter", handler.getFileParameters().get(0));
+            JSONArray fileParametersArray = new JSONArray();
+            fileParametersArray.addAll(handler.getFileParameters());
+            json.put("fileParameters", fileParametersArray);
         }
         json.put("requireBlockchain", handler.requireBlockchain());
         json.put("requirePost", handler.requirePost());
@@ -1273,6 +1295,7 @@ public final class JSONData {
         json.put("chain", bundler.getChildChain().getId());
         json.put("totalFeesLimitFQT", String.valueOf(bundler.getTotalFeesLimitFQT()));
         json.put("currentTotalFeesFQT", String.valueOf(bundler.getCurrentTotalFeesFQT()));
+        json.put("confirmedTotalFeesFQT", String.valueOf(bundler.getConfirmedTotalFeesFQT()));
         List<Bundler.Rule> bundlingRules = bundler.getBundlingRules();
         if (bundlingRules.size() == 1) {
             //return for backward compatibility
@@ -1313,6 +1336,15 @@ public final class JSONData {
         if (filter.getParameter() != null) {
             json.put("parameter", filter.getParameter());
         }
+        return json;
+    }
+
+    public static JSONObject permission(ChildChainPermission permission) {
+        JSONObject json = new JSONObject();
+        json.put("permission", permission.getPermissionType().name());
+        putAccount(json, "account", permission.getAccountId());
+        putAccount(json, "granter", permission.getGranterId());
+        json.put("height", permission.getHeight());
         return json;
     }
 
@@ -1531,6 +1563,15 @@ public final class JSONData {
         json.put("maxAmount", String.valueOf(standbyShuffler.getMaxAmount()));
         json.put("minParticipants", standbyShuffler.getMinParticipants());
         json.put("feeRateNQTPerFXT", standbyShuffler.getFeeRateNQTPerFXT());
+
+        PublicKeyDerivationInfo derivationInfo = standbyShuffler.getCurrentDerivationInfo();
+        if (derivationInfo != null) {
+            SerializedMasterPublicKey serializedMasterPublicKey = new SerializedMasterPublicKey(derivationInfo.getMasterPublicKey(), derivationInfo.getChainCode());
+            json.put("serializedMasterPublicKey", Convert.toHexString(serializedMasterPublicKey.getSerializedMasterPublicKey()));
+            json.put("startFromChildIndex", standbyShuffler.getInitialDerivationInfo().getChildIndex());
+            json.put("currentDerivationInfoChildIndex", derivationInfo.getChildIndex());
+        }
+
         JSONArray publicKeys = new JSONArray();
         standbyShuffler.getRecipientPublicKeys().forEach(publicKey -> publicKeys.add(Convert.toHexString(publicKey)));
         json.put("recipientPublicKeys", publicKeys);
@@ -1538,6 +1579,42 @@ public final class JSONData {
             json.put("holdingInfo", holdingInfoJson(holdingType, standbyShuffler.getHoldingId()));
         }
         json.put("reservedPublicKeysCount", standbyShuffler.getReservedPublicKeysCount());
+        return json;
+    }
+
+    static JSONObject configProperty(ConfigProperty property) {
+        JSONObject json = new JSONObject();
+        json.put("name", property.getName());
+        json.put("group", property.getGroup());
+        json.put("description", property.getDescription());
+        json.put("defaultValue", property.getDefaultValue());
+        json.put("installerValue", property.getInstallerValue());
+        json.put("configuredValue", property.getConfiguredValue());
+        json.put("type", property.getType().name());
+        if (property.getType() == PropertyType.STRING || property.getType() == PropertyType.ACCOUNT) {
+            json.put("isList", property.isList());
+        }
+        if (property.getType() == PropertyType.INTEGER) {
+            json.put("min", property.getMin());
+            json.put("max", property.getMax());
+        }
+        return json;
+    }
+
+    static JSONObject confirmationReport(ConfirmationReport report) {
+        JSONObject json = new JSONObject();
+        json.put("requestType", report.getRequestType());
+        json.put("timestamp", report.getTimestamp());
+
+        JSONArray confirming = report.getConfirmingNodes().stream()
+                .map(URI::toString)
+                .collect(JSON.jsonArrayCollector());
+        json.put("confirming", confirming);
+
+        JSONArray rejecting = report.getRejectingNodes().stream()
+                .map(URI::toString)
+                .collect(JSON.jsonArrayCollector());
+        json.put("rejecting", rejecting);
         return json;
     }
 

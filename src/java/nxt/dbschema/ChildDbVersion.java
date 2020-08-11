@@ -1,6 +1,6 @@
 /*
  * Copyright © 2013-2016 The Nxt Core Developers.
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -16,6 +16,9 @@
 
 package nxt.dbschema;
 
+import nxt.blockchain.ChildChain;
+import nxt.blockchain.chaincontrol.PermissionType;
+import nxt.blockchain.chaincontrol.PermissionWriter;
 import nxt.db.BasicDb;
 import nxt.db.DbVersion;
 
@@ -481,6 +484,29 @@ public class ChildDbVersion extends DbVersion {
                 apply("DELETE FROM tagged_data WHERE id IN (SELECT id FROM tagged_data GROUP BY id HAVING count(*) > 1) "
                         + "AND db_id NOT IN (SELECT min(db_id) AS db_id FROM tagged_data GROUP BY id HAVING count(*) > 1)");
             case 157:
+                apply("CREATE TABLE IF NOT EXISTS account_permission (db_id IDENTITY," +
+                        "   account_id BIGINT NOT NULL, " +
+                        "   permission_id INT NOT NULL, " +
+                        "   granter_id BIGINT NOT NULL, " +
+                        "   height INT NOT NULL, " +
+                        "   latest BOOLEAN NOT NULL DEFAULT TRUE)");
+            case 158:
+                apply("CREATE UNIQUE INDEX IF NOT EXISTS account_permission_account_permission_height_idx ON account_permission (account_id, permission_id, height DESC)");
+            case 159:
+                apply("CREATE INDEX IF NOT EXISTS account_permission_height_account_idx ON account_permission (height, account_id)");
+            case 160:
+                apply("CREATE INDEX IF NOT EXISTS account_permission_granter_height_idx ON account_permission (granter_id, height DESC)");
+            case 161:
+                apply("CREATE INDEX IF NOT EXISTS account_permission_permission_height_idx ON account_permission (permission_id, height DESC)");
+            case 162:
+                apply(null);
+            case 163:
+                ChildChain childChain = ChildChain.getChildChain(schema);
+                PermissionWriter permissionWriter = childChain.getPermissionWriter(0);
+                Db.db.runInDbTransaction(() -> childChain.getMasterAdminAccounts()
+                        .forEach(accountId -> permissionWriter.addInitialPermission(accountId, PermissionType.MASTER_ADMIN)));
+                apply(null);
+            case 164:
                 return;
             default:
                 throw new RuntimeException("Child chain " + schema + " database inconsistent with code, at update " + nextUpdate

@@ -8,6 +8,10 @@ public class RetrievePrunedDataCall extends APICall.Builder<RetrievePrunedDataCa
         super(ApiSpec.retrievePrunedData);
     }
 
+    public static RetrievePrunedDataCall create() {
+        return new RetrievePrunedDataCall();
+    }
+
     public static RetrievePrunedDataCall create(int chain) {
         return new RetrievePrunedDataCall().param("chain", chain);
     }

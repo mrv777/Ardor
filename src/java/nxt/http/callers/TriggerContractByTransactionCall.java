@@ -8,6 +8,10 @@ public class TriggerContractByTransactionCall extends APICall.Builder<TriggerCon
         super(ApiSpec.triggerContractByTransaction);
     }
 
+    public static TriggerContractByTransactionCall create() {
+        return new TriggerContractByTransactionCall();
+    }
+
     public static TriggerContractByTransactionCall create(int chain) {
         return new TriggerContractByTransactionCall().param("chain", chain);
     }

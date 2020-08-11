@@ -1,6 +1,6 @@
 /*
  * Copyright © 2013-2016 The Nxt Core Developers.
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -22,13 +22,14 @@ import nxt.taggeddata.TaggedDataAttachment;
 import org.json.simple.JSONStreamAware;
 
 import javax.servlet.http.HttpServletRequest;
+import java.util.Collections;
 
 public final class UploadTaggedData extends CreateTransaction {
 
     static final UploadTaggedData instance = new UploadTaggedData();
 
     private UploadTaggedData() {
-        super("file", new APITag[] {APITag.DATA, APITag.CREATE_TRANSACTION},
+        super(Collections.singletonList("file"), new APITag[] {APITag.DATA, APITag.CREATE_TRANSACTION},
                 "name", "description", "tags", "type", "channel", "isText", "filename", "data");
     }
 

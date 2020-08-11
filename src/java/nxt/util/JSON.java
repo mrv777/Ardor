@@ -1,6 +1,6 @@
 /*
  * Copyright © 2013-2016 The Nxt Core Developers.
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -16,6 +16,7 @@
 
 package nxt.util;
 
+import org.json.simple.JSONArray;
 import org.json.simple.JSONAware;
 import org.json.simple.JSONObject;
 import org.json.simple.JSONStreamAware;
@@ -29,6 +30,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collector;
+import java.util.stream.Collectors;
 
 public final class JSON {
 
@@ -267,6 +270,11 @@ public final class JSON {
             sb.append(string);
         else if (start < string.length())
             sb.append(string.substring(start));
+    }
+
+    @SuppressWarnings("unchecked")
+    public static <T> Collector<T, ?, JSONArray> jsonArrayCollector() {
+        return Collectors.toCollection(JSONArray::new);
     }
 
 }

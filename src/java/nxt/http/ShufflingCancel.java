@@ -1,6 +1,6 @@
 /*
  * Copyright © 2013-2016 The Nxt Core Developers.
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -37,8 +37,8 @@ public final class ShufflingCancel extends CreateTransaction {
         ShufflingHome.Shuffling shuffling = ParameterParser.getShuffling(req);
         long cancellingAccountId = ParameterParser.getAccountId(req, "cancellingAccount", false);
         byte[] shufflingStateHash = ParameterParser.getBytes(req, "shufflingStateHash", true);
-        String secretPhrase = ParameterParser.getSecretPhrase(req, true);
-        ShufflingCancellationAttachment attachment = shuffling.revealKeySeeds(secretPhrase, cancellingAccountId, shufflingStateHash);
+        byte[] privateKey = ParameterParser.getPrivateKey(req, true);
+        ShufflingCancellationAttachment attachment = shuffling.revealKeySeeds(privateKey, cancellingAccountId, shufflingStateHash);
         Account account = ParameterParser.getSenderAccount(req);
         return createTransaction(req, account, attachment);
     }

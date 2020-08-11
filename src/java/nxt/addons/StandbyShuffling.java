@@ -1,6 +1,6 @@
 /*
  * Copyright © 2013-2016 The Nxt Core Developers.
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -23,6 +23,8 @@ import nxt.account.HoldingType;
 import nxt.ae.Asset;
 import nxt.blockchain.ChildChain;
 import nxt.crypto.Crypto;
+import nxt.crypto.PublicKeyDerivationInfo;
+import nxt.crypto.SerializedMasterPublicKey;
 import nxt.http.API;
 import nxt.http.APIServlet;
 import nxt.http.APITag;
@@ -44,7 +46,10 @@ import java.util.Map;
 
 import static nxt.http.JSONResponses.UNKNOWN_ACCOUNT;
 
+@SuppressWarnings({"unused","unchecked"})
 public final class StandbyShuffling implements AddOn {
+
+    public static final byte[] EMPTY32 = new byte[32];
 
     public static abstract class BaseAPIRequestHandler extends APIServlet.APIRequestHandler {
         BaseAPIRequestHandler(String... parameters) {
@@ -70,7 +75,7 @@ public final class StandbyShuffling implements AddOn {
     public static class StartStandbyShuffler extends BaseAPIRequestHandler {
         public StartStandbyShuffler() {
             super("secretPhrase", "holdingType", "holding", "minAmount", "maxAmount", "minParticipants",
-                    "feeRateNQTPerFXT", "recipientPublicKeys");
+                    "feeRateNQTPerFXT", "recipientPublicKeys", "serializedMasterPublicKey", "startFromChildIndex");
         }
 
         @Override
@@ -98,9 +103,9 @@ public final class StandbyShuffling implements AddOn {
                     }
             }
 
-            String secretPhrase = ParameterParser.getSecretPhrase(req, true);
+            byte[] privateKey = ParameterParser.getPrivateKey(req, true);
 
-            Account account = Account.getAccount(Crypto.getPublicKey(secretPhrase));
+            Account account = Account.getAccount(Crypto.getPublicKey(privateKey));
             if (account == null) {
                 return UNKNOWN_ACCOUNT;
             }
@@ -113,21 +118,30 @@ public final class StandbyShuffling implements AddOn {
             long feeRateNQTPerFXT = ParameterParser.getLong(req, "feeRateNQTPerFXT", 0,
                     Constants.MAX_BALANCE_NQT, true);
 
-            List<byte[]> recipientPublicKeys = ParameterParser.getPublicKeys(req, "recipientPublicKeys");
-            for(int i = recipientPublicKeys.size() - 1; i >= 0; i--) {
-                byte[] recipientPublicKey = recipientPublicKeys.get(i);
-                if (Account.getAccount(recipientPublicKey) != null) {
-                    recipientPublicKeys.remove(i);
-                    Logger.logWarningMessage("Ignored already used recipient account: " +
-                            Convert.toHexString(recipientPublicKey));
+            List<byte[]> recipientPublicKeys;
+            PublicKeyDerivationInfo derivationInfo = null;
+            SerializedMasterPublicKey serializedMasterPublicKey = ParameterParser.getSerializedMasterPublicKey(req, "serializedMasterPublicKey", false);
+            if (serializedMasterPublicKey != null) {
+                recipientPublicKeys = Collections.emptyList();
+                int startFromChildIndex = ParameterParser.getInt(req, "startFromChildIndex", 0, Integer.MAX_VALUE, 0);
+                derivationInfo = new PublicKeyDerivationInfo(serializedMasterPublicKey, startFromChildIndex);
+            } else {
+                recipientPublicKeys = ParameterParser.getPublicKeys(req, "recipientPublicKeys");
+                for(int i = recipientPublicKeys.size() - 1; i >= 0; i--) {
+                    byte[] recipientPublicKey = recipientPublicKeys.get(i);
+                    if (Account.getAccount(recipientPublicKey) != null) {
+                        recipientPublicKeys.remove(i);
+                        Logger.logWarningMessage("Ignored already used recipient account: " +
+                                Convert.toHexString(recipientPublicKey));
+                    }
+                }
+                if (recipientPublicKeys.isEmpty()) {
+                    return JSONResponses.INCORRECT_RECIPIENTS_PUBLIC_KEY;
                 }
             }
-            if (recipientPublicKeys.isEmpty()) {
-                return JSONResponses.INCORRECT_RECIPIENTS_PUBLIC_KEY;
-            }
 
-            StandbyShuffler standbyShuffler = StandbyShuffler.start(chain, secretPhrase, holdingType, holdingId, minAmount,
-                    maxAmount, minParticipants, feeRateNQTPerFXT, recipientPublicKeys);
+            StandbyShuffler standbyShuffler = StandbyShuffler.start(chain, privateKey, holdingType, holdingId, minAmount,
+                    maxAmount, minParticipants, feeRateNQTPerFXT, recipientPublicKeys, derivationInfo);
 
             JSONObject response = new JSONObject();
             response.put("started", standbyShuffler != null);
@@ -153,22 +167,22 @@ public final class StandbyShuffling implements AddOn {
         @SuppressWarnings("Duplicates")
         @Override
         protected JSONStreamAware processRequest(HttpServletRequest req) throws NxtException {
-            String secretPhrase = ParameterParser.getSecretPhrase(req, false);
+            byte[] privateKey = ParameterParser.getPrivateKey(req, false);
             long accountId = ParameterParser.getAccountId(req, false);
 
-            if (secretPhrase == null) {
+            if (privateKey == null) {
                 API.verifyPassword(req);
             }
 
             JSONObject response = new JSONObject();
-            if (secretPhrase != null || accountId != 0) {
-                if (secretPhrase != null) {
+            if (privateKey != null || accountId != 0) {
+                if (privateKey != null) {
                     if (accountId != 0) {
-                        if (Account.getId(Crypto.getPublicKey(secretPhrase)) != accountId) {
+                        if (Account.getId(Crypto.getPublicKey(privateKey)) != accountId) {
                             return JSONResponses.INCORRECT_ACCOUNT;
                         }
                     } else {
-                        accountId = Account.getId(Crypto.getPublicKey(secretPhrase));
+                        accountId = Account.getId(Crypto.getPublicKey(privateKey));
                     }
                 }
                 HoldingType holdingType = ParameterParser.getHoldingType(req);
@@ -192,23 +206,23 @@ public final class StandbyShuffling implements AddOn {
         @Override
         protected JSONStreamAware processRequest(HttpServletRequest req) throws NxtException {
             ChildChain chain = ParameterParser.getChildChain(req, false);
-            String secretPhrase = ParameterParser.getSecretPhrase(req, false);
+            byte[] privateKey = ParameterParser.getPrivateKey(req, false);
             long accountId = ParameterParser.getAccountId(req, false);
             boolean includeHoldingInfo = "true".equalsIgnoreCase(req.getParameter("includeHoldingInfo"));
 
-            if (secretPhrase == null) {
+            if (privateKey == null) {
                 API.verifyPassword(req);
             }
 
             List<StandbyShuffler> standbyShufflers;
-            if (secretPhrase != null || accountId != 0) {
-                if (secretPhrase != null) {
+            if (privateKey != null || accountId != 0) {
+                if (privateKey != null) {
                     if (accountId != 0) {
-                        if (Account.getId(Crypto.getPublicKey(secretPhrase)) != accountId) {
+                        if (Account.getId(Crypto.getPublicKey(privateKey)) != accountId) {
                             return JSONResponses.INCORRECT_ACCOUNT;
                         }
                     } else {
-                        accountId = Account.getId(Crypto.getPublicKey(secretPhrase));
+                        accountId = Account.getId(Crypto.getPublicKey(privateKey));
                     }
                 }
 

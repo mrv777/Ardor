@@ -1,6 +1,22 @@
+/*
+ * Copyright © 2016-2020 Jelurida IP B.V.
+ *
+ * See the LICENSE.txt file at the top-level directory of this distribution
+ * for licensing information.
+ *
+ * Unless otherwise agreed in a custom licensing agreement with Jelurida B.V.,
+ * no part of this software, including this file, may be copied, modified,
+ * propagated, or distributed except according to the terms contained in the
+ * LICENSE.txt file.
+ *
+ * Removal or modification of this copyright notice is prohibited.
+ *
+ */
+
 package nxt.http.bundling;
 
 import nxt.BlockchainTest;
+import nxt.RequireNonePermissionPolicyTestsCategory;
 import nxt.Tester;
 import nxt.addons.JO;
 import nxt.blockchain.ChildChain;
@@ -10,6 +26,7 @@ import nxt.shuffling.ShufflingStage;
 import nxt.util.JSONAssert;
 import org.junit.Assert;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
 import static nxt.http.shuffling.ShufflingUtil.ALICE_RECIPIENT;
 import static nxt.http.shuffling.ShufflingUtil.BOB_RECIPIENT;
@@ -17,6 +34,8 @@ import static nxt.http.shuffling.ShufflingUtil.CHUCK_RECIPIENT;
 import static nxt.http.shuffling.ShufflingUtil.DAVE_RECIPIENT;
 import static nxt.http.shuffling.ShufflingUtil.getShuffling;
 
+// since all tests use Shuffling.
+@Category(RequireNonePermissionPolicyTestsCategory.class)
 public class TransactionTypeBundlerTest extends BlockchainTest {
     @Test
     public void testSuccessfulShuffling() {

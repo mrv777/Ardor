@@ -1,6 +1,6 @@
 /*
  * Copyright © 2013-2016 The Nxt Core Developers.
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -19,7 +19,7 @@ package nxt.ae;
 import nxt.BlockchainTest;
 import nxt.Tester;
 import nxt.blockchain.ChildChain;
-import nxt.db.TransactionalDb;
+import nxt.dbschema.Db;
 import nxt.http.APICall;
 import nxt.http.assetexchange.AssetExchangeTest;
 import nxt.http.client.GetAccountCurrentOrderIdsBuilder;
@@ -139,7 +139,7 @@ public class AssetFreezeMonitorTest extends BlockchainTest {
     }
 
     public static void setAssetFreezeHeight(Asset asset, int height) {
-        TransactionalDb.runInDbTransaction(() -> AssetFreezeMonitor.enableFreeze(asset.getId(), 1, height));
+        Db.db.runInDbTransaction(() -> AssetFreezeMonitor.enableFreeze(asset.getId(), 1, height));
     }
 
     private void assertLiquid(Asset asset) {

@@ -1,6 +1,6 @@
 /*
  * Copyright © 2013-2016 The Nxt Core Developers.
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -16,6 +16,11 @@
 
 package nxt.http;
 
+import nxt.http.proxy.Attr;
+import nxt.http.proxy.PasswordDetectedException;
+import nxt.http.proxy.RequestContentTransformer;
+import nxt.http.proxy.ResponseConfirmation;
+import nxt.http.proxy.ResponseContentTransformer;
 import nxt.peer.Peer;
 import nxt.peer.Peers;
 import nxt.util.Convert;
@@ -25,6 +30,7 @@ import nxt.util.security.BlockchainPermission;
 import org.eclipse.jetty.client.HttpClient;
 import org.eclipse.jetty.client.api.Request;
 import org.eclipse.jetty.client.api.Response;
+import org.eclipse.jetty.http.HttpHeader;
 import org.eclipse.jetty.http.HttpStatus;
 import org.eclipse.jetty.proxy.AsyncMiddleManServlet;
 import org.eclipse.jetty.util.MultiMap;
@@ -35,22 +41,21 @@ import javax.servlet.ServletConfig;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.Writer;
 import java.net.URI;
-import java.nio.ByteBuffer;
 import java.util.List;
 
 import static nxt.http.JSONResponses.ERROR_NOT_ALLOWED;
 
 public final class APIProxyServlet extends AsyncMiddleManServlet {
-
-    private static final String REMOTE_URL = APIProxyServlet.class.getName() + ".remoteUrl";
-    private static final String REMOTE_SERVER_IDLE_TIMEOUT = APIProxyServlet.class.getName() + ".remoteServerIdleTimeout";
-    static final int PROXY_IDLE_TIMEOUT_DELTA = 5000;
-
+    public static final String[] PREPROCESSED_SENSITIVE_PARAMS;
+    static {
+        PREPROCESSED_SENSITIVE_PARAMS = APIServlet.getSensitiveParams().stream().map(s -> s + "=").toArray(String[]::new);
+    }
     static void initClass() {}
+
+    private HttpClient confirmationsClient;
 
     @Override
     public void init(ServletConfig config) throws ServletException {
@@ -60,6 +65,22 @@ public final class APIProxyServlet extends AsyncMiddleManServlet {
         }
         super.init(config);
         config.getServletContext().setAttribute("apiServlet", new APIServlet());
+        confirmationsClient = HttpClientFactory.newHttpClient();
+        try {
+            confirmationsClient.start();
+        } catch (Exception e) {
+            throw new ServletException("Failed to start confirmations HttpClient", e);
+        }
+    }
+
+    @Override
+    public void destroy() {
+        super.destroy();
+        try {
+            confirmationsClient.stop();
+        } catch (Exception e) {
+            Logger.logErrorMessage("Failed to stop confirmations client", e);
+        }
     }
 
     @Override
@@ -73,10 +94,8 @@ public final class APIProxyServlet extends AsyncMiddleManServlet {
             MultiMap<String> parameters = getRequestParameters(request);
             String requestType = getRequestType(parameters);
             if (APIProxy.isActivated() && isForwardable(requestType)) {
-                for (String sensitiveParam : API.SENSITIVE_PARAMS) {
-                    if (parameters.containsKey(sensitiveParam)) {
-                        throw new ParameterException(JSONResponses.PROXY_SECRET_DATA_DETECTED);
-                    }
+                if (APIServlet.isAnySensitiveParam(parameters.keySet())) {
+                    throw new ParameterException(JSONResponses.PROXY_SECRET_DATA_DETECTED);
                 }
                 if (!initRemoteRequest(request, requestType)) {
                     if (Peers.getPeers(peer -> peer.getState() == Peer.State.CONNECTED, 1).size() >= 1) {
@@ -127,16 +146,14 @@ public final class APIProxyServlet extends AsyncMiddleManServlet {
 
     @Override
     protected String rewriteTarget(HttpServletRequest clientRequest) {
-
-        Integer timeout = (Integer) clientRequest.getAttribute(REMOTE_SERVER_IDLE_TIMEOUT);
+        Integer timeout = (Integer) clientRequest.getAttribute(Attr.REMOTE_SERVER_IDLE_TIMEOUT);
         HttpClient httpClient = getHttpClient();
         if (timeout != null && httpClient != null) {
-            httpClient.setIdleTimeout(Math.max(timeout - PROXY_IDLE_TIMEOUT_DELTA, 0));
+            httpClient.setIdleTimeout(Math.max(timeout - APIProxy.PROXY_IDLE_TIMEOUT_DELTA, 0));
         }
 
-        String remoteUrl = (String) clientRequest.getAttribute(REMOTE_URL);
-        URI rewrittenURI = URI.create(remoteUrl).normalize();
-        return rewrittenURI.toString();
+        URI remoteUrl = (URI) clientRequest.getAttribute(Attr.REMOTE_URL);
+        return remoteUrl.toString();
     }
 
     @Override
@@ -145,7 +162,7 @@ public final class APIProxyServlet extends AsyncMiddleManServlet {
         if (failure instanceof PasswordDetectedException) {
             PasswordDetectedException passwordDetectedException = (PasswordDetectedException) failure;
             try (Writer writer = proxyResponse.getWriter()) {
-                JSON.writeJSONString(passwordDetectedException.errorResponse, writer);
+                JSON.writeJSONString(passwordDetectedException.getErrorResponse(), writer);
                 sendProxyResponseError(clientRequest, proxyResponse, HttpStatus.OK_200);
             } catch (IOException e) {
                 e.addSuppressed(failure);
@@ -184,14 +201,20 @@ public final class APIProxyServlet extends AsyncMiddleManServlet {
                 return false;
             }
             uri = servingPeer.getPeerApiUri();
-            clientRequest.setAttribute(REMOTE_SERVER_IDLE_TIMEOUT, servingPeer.getApiServerIdleTimeout());
+            clientRequest.setAttribute(Attr.REMOTE_SERVER_IDLE_TIMEOUT, servingPeer.getApiServerIdleTimeout());
         }
+
+        APIServlet.APIRequestHandler apiRequestHandler = APIServlet.apiRequestHandlers.get(requestType);
+        clientRequest.setAttribute(Attr.REQUEST_NEEDS_CONFIRMATION, !apiRequestHandler.requirePost()
+                && !APIProxy.NOT_CONFIRMED_REQUESTS.contains(requestType));
+        clientRequest.setAttribute(Attr.REQUEST_TYPE, requestType);
+
         uri.append("/nxt");
         String query = clientRequest.getQueryString();
         if (query != null) {
             uri.append("?").append(query);
         }
-        clientRequest.setAttribute(REMOTE_URL, uri.toString());
+        clientRequest.setAttribute(Attr.REMOTE_URL, URI.create(uri.toString()).normalize());
         return true;
     }
 
@@ -230,86 +253,41 @@ public final class APIProxyServlet extends AsyncMiddleManServlet {
     }
 
     @Override
-    protected ContentTransformer newClientRequestContentTransformer(HttpServletRequest clientRequest, Request proxyRequest) {
-        String contentType = clientRequest.getContentType();
-        if (contentType != null && contentType.contains("multipart")) {
-            return super.newClientRequestContentTransformer(clientRequest, proxyRequest);
+    protected void onProxyResponseSuccess(HttpServletRequest clientRequest, HttpServletResponse proxyResponse, Response serverResponse) {
+        super.onProxyResponseSuccess(clientRequest, proxyResponse, serverResponse);
+        if (Boolean.TRUE.equals(clientRequest.getAttribute(Attr.REQUEST_NEEDS_CONFIRMATION))) {
+            APIProxy.getInstance().startResponseConfirmation(new ResponseConfirmation(confirmationsClient, clientRequest));
+        }
+    }
+
+    @Override
+    protected AsyncMiddleManServlet.ContentTransformer newClientRequestContentTransformer(
+            HttpServletRequest clientRequest, Request proxyRequest) {
+        if (isContentTransformRequired(clientRequest)) {
+            return new RequestContentTransformer(clientRequest);
         } else {
-            if (APIProxy.isActivated() && isForwardable(clientRequest.getParameter("requestType"))) {
-                return new PasswordFilteringContentTransformer();
-            } else {
-                return super.newClientRequestContentTransformer(clientRequest, proxyRequest);
-            }
+            return super.newClientRequestContentTransformer(clientRequest, proxyRequest);
         }
     }
 
-    private static class PasswordDetectedException extends RuntimeException {
-        private final JSONStreamAware errorResponse;
-
-        private PasswordDetectedException(JSONStreamAware errorResponse) {
-            this.errorResponse = errorResponse;
+    @Override
+    protected AsyncMiddleManServlet.ContentTransformer newServerResponseContentTransformer(
+            HttpServletRequest clientRequest, HttpServletResponse proxyResponse, Response serverResponse) {
+        if (isContentTransformRequired(clientRequest)) {
+            List<String> contentEncodings = serverResponse.getHeaders().getCSV(HttpHeader.CONTENT_ENCODING.asString(), false);
+            ContentTransformer result = new ResponseContentTransformer(clientRequest);
+            if (contentEncodings != null && contentEncodings.stream().anyMatch("gzip"::equalsIgnoreCase)) {
+                result = new GZIPContentTransformer(getHttpClient(), result);
+            }
+            return result;
+        } else {
+            return super.newServerResponseContentTransformer(clientRequest, proxyResponse, serverResponse);
         }
     }
 
-    static class PasswordFinder {
-
-        static int process(ByteBuffer buffer, String[] secrets) {
-            try {
-                int[] pos = new int[secrets.length];
-                byte[][] tokens = new byte[secrets.length][];
-                for (int i = 0; i < tokens.length; i++) {
-                    tokens[i] = secrets[i].getBytes();
-                }
-                while (buffer.hasRemaining()) {
-                    byte current = buffer.get();
-                    for (int i = 0; i < tokens.length; i++) {
-                        if (current != tokens[i][pos[i]]) {
-                            pos[i] = 0;
-                            continue;
-                        }
-                        pos[i]++;
-                        if (pos[i] == tokens[i].length) {
-                            return buffer.position() - tokens[i].length;
-                        }
-                    }
-                }
-                return -1;
-            } finally {
-                buffer.rewind();
-            }
-        }
-    }
-
-    private static class PasswordFilteringContentTransformer implements AsyncMiddleManServlet.ContentTransformer {
-
-        private ByteArrayOutputStream os;
-
-        @Override
-        public void transform(ByteBuffer input, boolean finished, List<ByteBuffer> output) throws IOException {
-            if (finished) {
-                ByteBuffer allInput;
-                if (os == null) {
-                    allInput = input;
-                } else {
-                    byte[] b = new byte[input.remaining()];
-                    input.get(b);
-                    os.write(b);
-                    allInput = ByteBuffer.wrap(os.toByteArray());
-                }
-                int tokenPos = PasswordFinder.process(allInput, new String[] { "secretPhrase=", "adminPassword=", "sharedKey=", "sharedPiece=" });
-                if (tokenPos >= 0) {
-                    JSONStreamAware error = JSONResponses.PROXY_SECRET_DATA_DETECTED;
-                    throw new PasswordDetectedException(error);
-                }
-                output.add(allInput);
-            } else {
-                if (os == null) {
-                    os = new ByteArrayOutputStream();
-                }
-                byte[] b = new byte[input.remaining()];
-                input.get(b);
-                os.write(b);
-            }
-        }
+    private boolean isContentTransformRequired(HttpServletRequest clientRequest) {
+        String contentType = clientRequest.getContentType();
+        return (contentType == null || !contentType.contains("multipart"))
+                && APIProxy.isActivated() && isForwardable((String) clientRequest.getAttribute(Attr.REQUEST_TYPE));
     }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -18,14 +18,16 @@ package nxt.http.responses;
 import nxt.addons.JO;
 import org.json.simple.JSONObject;
 
+import java.math.BigDecimal;
+
 public interface CoinExchangeTradeResponse {
 
-    static CoinExchangeTradeResponse create(Object object) {
-        if (object instanceof JSONObject) {
-            return new CoinExchangeTradeResponseImpl((JSONObject) object);
-        } else {
-            return new CoinExchangeTradeResponseImpl((JO) object);
-        }
+    static CoinExchangeTradeResponse create(JO object) {
+        return new CoinExchangeTradeResponseImpl(object);
+    }
+
+    static CoinExchangeTradeResponse create(JSONObject object) {
+        return new CoinExchangeTradeResponseImpl(object);
     }
 
     byte[] getOrderFullHash();
@@ -44,7 +46,11 @@ public interface CoinExchangeTradeResponse {
 
     long getQuantityQNT();
 
+    BigDecimal getQuantity(byte qntDecimals);
+
     long getPriceNQTPerCoin();
+
+    BigDecimal getPricePerCoin(byte nqtDecimals);
 
     double getExchangeRate();
 

@@ -8,6 +8,10 @@ public class GetAccountExchangeRequestsCall extends APICall.Builder<GetAccountEx
         super(ApiSpec.getAccountExchangeRequests);
     }
 
+    public static GetAccountExchangeRequestsCall create() {
+        return new GetAccountExchangeRequestsCall();
+    }
+
     public static GetAccountExchangeRequestsCall create(int chain) {
         return new GetAccountExchangeRequestsCall().param("chain", chain);
     }

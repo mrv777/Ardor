@@ -10,20 +10,15 @@ grant codeBase "file://untrustedContractCode" {
     permission nxt.util.security.BlockchainPermission "getBundlerRates";
 };
 
-/*
 // Grant more permissions for contracts submitted by an account whose public key is specified by the signedBy token
 grant codeBase "file://untrustedContractCode" signedBy "112e0c5748b5ea610a44a09b1ad0d2bddc945a6ef5edc7551b80576249ba585b" {
-    permission nxt.util.security.BlockchainPermission "db";
-    permission nxt.util.security.BlockchainPermission "getBlockchain";
+    permission nxt.util.security.BlockchainPermission "threadPool";
 };
-*/
 
-/*
 // Grant more permissions for contracts with transaction full hash or tagged data hash or data hash specified as principal
 grant codeBase "file://untrustedContractCode" principal nxt.util.security.TransactionPrincipal "df15278b53c5c24ccb179302834608b50b94c3e91c97ffa0510357e35fec919b" {
     permission nxt.util.security.BlockchainPermission "db";
 };
-*/
 
 // For AddOns 3rd party runtime libraries, set to the same permissions as product code by default
 grant codeBase "file:addons/lib/-" {
@@ -35,7 +30,6 @@ grant codeBase "file:addons/lib/-" {
     permission java.security.SecurityPermission "getProperty.ssl.*";
     permission java.net.SocketPermission "*", "accept, connect, listen, resolve";
     permission java.lang.RuntimePermission "exitVM";
-    permission java.lang.RuntimePermission "modifyThread";
     permission java.lang.RuntimePermission "setContextClassLoader";
     permission java.lang.RuntimePermission "shutdownHooks";
     permission java.lang.RuntimePermission "accessDeclaredMembers";
@@ -50,9 +44,12 @@ grant codeBase "file:addons/lib/-" {
     permission java.lang.RuntimePermission "getenv.TIKA_CONFIG";
     permission java.net.NetPermission "getNetworkInformation";
     permission java.lang.RuntimePermission "createClassLoader";
+   	permission java.lang.RuntimePermission "closeClassLoader";
     permission java.lang.RuntimePermission "getProtectionDomain";
     permission java.lang.RuntimePermission "accessClassInPackage.sun.reflect";
     permission java.lang.RuntimePermission "reflectionFactoryAccess";
+	permission java.lang.RuntimePermission "accessClassInPackage.jdk.internal.reflect";
+	permission java.lang.RuntimePermission "accessClassInPackage.com.sun.org.apache.xerces.internal.util";
     permission java.lang.reflect.ReflectPermission "suppressAccessChecks";
     permission java.security.SecurityPermission "getPolicy";
     permission java.security.SecurityPermission "insertProvider";
@@ -66,6 +63,44 @@ grant codeBase "file:addons/lib/-" {
 
 // For Ardor code during development
 grant codeBase "file:classes/-" {
+    permission java.util.PropertyPermission "*", "read, write";
+    permission java.lang.management.ManagementPermission "monitor";
+    permission java.io.FilePermission "<<ALL FILES>>", "read, write, delete, execute";
+    permission java.util.logging.LoggingPermission "control";
+    permission java.lang.RuntimePermission "modifyThread";
+    permission java.security.SecurityPermission "getProperty.ssl.*";
+    permission java.net.SocketPermission "*", "accept, connect, listen, resolve";
+    permission java.lang.RuntimePermission "exitVM";
+    permission java.lang.RuntimePermission "setContextClassLoader";
+    permission java.lang.RuntimePermission "shutdownHooks";
+    permission java.lang.RuntimePermission "accessDeclaredMembers";
+    permission java.lang.RuntimePermission "setFactory";
+    permission javax.net.ssl.SSLPermission "setHostnameVerifier";
+    permission java.net.NetPermission "getCookieHandler";
+    permission java.awt.AWTPermission "*";
+    permission java.net.URLPermission "http:*", "*:*";
+    permission java.net.URLPermission "https:*", "*:*";
+    permission java.lang.RuntimePermission "getFileStoreAttributes";
+    permission java.lang.RuntimePermission "accessClassInPackage.sun.misc";
+    permission java.lang.RuntimePermission "getenv.TIKA_CONFIG";
+    permission java.net.NetPermission "getNetworkInformation";
+    permission java.lang.RuntimePermission "createClassLoader";
+    permission java.lang.RuntimePermission "closeClassLoader";
+    permission java.lang.RuntimePermission "getProtectionDomain";
+    permission java.lang.RuntimePermission "accessClassInPackage.sun.reflect";
+    permission java.lang.RuntimePermission "reflectionFactoryAccess";
+	permission java.lang.RuntimePermission "accessClassInPackage.jdk.internal.reflect";
+	permission java.lang.RuntimePermission "accessClassInPackage.com.sun.org.apache.xerces.internal.util";
+    permission java.lang.reflect.ReflectPermission "suppressAccessChecks";
+    permission java.security.SecurityPermission "getPolicy";
+    permission java.security.SecurityPermission "insertProvider";
+    permission java.security.SecurityPermission "putProviderProperty.Jelurida";
+    permission nxt.util.security.BlockchainPermission "*";
+	permission nxt.addons.ContractRunnerPermission "*";
+};
+
+// For Ardor code during development (Intellij)
+grant codeBase "file:out/production/-" {
     permission java.util.PropertyPermission "*", "read, write";
     permission java.lang.management.ManagementPermission "monitor";
     permission java.io.FilePermission "<<ALL FILES>>", "read, write, delete, execute";
@@ -110,7 +145,6 @@ grant codeBase "file:lib/*" {
     permission java.security.SecurityPermission "getProperty.ssl.*";
     permission java.net.SocketPermission "*", "accept, connect, listen, resolve";
     permission java.lang.RuntimePermission "exitVM";
-    permission java.lang.RuntimePermission "modifyThread";
     permission java.lang.RuntimePermission "setContextClassLoader";
     permission java.lang.RuntimePermission "shutdownHooks";
     permission java.lang.RuntimePermission "accessDeclaredMembers";
@@ -125,9 +159,12 @@ grant codeBase "file:lib/*" {
     permission java.lang.RuntimePermission "getenv.TIKA_CONFIG";
     permission java.net.NetPermission "getNetworkInformation";
     permission java.lang.RuntimePermission "createClassLoader";
+    permission java.lang.RuntimePermission "closeClassLoader";
     permission java.lang.RuntimePermission "getProtectionDomain";
     permission java.lang.RuntimePermission "accessClassInPackage.sun.reflect";
     permission java.lang.RuntimePermission "reflectionFactoryAccess";
+	permission java.lang.RuntimePermission "accessClassInPackage.jdk.internal.reflect";
+	permission java.lang.RuntimePermission "accessClassInPackage.com.sun.org.apache.xerces.internal.util";
     permission java.lang.reflect.ReflectPermission "suppressAccessChecks";
     permission java.security.SecurityPermission "getPolicy";
     permission java.security.SecurityPermission "insertProvider";
@@ -146,7 +183,6 @@ grant codeBase "file:ardor.jar" {
     permission java.security.SecurityPermission "getProperty.ssl.*";
     permission java.net.SocketPermission "*", "accept, connect, listen, resolve";
     permission java.lang.RuntimePermission "exitVM";
-    permission java.lang.RuntimePermission "modifyThread";
     permission java.lang.RuntimePermission "setContextClassLoader";
     permission java.lang.RuntimePermission "shutdownHooks";
     permission java.lang.RuntimePermission "accessDeclaredMembers";
@@ -161,9 +197,12 @@ grant codeBase "file:ardor.jar" {
     permission java.lang.RuntimePermission "getenv.TIKA_CONFIG";
     permission java.net.NetPermission "getNetworkInformation";
     permission java.lang.RuntimePermission "createClassLoader";
+    permission java.lang.RuntimePermission "closeClassLoader";
     permission java.lang.RuntimePermission "getProtectionDomain";
     permission java.lang.RuntimePermission "accessClassInPackage.sun.reflect";
     permission java.lang.RuntimePermission "reflectionFactoryAccess";
+	permission java.lang.RuntimePermission "accessClassInPackage.jdk.internal.reflect";
+	permission java.lang.RuntimePermission "accessClassInPackage.com.sun.org.apache.xerces.internal.util";
     permission java.lang.reflect.ReflectPermission "suppressAccessChecks";
     permission java.security.SecurityPermission "getPolicy";
     permission java.security.SecurityPermission "insertProvider";
@@ -182,7 +221,6 @@ grant codeBase "file:ardorservice.jar" {
     permission java.security.SecurityPermission "getProperty.ssl.*";
     permission java.net.SocketPermission "*", "accept, connect, listen, resolve";
     permission java.lang.RuntimePermission "exitVM";
-    permission java.lang.RuntimePermission "modifyThread";
     permission java.lang.RuntimePermission "setContextClassLoader";
     permission java.lang.RuntimePermission "shutdownHooks";
     permission java.lang.RuntimePermission "accessDeclaredMembers";
@@ -197,15 +235,28 @@ grant codeBase "file:ardorservice.jar" {
     permission java.lang.RuntimePermission "getenv.TIKA_CONFIG";
     permission java.net.NetPermission "getNetworkInformation";
     permission java.lang.RuntimePermission "createClassLoader";
+    permission java.lang.RuntimePermission "closeClassLoader";
     permission java.lang.RuntimePermission "getProtectionDomain";
     permission java.lang.RuntimePermission "accessClassInPackage.sun.reflect";
     permission java.lang.RuntimePermission "reflectionFactoryAccess";
+	permission java.lang.RuntimePermission "accessClassInPackage.jdk.internal.reflect";
+	permission java.lang.RuntimePermission "accessClassInPackage.com.sun.org.apache.xerces.internal.util";
     permission java.lang.reflect.ReflectPermission "suppressAccessChecks";
     permission java.security.SecurityPermission "getPolicy";
     permission java.security.SecurityPermission "insertProvider";
     permission java.security.SecurityPermission "putProviderProperty.Jelurida";
     permission nxt.util.security.BlockchainPermission "*";
 	permission nxt.addons.ContractRunnerPermission "*";
+};
+
+// Test class during development (Intellij)
+grant codeBase "file:out/test/-" {
+    permission java.security.AllPermission;
+};
+
+// Contract test class during development (Intellij)
+grant codeBase "file:addons/out/test/-" {
+    permission java.security.AllPermission;
 };
 
 // Test class during development
@@ -223,7 +274,21 @@ grant codeBase "file:ardor-tests.jar" {
     permission java.security.AllPermission;
 };
 
+// For product 3rd party test libraries
+grant codeBase "file:testlib/*" {
+    permission java.security.AllPermission;
+};
+
+grant codeBase "file:${java.home}/../lib/tools.jar" {
+	permission java.util.PropertyPermission "*", "read";
+	permission java.io.FilePermission "<<ALL FILES>>", "read, write";
+	permission java.lang.reflect.ReflectPermission "suppressAccessChecks";
+	permission java.lang.RuntimePermission "createClassLoader";
+	permission java.lang.RuntimePermission "closeClassLoader";
+};
+
 // Workaround for IntelliJ test runner property
 grant {
     permission java.util.PropertyPermission "idea.test.cyclic.buffer.size", "read";
+	permission java.util.PropertyPermission "idea.junit.message.length.threshold", "read";
 };

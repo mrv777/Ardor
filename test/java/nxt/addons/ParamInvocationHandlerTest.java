@@ -1,6 +1,6 @@
 /*
  * Copyright © 2013-2016 The Nxt Core Developers.
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -63,8 +63,15 @@ public class ParamInvocationHandlerTest {
         setup.put("stringValue", "setup");
         JO runner = new JO();
         runner.put("stringValue", "runner");
-        MultiAnnotatedParams tested = ParamInvocationHandler.getParams(MultiAnnotatedParams.class, runner, setup, invocation);
-        assertEquals("invocation", tested.stringValue());
+
+        final String actualInvocation = ParamInvocationHandler.getParams(MultiAnnotatedParams.class, runner, setup, invocation).stringValue();
+        assertEquals("invocation", actualInvocation);
+
+        final String actualSetup = ParamInvocationHandler.getParams(MultiAnnotatedParams.class, runner, setup, new JO()).stringValue();
+        assertEquals("setup", actualSetup);
+
+        final String actualRunner = ParamInvocationHandler.getParams(MultiAnnotatedParams.class, runner, new JO(), new JO()).stringValue();
+        assertEquals("runner", actualRunner);
     }
 
     @Test
@@ -96,7 +103,27 @@ public class ParamInvocationHandlerTest {
         assertNull(tested.objectValue());
     }
 
-    public interface DefaultParams {
+    @Test
+    public void testJsonParams() {
+        JO params = new JO();
+        JO jsonObject = new JO();
+        jsonObject.put("foo", "bar");
+        jsonObject.put("foofoo", "barbar");
+        params.put("myJsonObject", jsonObject);
+        JA jsonArray = new JA();
+        JO arrayElement1 = new JO();
+        arrayElement1.put("key1", "val1");
+        jsonArray.add(arrayElement1);
+        JO arrayElement2 = new JO();
+        arrayElement2.put("key2", "val2");
+        jsonArray.add(arrayElement2);
+        params.put("myJsonArray", jsonArray);
+        JsonParams tested = ParamInvocationHandler.getParams(JsonParams.class, params, new JO(), new JO());
+        assertEquals("{foo=bar, foofoo=barbar}", tested.myJsonObject().toString());
+        assertEquals("[{key1=val1}, {key2=val2}]", tested.myJsonArray().toString());
+    }
+
+    private interface DefaultParams {
         @ContractRunnerParameter
         int intValue();
 
@@ -160,5 +187,13 @@ public class ParamInvocationHandlerTest {
 
         @ContractInvocationParameter
         String stringValue();
+    }
+
+    private interface JsonParams {
+        @ContractRunnerParameter
+        JO myJsonObject();
+
+        @ContractRunnerParameter
+        JA myJsonArray();
     }
 }

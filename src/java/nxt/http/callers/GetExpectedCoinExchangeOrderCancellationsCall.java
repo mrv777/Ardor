@@ -8,6 +8,10 @@ public class GetExpectedCoinExchangeOrderCancellationsCall extends APICall.Build
         super(ApiSpec.getExpectedCoinExchangeOrderCancellations);
     }
 
+    public static GetExpectedCoinExchangeOrderCancellationsCall create() {
+        return new GetExpectedCoinExchangeOrderCancellationsCall();
+    }
+
     public static GetExpectedCoinExchangeOrderCancellationsCall create(int chain) {
         return new GetExpectedCoinExchangeOrderCancellationsCall().param("chain", chain);
     }

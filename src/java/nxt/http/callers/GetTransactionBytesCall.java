@@ -8,6 +8,10 @@ public class GetTransactionBytesCall extends APICall.Builder<GetTransactionBytes
         super(ApiSpec.getTransactionBytes);
     }
 
+    public static GetTransactionBytesCall create() {
+        return new GetTransactionBytesCall();
+    }
+
     public static GetTransactionBytesCall create(int chain) {
         return new GetTransactionBytesCall().param("chain", chain);
     }

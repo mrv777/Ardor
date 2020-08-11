@@ -8,6 +8,10 @@ public class GetCoinExchangeOrderIdsCall extends APICall.Builder<GetCoinExchange
         super(ApiSpec.getCoinExchangeOrderIds);
     }
 
+    public static GetCoinExchangeOrderIdsCall create() {
+        return new GetCoinExchangeOrderIdsCall();
+    }
+
     public static GetCoinExchangeOrderIdsCall create(int chain) {
         return new GetCoinExchangeOrderIdsCall().param("chain", chain);
     }

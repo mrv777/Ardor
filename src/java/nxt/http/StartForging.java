@@ -1,6 +1,6 @@
 /*
  * Copyright © 2013-2016 The Nxt Core Developers.
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -34,8 +34,8 @@ public final class StartForging extends APIServlet.APIRequestHandler {
     @Override
     protected JSONStreamAware processRequest(HttpServletRequest req) throws ParameterException {
 
-        String secretPhrase = ParameterParser.getSecretPhrase(req, true);
-        Generator generator = Generator.startForging(secretPhrase);
+        byte[] privateKey = ParameterParser.getPrivateKey(req, true);
+        Generator generator = Generator.startForging(privateKey);
 
         JSONObject response = new JSONObject();
         response.put("deadline", generator.getDeadline());

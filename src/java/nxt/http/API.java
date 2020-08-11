@@ -1,6 +1,6 @@
 /*
  * Copyright © 2013-2016 The Nxt Core Developers.
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -20,6 +20,7 @@ import nxt.Constants;
 import nxt.Nxt;
 import nxt.util.Convert;
 import nxt.util.Logger;
+import nxt.util.SslKeyStoreGenerator;
 import nxt.util.ThreadPool;
 import nxt.util.UPnP;
 import nxt.util.security.BlockchainPermission;
@@ -62,6 +63,8 @@ import java.net.InetAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.UnknownHostException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -86,7 +89,6 @@ public final class API {
     public static final int TESTNET_API_SSLPORT = 26877;
     public static final int MIN_COMPRESS_SIZE = 256;
     private static final String[] DISABLED_HTTP_METHODS = {"TRACE", "HEAD"};
-    static final Set<String> SENSITIVE_PARAMS = Collections.unmodifiableSet(new HashSet<>(Arrays.asList("secretPhrase", "adminPassword", "sharedKey", "sharedPiece", "encryptionPassword")));
 
     private static boolean isInitialized = false;
 
@@ -110,6 +112,8 @@ public final class API {
 
     private static final Server apiServer;
     private static final BlockchainPermission API_PERMISSION = new BlockchainPermission("api");
+    private static final BlockchainPermission ADMIN_PASSWORD_PERMISSION = new BlockchainPermission("adminPassword");
+    private static final BlockchainPermission LIFE_CYCLE_PERMISSION = new BlockchainPermission("lifecycle");
     private static URI welcomePageUri;
     private static URI serverRootUri;
     private static URI paperWalletUri;
@@ -117,7 +121,7 @@ public final class API {
 
     static {
         List<String> allowedBotHostsList = Nxt.getStringListProperty("nxt.allowedBotHosts");
-        if (! allowedBotHostsList.contains("*")) {
+        if (!allowedBotHostsList.contains("*")) {
             Set<String> hosts = new HashSet<>();
             List<NetworkAddress> nets = new ArrayList<>();
             for (String host : allowedBotHostsList) {
@@ -177,15 +181,35 @@ public final class API {
                 https_config.setSecurePort(sslPort);
                 https_config.addCustomizer(new SecureRequestCustomizer());
                 sslContextFactory = new SslContextFactory.Server();
-                String keyStorePath = Paths.get(Nxt.getUserHomeDir()).resolve(Paths.get(Nxt.getStringProperty("nxt.keyStorePath"))).toString();
-                Logger.logInfoMessage("Using keystore: " + keyStorePath);
-                sslContextFactory.setKeyStorePath(keyStorePath);
-                sslContextFactory.setKeyStorePassword(Nxt.getStringProperty("nxt.keyStorePassword", null, true));
+                Path keyStorePath = Paths.get(Nxt.getUserHomeDir()).resolve(Paths.get(Nxt.getStringProperty("nxt.keyStorePath")));
+                String keyStorePassword = Nxt.getStringProperty("nxt.keyStorePassword", null, true);
+                String keyStoreType = Nxt.getStringProperty("nxt.keyStoreType");
+                String keyStorePathStr = keyStorePath.toString();
+                if (Files.notExists(keyStorePath)) {
+                    Logger.logInfoMessage("Auto generating local keystore " + keyStorePathStr);
+                    try {
+                        List<String> domainNames = Nxt.getStringListProperty("nxt.generatedKeyStoreDomains");
+                        SslKeyStoreGenerator.Builder builder = new SslKeyStoreGenerator.Builder()
+                                .setKeyStorePath(keyStorePath)
+                                .setPassword(keyStorePassword)
+                                .setKeyStoreType(keyStoreType);
+                        if (!domainNames.isEmpty()) {
+                            builder.setDomainNames(domainNames);
+                        }
+                        builder.build().generate();
+                    } catch (SslKeyStoreGenerator.GeneratorException e) {
+                        Logger.logErrorMessage("Failed to generate local ssl keystore", e);
+                    }
+                } else {
+                    Logger.logInfoMessage("Using keystore: " + keyStorePathStr);
+                }
+                sslContextFactory.setKeyStorePath(keyStorePathStr);
+                sslContextFactory.setKeyStorePassword(keyStorePassword);
                 sslContextFactory.addExcludeCipherSuites("SSL_RSA_WITH_DES_CBC_SHA", "SSL_DHE_RSA_WITH_DES_CBC_SHA",
                         "SSL_DHE_DSS_WITH_DES_CBC_SHA", "SSL_RSA_EXPORT_WITH_RC4_40_MD5", "SSL_RSA_EXPORT_WITH_DES40_CBC_SHA",
                         "SSL_DHE_RSA_EXPORT_WITH_DES40_CBC_SHA", "SSL_DHE_DSS_EXPORT_WITH_DES40_CBC_SHA");
                 sslContextFactory.addExcludeProtocols("SSLv3");
-                sslContextFactory.setKeyStoreType(Nxt.getStringProperty("nxt.keyStoreType"));
+                sslContextFactory.setKeyStoreType(keyStoreType);
                 List<String> ciphers = Nxt.getStringListProperty("nxt.apiSSLCiphers");
                 if (!ciphers.isEmpty()) {
                     sslContextFactory.setIncludeCipherSuites(ciphers.toArray(new String[0]));
@@ -253,7 +277,7 @@ public final class API {
 
             servletHolder = apiHandler.addServlet(APIProxyServlet.class, "/nxt-proxy");
             servletHolder.setInitParameters(Collections.singletonMap("idleTimeout",
-                    "" + Math.max(apiServerIdleTimeout - APIProxyServlet.PROXY_IDLE_TIMEOUT_DELTA, 0)));
+                    "" + Math.max(apiServerIdleTimeout - APIProxy.PROXY_IDLE_TIMEOUT_DELTA, 0)));
             servletHolder.getRegistration().setMultipartConfig(new MultipartConfigElement(
                     null, Math.max(Nxt.getIntProperty("nxt.maxUploadFileSize"), Constants.MAX_TAGGED_DATA_DATA_LENGTH), -1L, 0));
 
@@ -300,12 +324,13 @@ public final class API {
             apiServer.setStopAtShutdown(true);
 
             ThreadPool.runBeforeStart(() -> {
+                String sslAddress = enableSSL && port != sslPort ? ", " + host + ":" + sslPort : "";
                 try {
                     if (enableAPIUPnP) {
                         Connector[] apiConnectors = apiServer.getConnectors();
                         for (Connector apiConnector : apiConnectors) {
                             if (apiConnector instanceof ServerConnector)
-                                UPnP.addPort(((ServerConnector)apiConnector).getPort());
+                                UPnP.addPort(((ServerConnector) apiConnector).getPort());
                         }
                     }
                     APIServlet.initClass();
@@ -316,9 +341,9 @@ public final class API {
                         Logger.logDebugMessage("API SSL Protocols: " + Arrays.toString(sslContextFactory.getSelectedProtocols()));
                         Logger.logDebugMessage("API SSL Ciphers: " + Arrays.toString(sslContextFactory.getSelectedCipherSuites()));
                     }
-                    Logger.logMessage("Started API server at " + host + ":" + port + (enableSSL && port != sslPort ? ", " + host + ":" + sslPort : ""));
+                    Logger.logMessage("Started API server at " + host + ":" + port + sslAddress);
                 } catch (Exception e) {
-                    Logger.logErrorMessage("Failed to start API server at " + host + ":" + port + (enableSSL && port != sslPort ? ", " + host + ":" + sslPort : ""), e);
+                    Logger.logErrorMessage("Failed to start API server at " + host + ":" + port + sslAddress, e);
                     throw new RuntimeException(e.toString(), e);
                 }
 
@@ -336,6 +361,10 @@ public final class API {
     }
 
     public static void init() {
+        SecurityManager sm = System.getSecurityManager();
+        if (sm != null) {
+            sm.checkPermission(LIFE_CYCLE_PERMISSION);
+        }
         if (!isInitialized) {
             isInitialized = true;
             List<String> disabled = new ArrayList<>(Nxt.getStringListProperty("nxt.disabledAPIs"));
@@ -357,6 +386,10 @@ public final class API {
     }
 
     public static void shutdown() {
+        SecurityManager sm = System.getSecurityManager();
+        if (sm != null) {
+            sm.checkPermission(LIFE_CYCLE_PERMISSION);
+        }
         if (apiServer != null) {
             try {
                 apiServer.stop();
@@ -364,7 +397,7 @@ public final class API {
                     Connector[] apiConnectors = apiServer.getConnectors();
                     for (Connector apiConnector : apiConnectors) {
                         if (apiConnector instanceof ServerConnector)
-                            UPnP.deletePort(((ServerConnector)apiConnector).getPort());
+                            UPnP.deletePort(((ServerConnector) apiConnector).getPort());
                     }
                 }
             } catch (Exception e) {
@@ -374,6 +407,10 @@ public final class API {
     }
 
     public static void verifyPassword(HttpServletRequest req) throws ParameterException {
+        SecurityManager sm = System.getSecurityManager();
+        if (sm != null) {
+            sm.checkPermission(ADMIN_PASSWORD_PERMISSION);
+        }
         if (API.disableAdminPassword) {
             return;
         }
@@ -383,7 +420,11 @@ public final class API {
         checkOrLockPassword(req);
     }
 
-    static boolean checkPassword(HttpServletRequest req) {
+    public static boolean checkPassword(HttpServletRequest req) {
+        SecurityManager sm = System.getSecurityManager();
+        if (sm != null) {
+            sm.checkPermission(ADMIN_PASSWORD_PERMISSION);
+        }
         if (API.disableAdminPassword) {
             return true;
         }
@@ -556,8 +597,8 @@ public final class API {
 
     private static class NetworkAddress {
 
-        private BigInteger netAddress;
-        private BigInteger netMask;
+        private final BigInteger netAddress;
+        private final BigInteger netMask;
 
         private NetworkAddress(String address) throws UnknownHostException {
             String[] addressParts = address.split("/");
@@ -565,7 +606,7 @@ public final class API {
                 InetAddress targetHostAddress = InetAddress.getByName(addressParts[0]);
                 byte[] srcBytes = targetHostAddress.getAddress();
                 netAddress = new BigInteger(1, srcBytes);
-                int maskBitLength = Integer.valueOf(addressParts[1]);
+                int maskBitLength = Integer.parseInt(addressParts[1]);
                 int addressBitLength = (targetHostAddress instanceof Inet4Address) ? 32 : 128;
                 netMask = BigInteger.ZERO
                         .setBit(addressBitLength)
@@ -624,6 +665,7 @@ public final class API {
         return paperWalletPage;
     }
 
-    private API() {} // never
+    private API() {
+    } // never
 
 }

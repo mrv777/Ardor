@@ -1,6 +1,6 @@
 /*
  * Copyright © 2013-2016 The Nxt Core Developers.
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -22,6 +22,7 @@ import nxt.Tester;
 import nxt.blockchain.ChildChain;
 import nxt.crypto.HashFunction;
 import nxt.http.APICall;
+import nxt.http.callers.GetTransactionCall;
 import nxt.http.monetarysystem.TestCurrencyIssuance;
 import nxt.util.Convert;
 import nxt.util.Logger;
@@ -31,10 +32,14 @@ import org.junit.Assert;
 
 import java.util.Arrays;
 
+import static nxt.blockchain.ChildChain.IGNIS;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+
 public class ACTestUtils {
 
 
-    public static class Builder extends APICall.Builder {
+    public static class Builder<T extends Builder> extends APICall.Builder<T> {
 
         public Builder(String requestType, String secretPhrase) {
             super(requestType);
@@ -43,7 +48,7 @@ public class ACTestUtils {
         }
     }
 
-    public static class PhasingBuilder extends Builder {
+    public static class PhasingBuilder extends Builder<PhasingBuilder> {
 
         private boolean isBuildingControl;
         private String currentSubPollName = "";
@@ -164,6 +169,23 @@ public class ACTestUtils {
 
         JSONObject response = builder.build().invoke();
         Assert.assertTrue(response.isEmpty());
+    }
+
+    public static void assertPendingTransaction(String fullHash) {
+        assertEquals(0, ACTestUtils.getConfirmationsNumber(fullHash));
+    }
+
+    public static void assertConfirmedTransaction(String fullHash) {
+        int confirmationsNumber = ACTestUtils.getConfirmationsNumber(fullHash);
+        assertTrue("At least one confirmation required, found: " + confirmationsNumber, 0 < confirmationsNumber);
+    }
+
+    private static int getConfirmationsNumber(String fullHash) {
+        return (int) (long) GetTransactionCall.create(IGNIS.getId())
+                .fullHash(fullHash)
+                .build()
+                .invokeNoError()
+                .get("confirmations");
     }
 
     public static JSONObject assertTransactionSuccess(APICall.Builder builder) {

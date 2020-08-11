@@ -1,6 +1,6 @@
 /*
  * Copyright © 2013-2016 The Nxt Core Developers.
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -21,6 +21,7 @@ import nxt.Nxt;
 import nxt.account.AccountLedger;
 import nxt.blockchain.Block;
 import nxt.blockchain.BlockchainProcessor;
+import nxt.http.proxy.ReportsManager;
 import nxt.peer.Peer;
 import nxt.peer.Peers;
 import org.json.simple.JSONArray;
@@ -63,9 +64,16 @@ public final class GetBlockchainStatus extends APIServlet.APIRequestHandler {
         Peers.getServices().forEach(service -> servicesArray.add(service.name()));
         response.put("services", servicesArray);
         if (APIProxy.isActivated()) {
-            String servingPeer = APIProxy.getInstance().getMainPeerAnnouncedAddress();
+            APIProxy apiProxy = APIProxy.getInstance();
+            String servingPeer = apiProxy.getMainPeerAnnouncedAddress();
             response.put("apiProxy", true);
+            response.put("apiProxyState", apiProxy.isBootstrapping() ? "bootstrapping" : "enabled");
             response.put("apiProxyPeer", servingPeer);
+            JSONObject statsJson = new JSONObject();
+            response.put("apiProxyStats", statsJson);
+            ReportsManager reportsManager = apiProxy.getReportsManager();
+            statsJson.put("confirmations", reportsManager.getTotalConfirmations());
+            statsJson.put("rejections", reportsManager.getTotalRejections());
         } else {
             response.put("apiProxy", false);
         }

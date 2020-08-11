@@ -1,6 +1,6 @@
 /*
  * Copyright © 2013-2016 The Nxt Core Developers.
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -53,15 +53,15 @@ public class RuntimeEnvironment {
         hasJavaFX = b;
     }
 
-    private static boolean isWindowsRuntime() {
+    public static boolean isWindowsRuntime() {
         return osname.startsWith("windows");
     }
 
-    private static boolean isUnixRuntime() {
+    public static boolean isUnixRuntime() {
         return osname.contains("nux") || osname.contains("nix") || osname.contains("aix") || osname.contains("bsd") || osname.contains("sunos");
     }
 
-    private static boolean isMacRuntime() {
+    public static boolean isMacRuntime() {
         return osname.contains("mac");
     }
 

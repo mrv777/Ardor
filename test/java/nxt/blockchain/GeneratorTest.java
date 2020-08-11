@@ -1,6 +1,6 @@
 /*
  * Copyright © 2013-2016 The Nxt Core Developers.
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -39,7 +39,7 @@ public class GeneratorTest extends BlockchainTest {
         BigInteger effectiveBalance = BigInteger.valueOf(account == null || account.getEffectiveBalanceFXT() <= 0 ? 0 : account.getEffectiveBalanceFXT());
         long hitTime = Generator.getHitTime(effectiveBalance, hit, lastBlock);
         long deadline = hitTime - lastBlock.getTimestamp();
-        Generator generator = Generator.startForging(ALICE.getSecretPhrase());
+        Generator generator = Generator.startForging(ALICE.getPrivateKey());
         int i=1;
         try {
             while (i<deadline) {

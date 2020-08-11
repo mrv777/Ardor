@@ -1,6 +1,6 @@
 /*
  * Copyright © 2013-2016 The Nxt Core Developers.
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -42,6 +42,8 @@ import java.net.InetAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.UnknownHostException;
+import java.security.AccessController;
+import java.security.PrivilegedAction;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -51,7 +53,6 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.PriorityQueue;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -129,17 +130,6 @@ public final class Peers {
     /** Blacklisted bundler accounts */
     private static final Set<Long> blacklistedBundlerAccounts = new HashSet<>();
 
-    /** Whitelisted accounts providing best bundler rate */
-    private static final Set<Long> bestBundlerRateWhitelist;
-
-    public static Set<Long> getBestBundlerRateWhitelist() {
-        SecurityManager sm = System.getSecurityManager();
-        if (sm != null) {
-            sm.checkPermission(new BlockchainPermission("getBundlerRates"));
-        }
-        return bestBundlerRateWhitelist;
-    }
-
     static {
         List<String> accountList = Nxt.getStringListProperty("nxt.blacklistedBundlerAccounts");
         accountList.forEach(account -> {
@@ -151,21 +141,9 @@ public final class Peers {
                 Logger.logDebugMessage("'" + account + "' is not a valid bundler account");
             }
         });
-
-        accountList = Nxt.getStringListProperty("nxt.bestBundlerRateWhitelist");
-        Set<Long> whitelistSet = new HashSet<>(accountList.size());
-        accountList.forEach(account -> {
-            try {
-                long accountId = Convert.parseAccountId(account);
-                whitelistSet.add(accountId);
-                Logger.logInfoMessage("Added best bundler rate account " + Convert.rsAccount(accountId));
-            } catch (Exception exc) {
-                Logger.logDebugMessage("'" + account + "' is not a valid bundler account");
-            }
-        });
-        bestBundlerRateWhitelist = Collections.unmodifiableSet(whitelistSet);
     }
 
+    // TODO add support for private key
     /** Peer credentials */
     static final String peerSecretPhrase = Nxt.getStringProperty("nxt.credentials.secretPhrase", null, true);
 
@@ -259,7 +237,7 @@ public final class Peers {
         // defined in the genesis block in order for a new peer to accept the connection.
         //
         if (Constants.isPermissioned && peerSecretPhrase != null) {
-            byte[] publicKey = Crypto.getPublicKey(peerSecretPhrase);
+            byte[] publicKey = Crypto.getPublicKey(Crypto.getPrivateKey(peerSecretPhrase));
             long accountId = Account.getId(publicKey);
             if (!RoleMapperFactory.getRoleMapper().isUserInRole(accountId, Role.WRITER)) {
                 Logger.logWarningMessage("WARNING: Account " + Convert.rsAccount(accountId) + " does not have WRITER permission");
@@ -1158,15 +1136,12 @@ public final class Peers {
         return updated;
     }
 
-    private static void forEachBundlerRate(Consumer<BundlerRate> consumer, Set<Long> whitelist) {
+    static void forEachBundlerRate(Consumer<BundlerRate> consumer) {
         int now = Nxt.getEpochTime();
         synchronized(bundlerRates) {
             Iterator<Map.Entry<Long, List<BundlerRate>>> it = bundlerRates.entrySet().iterator();
             while (it.hasNext()) {
                 Map.Entry<Long, List<BundlerRate>> entry = it.next();
-                if (whitelist != null && !whitelist.isEmpty() && !whitelist.contains(entry.getKey())) {
-                    continue;
-                }
                 List<BundlerRate> rates = entry.getValue();
                 Iterator<BundlerRate> rit = rates.iterator();
                 while (rit.hasNext()) {
@@ -1182,33 +1157,6 @@ public final class Peers {
                 }
             }
         }
-    }
-    /**
-     * Get the best bundler rates
-     *
-     * @param   minBalance      Minimum bundler effective account balance in FXT
-     * @param   minFeeLimit     Minimum bundler remaining fee limit in FQT
-     * @param   whitelist       If present, only rates from the whitelisted accounts will be returned
-     * @return                  List of bundler rates
-     */
-    public static List<BundlerRate> getBestBundlerRates(long minBalance, long minFeeLimit, Set<Long> whitelist) {
-        SecurityManager sm = System.getSecurityManager();
-        if (sm != null) {
-            sm.checkPermission(new BlockchainPermission("getBundlerRates"));
-        }
-        Map<ChildChain, BundlerRate> rateMap = new HashMap<>();
-        forEachBundlerRate(rate -> {
-            BundlerRate prevRate = rateMap.get(rate.getChain());
-            if (rate.getBalance() >= minBalance && rate.getFeeLimit() >= minFeeLimit &&
-                    (prevRate == null || rate.getRate() < prevRate.getRate()) &&
-                    FxtChain.FXT.getBalanceHome().getBalance(rate.getAccountId()).getUnconfirmedBalance() >= minFeeLimit) {
-                rateMap.put(rate.getChain(), rate);
-            }
-        }, whitelist);
-        List<BundlerRate> bestRates = new ArrayList<>();
-        rateMap.forEach((key, value) -> bestRates.add(new BundlerRate(key, value.getAccountId(),
-                value.getRate(), value.getFeeLimit())));
-        return bestRates;
     }
 
     /**
@@ -1227,33 +1175,8 @@ public final class Peers {
             if (rate.getBalance() >= minBalance) {
                 allRates.add(rate);
             }
-        }, null);
+        });
         return allRates;
-    }
-
-    /**
-     * Get the best bundler rate for a child chain
-     *
-     * @param   childChain      Child chain
-     * @param   minBalance      Minimum bundler effective account balance in FXT
-     * @param   minFeeLimit     Minimum bundler remaining fee limit in FQT
-     * @param   whitelist       If present, only rates from the whitelisted accounts will be returned
-     * @return                  Best bundler rate or -1 if there are no rates
-     */
-    public static long getBestBundlerRate(Chain childChain, long minBalance, long minFeeLimit, Set<Long> whitelist) {
-        SecurityManager sm = System.getSecurityManager();
-        if (sm != null) {
-            sm.checkPermission(new BlockchainPermission("getBundlerRates"));
-        }
-        AtomicLong minRate = new AtomicLong(-1);
-        forEachBundlerRate(rate -> {
-            if (rate.getChain() == childChain && rate.getBalance() >= minBalance && rate.getFeeLimit() >= minFeeLimit &&
-                    (minRate.get() < 0 || rate.getRate() < minRate.get()) &&
-                    FxtChain.FXT.getBalanceHome().getBalance(rate.getAccountId()).getUnconfirmedBalance() >= minFeeLimit) {
-                minRate.set(rate.getRate());
-            }
-        }, whitelist);
-        return minRate.get();
     }
 
     /**

@@ -1,5 +1,5 @@
 /*
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -16,7 +16,7 @@
 package nxt.http.bundling;
 
 import nxt.Tester;
-import nxt.blockchain.ChildChain;
+import nxt.blockchain.chaincontrol.PermissionTestUtil;
 import nxt.http.APICall;
 import nxt.http.assetexchange.AssetExchangeTest;
 import nxt.http.client.PlaceAssetOrderBuilder;
@@ -26,6 +26,9 @@ import org.junit.Assert;
 import org.junit.Test;
 
 import java.util.Collections;
+
+import static nxt.blockchain.ChildChain.IGNIS;
+import static nxt.blockchain.chaincontrol.PermissionType.CHAIN_USER;
 
 public class AssetBundlerTest extends BundlerTest {
 
@@ -48,18 +51,18 @@ public class AssetBundlerTest extends BundlerTest {
         String assetId = issueAsset();
         startAssetBundler(assetId);
 
-        String fullHash = placeAssetOrder(ALICE, assetId, 10, ChildChain.IGNIS.ONE_COIN, false);
+        String fullHash = placeAssetOrder(ALICE, assetId, 10, IGNIS.ONE_COIN, false);
         Assert.assertTrue(isBundled(fullHash));
 
-        fullHash = placeAssetOrder(CHUCK, assetId, 10, ChildChain.IGNIS.ONE_COIN, true);
+        fullHash = placeAssetOrder(CHUCK, assetId, 10, IGNIS.ONE_COIN, true);
         Assert.assertTrue(isBundled(fullHash));
 
-        fullHash = placeAssetOrder(ALICE, assetId, 10, ChildChain.IGNIS.ONE_COIN * 2, false);
+        fullHash = placeAssetOrder(ALICE, assetId, 10, IGNIS.ONE_COIN * 2, false);
         Assert.assertTrue(isBundled(fullHash));
         String askId = Tester.hexFullHashToStringId(fullHash);
 
         //Won't match the ask order
-        fullHash = placeAssetOrder(CHUCK, assetId, 10, ChildChain.IGNIS.ONE_COIN, true);
+        fullHash = placeAssetOrder(CHUCK, assetId, 10, IGNIS.ONE_COIN, true);
         Assert.assertTrue(isBundled(fullHash));
         String bidId = Tester.hexFullHashToStringId(fullHash);
 
@@ -77,7 +80,7 @@ public class AssetBundlerTest extends BundlerTest {
         int quota = 4;
         JSONAssert result = new JSONAssert(new APICall.Builder("startBundler").
                 secretPhrase(ALICE.getSecretPhrase()).
-                param("chain", ChildChain.IGNIS.getId()).
+                param("chain", IGNIS.getId()).
                 param("filter", new String[] {"AssetBundler:" + assetId, "QuotaBundler:" + quota}).
                 param("minRateNQTPerFXT", 0).
                 param("feeCalculatorName", "MIN_FEE").
@@ -100,7 +103,9 @@ public class AssetBundlerTest extends BundlerTest {
         Assert.assertTrue(isBundled(fullHash));
 
         //Transferring to unknown account is not allowed
-        fullHash = AssetExchangeTest.transfer(assetId, CHUCK, new Tester("Unknown account secret " + System.currentTimeMillis()), 10, 0).getFullHash();
+        Tester unknownTester = new Tester("Unknown account secret " + System.currentTimeMillis());
+        PermissionTestUtil.grantPermission(IGNIS, unknownTester, CHAIN_USER);
+        fullHash = AssetExchangeTest.transfer(assetId, CHUCK, unknownTester, 10, 0).getFullHash();
         Assert.assertFalse(isBundled(fullHash));
     }
 
@@ -125,7 +130,7 @@ public class AssetBundlerTest extends BundlerTest {
     private void startAssetBundler(String assetId) {
         JSONAssert result = new JSONAssert(new APICall.Builder("startBundler").
                 secretPhrase(BOB.getSecretPhrase()).
-                param("chain", ChildChain.IGNIS.getId()).
+                param("chain", IGNIS.getId()).
                 param("filter", "AssetBundler:" + assetId).
                 param("minRateNQTPerFXT", 0).
                 param("feeCalculatorName", "MIN_FEE").
@@ -140,7 +145,7 @@ public class AssetBundlerTest extends BundlerTest {
                 .param("description", "asset bundle testing")
                 .param("quantityQNT", 10000000)
                 .param("decimals", 4)
-                .param("feeNQT", 1000 * ChildChain.IGNIS.ONE_COIN)
+                .param("feeNQT", 1000 * IGNIS.ONE_COIN)
                 .param("deadline", 1440)
                 .build().invoke());
         String fullHash = result.str("fullHash");

@@ -1,6 +1,6 @@
 /*
  * Copyright © 2013-2016 The Nxt Core Developers.
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -38,6 +38,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Collectors;
 
 public final class BlockchainImpl implements Blockchain {
 
@@ -604,42 +605,32 @@ public final class BlockchainImpl implements Blockchain {
     }
 
     @Override
-    public List<TransactionImpl> getExpectedTransactions(Filter<Transaction> filter) {
+    public List<Transaction> getExpectedTransactions(Filter<Transaction> filter) {
         Map<TransactionType, Map<String, Integer>> duplicates = new HashMap<>();
-        BlockchainProcessorImpl blockchainProcessor = BlockchainProcessorImpl.getInstance();
-        List<TransactionImpl> result = new ArrayList<>();
+        List<Transaction> result = new ArrayList<>();
         readLock();
         try {
             for (ChildTransaction phasedTransaction : PhasingPollHome.getFinishingTransactions(getHeight() + 1)) {
                 try {
                     phasedTransaction.validate();
                     if (!((ChildTransactionImpl) phasedTransaction).attachmentIsDuplicate(duplicates, false) && filter.ok(phasedTransaction)) {
-                        result.add((ChildTransactionImpl)phasedTransaction);
+                        result.add(phasedTransaction);
                     }
                 } catch (NxtException.ValidationException ignore) {
                 }
             }
-            blockchainProcessor.selectUnconfirmedFxtTransactions(duplicates, getLastBlock(), -1).forEach(
-                    unconfirmedTransaction -> {
-                        FxtTransactionImpl transaction = unconfirmedTransaction.getTransaction();
-                        if (filter.ok(transaction)) {
-                            result.add(transaction);
-                        }
-                        transaction.getChildTransactions().forEach(
-                                childTransaction -> {
-                                    if (filter.ok(childTransaction)) {
-                                        result.add(childTransaction);
-                                    }
-                                }
-                        );
-                    }
-            );
+            TransactionProcessorImpl.getInstance().getAllUnconfirmedTransactions()
+                    .stream()
+                    .map(UnconfirmedTransaction::getTransaction)
+                    .filter(filter::ok)
+                    .collect(Collectors.toCollection(() -> result));
         } finally {
             readUnlock();
         }
         return result;
     }
 
+    @Override
     public DbIterator<? extends Transaction> getExecutedTransactions(Chain chain, long senderId, long recipientId,
                                                               byte type, byte subtype,
                                                               int height, int numberOfConfirmations,

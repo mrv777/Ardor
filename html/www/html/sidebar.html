@@ -1,6 +1,6 @@
 <!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   ~ Copyright © 2013-2016 The Nxt Core Developers.                            ~
-  ~ Copyright © 2016-2019 Jelurida IP B.V.                                    ~
+  ~ Copyright © 2016-2020 Jelurida IP B.V.                                    ~
   ~                                                                           ~
   ~ See the LICENSE.txt file at the top-level directory of this distribution  ~
   ~ for licensing information.                                                ~
@@ -16,51 +16,61 @@
 
 <section class="sidebar">
     <div class="user-panel">
-        <div class="pull-left info">
-            <div class="pull-left info">
-                <h6><span class="label label-primary" data-18n="your_account">Your Account</span></h6>
-                <div class="badge-active" style="padding:3px;margin-bottom:5px;font-size:12px" id="sidebar_account_id"></div>
-                <div style="margin-bottom:5px;">
-                    <span><a class='btn btn-default btn-xs' href="#" id="account_name" data-toggle="modal" data-dismiss="modal"
-                             data-target="#account_info_modal" data-i18n="set_account_info">Set Account Info</a></span>
-                    <span id="sidebar_account_link"></span>
-                    <span><a class='btn btn-default btn-xs copy_link' href="#" id="copy_account_id" data-clipboard-target="#sidebar_account_id"><span class="far fa-copy"></span></a></span>
-                </div>
-                <div style="margin-bottom:5px;">
-                    <div id="account_id_dropdown" class="btn-group">
-                        <button type="button" class="btn btn-primary btn-xs" data-i18n="switch_account">Switch Account</button>
-                        <button type="button" class="btn btn-primary btn-xs dropdown-toggle" data-toggle="dropdown">
-                            <span class="caret"></span>
-                        </button>
-                        <ul class="dropdown-menu" role="menu" aria-labelledby="dropdownMenu1"></ul>
-                    </div>
-                </div>
-                <div style="margin-bottom:5px;">
-                    <div>
-                        <a id="sideBalance" data-target="#account_details_modal" data-toggle="modal" href="#">
+        <div class="info">
+            <div class="info">
+                <div class="row">
+                    <div class="col-lg-12 col-xs-12 account_balance">
+                        <a class="btn label-success btn-sm" style="font-size:14px;" id="sideBalance" data-target="#account_details_modal" data-toggle="modal" href="#">
                             <span class="badge-active" style="padding:3px;" id="account_balance_sidebar"></span>
                             <span class="coin-symbol"></span>
                         </a>
                     </div>
                 </div>
-                <div style="margin-bottom:8px;">
-                    <a href="#" data-page="peers" id="connected_indicator" class="connected goto-page" style="display:none;font-size:13px;" data-toggle="tooltip" data-placement="top" title="CONNECTION" data-i18n="[title]server_connection_status"><i class="fa fa-circle" style="font-size:12px;"></i> <span data-18n="connected">Connected</span></a>
-                    <a href="#" id="forging_indicator" class="forging" data-toggle="tooltip" title="" data-placement="bottom" style="display:none;font-size:13px;">
-                        <i class="fa fa-circle" style="font-size:12px;"></i> <span data-18n="forging">Forging</span>
-                    </a>
+                <div class="row">
+                    <div class="col-lg-12 col-xs-12 account_id">
+                        <h5><span class="label" style="flex:1;" id="sidebar_account_id" data-18n="your_account"></span></h5>
+                        <span><a class='btn btn-default btn-sm copy_link' href="#" id="copy_account_id" data-clipboard-target="#sidebar_account_id"><span class="far fa-copy"></span></a></span>
+                    </div>
                 </div>
-                <div style="margin-bottom:5px;">
-                    <div id="chain_dropdown" class="btn-group">
-                        <button type="button" class="btn btn-primary btn-xs show_chain_modal_action" id="chain_name"></button>
-                        <button type="button" class="btn btn-primary btn-xs dropdown-toggle" data-toggle="dropdown">
+                <div class="row">
+                    <div class="col-lg-6 col-xs-6 account_info">
+                        <a class='btn btn-default btn-sm' style="font-size:14px;" href="#" id="account_name" data-toggle="modal" data-dismiss="modal"
+                                data-target="#account_info_modal" data-i18n="set_account_info">Set Account Info</a>
+                    </div>
+                    <div class="col-lg-6 col-xs-6" id="sidebar_account_link"></div>
+                </div>
+                <div class="row">
+                    <div id="account_id_dropdown" style="display:flex;" class="col-lg-6 col-xs-6 btn-group">
+                        <button type="button" style="flex:1;font-size:14px;" class="btn btn-primary btn-sm" data-i18n="switch_account">Switch Account</button>
+                        <button type="button" class="btn btn-primary btn-sm dropdown-toggle" data-toggle="dropdown">
+                            <span class="caret"></span>
+                        </button>
+                        <ul class="dropdown-menu" role="menu" aria-labelledby="dropdownMenu1"></ul>
+                    </div>
+                    <div id="chain_dropdown" class="col-lg-6 col-xs-6 btn-group">
+                        <button type="button" style="flex:2;font-size:14px;" class="btn btn-primary btn-sm show_chain_modal_action" id="chain_name"></button>
+                        <button type="button" style="font-size:14px;" class="btn btn-primary btn-sm dropdown-toggle" data-toggle="dropdown">
                             <span class="caret"></span>
                         </button>
                         <ul class="dropdown-menu" role="menu" aria-labelledby="dropdownMenu1"></ul>
                     </div>
                 </div>
-                <div class="input-group" style="margin-bottom:5px;">
-                    <span data-i18n="height">HEIGHT</span>
-                    <span class="badge-active" style="padding:3px;" id="sidebar_block_link" data-toggle="tooltip" data-placement="bottom" title="HEIGHT" data-i18n="[title]current_blockchain_height"></span>
+                <div class="row" style="display:flex;">
+                    <div class="col-lg-6 col-xs-6 input-group current-height">
+                        <span data-i18n="height">HEIGHT</span>
+                        <span class="badge-active" style="padding:3px;" id="sidebar_block_link" data-toggle="tooltip" data-placement="bottom" title="HEIGHT" data-i18n="[title]current_blockchain_height"></span>
+                    </div>
+                    <div class="col-lg-6 col-xs-6 input-group next-block">
+                        <span class="badge-active" id="sidebar_next_block_time"></span>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-lg-12 col-xs-12 network_status">
+                        <a href="#" data-page="peers" id="connected_indicator" class="connected goto-page" style="display:none;font-size:14px;" data-toggle="tooltip" data-placement="top" title="CONNECTION" data-i18n="[title]server_connection_status"><i class="fa fa-circle" style="font-size:12px;"></i> <span data-18n="connected">Connected</span></a>
+                        <a href="#" id="forging_indicator" class="forging" style="font-size:14px;" data-toggle="tooltip" title="" data-placement="bottom">
+                            <i class="fa fa-circle" style="font-size:12px;"></i> <span data-18n="forging">Forging</span>
+                        </a>
+                    </div>
                 </div>
             </div>
         </div>
@@ -75,5 +85,4 @@
     </form>
     <ul class="sidebar-menu" id="sidebar_menu">
     </ul>
-    <div style="height:50px"></div> <!-- Dummy div, otherwise some browsers cut of the sidebar too high when scrolling on smaller screens -->
 </section>

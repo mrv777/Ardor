@@ -1,5 +1,5 @@
 /*
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -17,10 +17,11 @@ package nxt.addons;
 
 import nxt.Constants;
 import nxt.crypto.EncryptedData;
+import nxt.peer.FeeRateCalculator;
 
-class NullContractRunnerConfig implements ContractRunnerConfig {
+public class NullContractRunnerConfig implements ContractRunnerConfig {
 
-    private String status;
+    private final String status;
 
     public NullContractRunnerConfig(String status) {
         this.status = status;
@@ -54,6 +55,11 @@ class NullContractRunnerConfig implements ContractRunnerConfig {
     @Override
     public boolean isAutoFeeRate() {
         return false;
+    }
+
+    @Override
+    public FeeRateCalculator.TransactionPriority getAutoFeeRatePriority() {
+        return FeeRateCalculator.TransactionPriority.NORMAL;
     }
 
     @Override
@@ -117,13 +123,13 @@ class NullContractRunnerConfig implements ContractRunnerConfig {
     }
 
     @Override
-    public String getSecretPhrase() {
-        return null;
+    public byte[] getPrivateKey() {
+        return new byte[0];
     }
 
     @Override
-    public String getValidatorSecretPhrase() {
-        return null;
+    public byte[] getValidatorPrivateKey() {
+        return new byte[0];
     }
 
     @Override

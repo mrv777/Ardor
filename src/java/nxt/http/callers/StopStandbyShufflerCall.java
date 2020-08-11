@@ -8,6 +8,10 @@ public class StopStandbyShufflerCall extends APICall.Builder<StopStandbyShuffler
         super(ApiSpec.stopStandbyShuffler);
     }
 
+    public static StopStandbyShufflerCall create() {
+        return new StopStandbyShufflerCall();
+    }
+
     public static StopStandbyShufflerCall create(int chain) {
         return new StopStandbyShufflerCall().param("chain", chain);
     }

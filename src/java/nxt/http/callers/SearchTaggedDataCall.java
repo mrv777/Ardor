@@ -8,6 +8,10 @@ public class SearchTaggedDataCall extends APICall.Builder<SearchTaggedDataCall> 
         super(ApiSpec.searchTaggedData);
     }
 
+    public static SearchTaggedDataCall create() {
+        return new SearchTaggedDataCall();
+    }
+
     public static SearchTaggedDataCall create(int chain) {
         return new SearchTaggedDataCall().param("chain", chain);
     }

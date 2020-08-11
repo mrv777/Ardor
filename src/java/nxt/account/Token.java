@@ -1,6 +1,6 @@
 /*
  * Copyright © 2013-2016 The Nxt Core Developers.
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -24,14 +24,14 @@ import java.util.Arrays;
 
 public final class Token {
 
-    public static String generateToken(String secretPhrase, String messageString) {
-        return generateToken(secretPhrase, Convert.toBytes(messageString));
+    public static String generateToken(byte[] privateKey, String messageString) {
+        return generateToken(privateKey, Convert.toBytes(messageString));
     }
 
-    public static String generateToken(String secretPhrase, byte[] message) {
+    public static String generateToken(byte[] privateKey, byte[] message) {
         byte[] data = new byte[message.length + 32 + 4];
         System.arraycopy(message, 0, data, 0, message.length);
-        System.arraycopy(Crypto.getPublicKey(secretPhrase), 0, data, message.length, 32);
+        System.arraycopy(Crypto.getPublicKey(privateKey), 0, data, message.length, 32);
         int timestamp = Nxt.getEpochTime();
         data[message.length + 32] = (byte)timestamp;
         data[message.length + 32 + 1] = (byte)(timestamp >> 8);
@@ -40,8 +40,15 @@ public final class Token {
 
         byte[] token = new byte[100];
         System.arraycopy(data, message.length, token, 0, 32 + 4);
-        System.arraycopy(Crypto.sign(data, secretPhrase), 0, token, 32 + 4, 64);
+        System.arraycopy(Crypto.sign(data, privateKey), 0, token, 32 + 4, 64);
+        return encodeToken(token);
 
+    }
+
+    public static String encodeToken(byte[] token) {
+        if (token.length != 100) {
+            throw new IllegalArgumentException("Invalid token length " + token.length);
+        }
         StringBuilder buf = new StringBuilder();
         for (int ptr = 0; ptr < 100; ptr += 5) {
 
@@ -68,7 +75,6 @@ public final class Token {
         }
 
         return buf.toString();
-
     }
 
     public static Token parseToken(String tokenString, String website) {

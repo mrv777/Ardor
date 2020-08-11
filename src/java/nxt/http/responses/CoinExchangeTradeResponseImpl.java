@@ -1,5 +1,5 @@
 /*
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -18,6 +18,8 @@ package nxt.http.responses;
 import nxt.addons.JO;
 import nxt.util.Convert;
 import org.json.simple.JSONObject;
+
+import java.math.BigDecimal;
 
 public class CoinExchangeTradeResponseImpl implements CoinExchangeTradeResponse {
 
@@ -86,8 +88,16 @@ public class CoinExchangeTradeResponseImpl implements CoinExchangeTradeResponse 
         return quantityQNT;
     }
 
+    public BigDecimal getQuantity(byte qntDecimals) {
+        return Convert.toBigDecimal(quantityQNT, qntDecimals);
+    }
+
     public long getPriceNQTPerCoin() {
         return priceNQTPerCoin;
+    }
+
+    public BigDecimal getPricePerCoin(byte nqtDecimals) {
+        return Convert.toBigDecimal(priceNQTPerCoin, nqtDecimals);
     }
 
     public double getExchangeRate() {

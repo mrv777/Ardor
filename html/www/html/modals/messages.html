@@ -1,6 +1,6 @@
 <!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   ~ Copyright © 2013-2016 The Nxt Core Developers.                            ~
-  ~ Copyright © 2016-2019 Jelurida IP B.V.                                    ~
+  ~ Copyright © 2016-2020 Jelurida IP B.V.                                    ~
   ~                                                                           ~
   ~ See the LICENSE.txt file at the top-level directory of this distribution  ~
   ~ for licensing information.                                                ~
@@ -28,19 +28,24 @@
                     <div class="form-group">
                         <label for="send_message_message" data-i18n="message">MESSAGE</label>
                         <textarea class="form-control" id="send_message_message" name="message" rows="4" tabindex="3"></textarea>
-                        <div class="col-xs-6 col-sm-6 col-md-6">
-                            <div style="margin-top:3px">
-                                <label for="send_message_encrypt" style="font-weight:normal;color:#666">
-                                    <input type="checkbox" name="encrypt_message" id="send_message_encrypt" value="1" data-default="checked" checked="checked" /> <span data-i18n="encrypt_message">Encrypt Message</span>
+                        <div class="col-xs-12 col-sm-12 col-md-12">
+                            <div class="add_message_encrypt_option" style="margin-top:3px" id="send_message_modal_to_specific_account_message_options">
+                                <label for="send_message_modal_true_encrypt_message" class="radio-inline">
+                                    <input type="radio" name="encrypt_message" id="send_message_modal_true_encrypt_message" value="1" tabindex="103"> <span data-i18n="encrypt_message">Encrypt Message</span>
                                 </label>
-                            </div>
-                            <div style="margin-top:3px">
-                                <label for="send_message_permanent" style="font-weight:normal;color:#666">
-                                    <input type="checkbox" name="permanent_message" id="send_message_permanent" value="1" data-default="unchecked" /> <span data-i18n="permanent_message">Message is Never Deleted</span>
+                                <label for="send_message_modal_false_encrypt_message" style="margin-left: 20px" class="radio-inline">
+                                    <input type="radio" name="encrypt_message" id="send_message_modal_false_encrypt_message" value="0" tabindex="104"> <span data-i18n="dont_encrypt_message">Don't Encrypt Message</span>
                                 </label>
                             </div>
                         </div>
                         <div class="col-xs-6 col-sm-6 col-md-6">
+                            <div style="margin-top:3px">
+                                <label for="send_message_permanent" style="font-weight:normal;color:#666" class="checkbox-inline">
+                                    <input type="checkbox" name="permanent_message" id="send_message_permanent" value="1" data-default="unchecked" /> <span data-i18n="permanent_message">Message is Never Deleted</span>
+                                </label>
+                            </div>
+                        </div>
+                        <div class="col-xs-12">
                             <div class="form-group">
                                 <label for="upload_file_message" data-i18n="file">File</label>
                                 <input type="file" name="file" id="upload_file_message" class="form-control" tabindex="6">
@@ -106,15 +111,15 @@
         <div class="callout callout-danger error_message" style="display:none"></div>
         <div id="decrypt_note_secret_phrase_div">
             <div class="form-group secret_phrase">
-                <label for="decrypt_note_form_password" data-i18n="phrase">PASSPHRASE</label>
+                <label for="decrypt_note_form_password" data-i18n="passphrase_or_private_key">PASSPHRASE OR PRIVATE KEY</label>
                 <input type="password" name="secretPhrase" id="decrypt_note_form_password" class="form-control" placeholder="" tabindex="8">
             </div>
             <div style="margin-bottom:10px"><input type="checkbox" name="rememberPassword" id="decrypt_note_remember_password"/>
                 &nbsp
-                <label for="decrypt_note_remember_password" style="font-weight:normal;" data-i18n="remember_decryption_passphrase">Remember passphrase for decryption</label>
+                <label for="decrypt_note_remember_password" style="font-weight:normal;" data-i18n="remember">Remember</label>
             </div>
         </div>
-        <div class="form-group">
+        <div class="form-group" id="decrypt_note_shared_key_div">
             <label for="decrypt_note_form_shared_key" data-i18n="shared_key">Shared Key</label>
             <input name="sharedKey" id="decrypt_note_form_shared_key" class="form-control" tabindex="9">
         </div>

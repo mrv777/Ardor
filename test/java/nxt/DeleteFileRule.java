@@ -1,5 +1,5 @@
 /*
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -19,6 +19,8 @@ import org.junit.rules.ExternalResource;
 
 import java.io.File;
 import java.net.URISyntaxException;
+import java.security.AccessController;
+import java.security.PrivilegedAction;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -40,7 +42,10 @@ public class DeleteFileRule extends ExternalResource {
 
     @Override
     protected void after() {
-        files.forEach(File::delete);
-        files.clear();
+        AccessController.doPrivileged((PrivilegedAction<Void>) () -> {
+            files.forEach(File::delete);
+            files.clear();
+            return null;
+        });
     }
 }

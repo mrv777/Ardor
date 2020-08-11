@@ -29,8 +29,4 @@ public class DgsListingCall extends CreateTransactionCallBuilder<DgsListingCall>
     public DgsListingCall tags(String tags) {
         return param("tags", tags);
     }
-
-    public DgsListingCall messageFile(byte[] b) {
-        return parts("messageFile", b);
-    }
 }

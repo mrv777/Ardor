@@ -1,6 +1,6 @@
 /*
  * Copyright © 2013-2016 The Nxt Core Developers.
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -20,19 +20,15 @@ import nxt.NxtException;
 import nxt.account.Account;
 import nxt.account.AccountLedger;
 import nxt.account.BalanceHome;
-import nxt.blockchain.Chain;
-import nxt.blockchain.Fee;
-import nxt.blockchain.FxtChain;
-import nxt.blockchain.FxtTransactionImpl;
-import nxt.blockchain.FxtTransactionType;
-import nxt.blockchain.Transaction;
-import nxt.blockchain.TransactionType;
+import nxt.blockchain.*;
 import nxt.util.Convert;
 import org.json.simple.JSONObject;
 
 import java.math.BigDecimal;
 import java.math.MathContext;
 import java.nio.ByteBuffer;
+import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -171,6 +167,15 @@ public abstract class CoinExchangeFxtTransactionType extends FxtTransactionType 
         public final boolean canHaveRecipient() {
             return false;
         }
+
+        @Override
+        protected final List<ChildChain> getInvolvedChildChains(FxtTransactionImpl transaction) {
+            OrderIssueAttachment attachment = (OrderIssueAttachment)transaction.getAttachment();
+            Chain chain = attachment.getChain();
+            Chain exchangeChain = attachment.getExchangeChain();
+            return Collections.singletonList((ChildChain)(chain == FxtChain.FXT ? exchangeChain : chain));
+        }
+
     };
 
     /**

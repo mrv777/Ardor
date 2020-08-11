@@ -109,3 +109,27 @@ Apache Commons:
 Apache Commons CLI https://commons.apache.org/proper/commons-cli/ and Apache 
 Commons Math http://commons.apache.org/proper/commons-math/ are licensed under 
 the Apache License 2.0: http://www.apache.org/licenses/LICENSE-2.0
+
+
+Ledger4j:
+
+Ledger4j https://github.com/aionnetwork/ledger4j is licensed under the MIT license:
+https://github.com/aionnetwork/ledger4j/blob/master/LICENSE
+
+
+Ed25519-java:
+
+Ed25519-java https://github.com/str4d/ed25519-java is licensed under the CC0 1.0 Universal license: 
+https://github.com/str4d/ed25519-java/blob/master/LICENSE.txt
+
+
+Montgomery <-> Edwards isomorphism:
+Curve conversion code in file morph25519.c of https://dlbeer.co.nz/oss/c25519.html c25519-2017-10-05.zip 
+ported from C to Java. 
+https://dlbeer.co.nz/oss/c25519.html states "This entire package is in the public domain."
+
+
+Pure Java HID-API:
+https://github.com/nyholku/purejavahidapi is licensed under the BSD license:
+https://github.com/nyholku/purejavahidapi/blob/master/LICENSE.md
+(using patched version https://github.com/jelurida-dev/purejavahidapi)

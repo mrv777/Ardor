@@ -8,6 +8,10 @@ public class StartBundlerCall extends APICall.Builder<StartBundlerCall> {
         super(ApiSpec.startBundler);
     }
 
+    public static StartBundlerCall create() {
+        return new StartBundlerCall();
+    }
+
     public static StartBundlerCall create(int chain) {
         return new StartBundlerCall().param("chain", chain);
     }

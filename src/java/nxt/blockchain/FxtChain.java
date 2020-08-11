@@ -1,6 +1,6 @@
 /*
  * Copyright © 2013-2016 The Nxt Core Developers.
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -40,7 +40,7 @@ public final class FxtChain extends Chain {
 
     private FxtChain() {
         super(1, FXT_NAME, 8, Constants.isTestnet ? 99949858899030000L : 99846623125660000L, EnumSet.of(APIEnum.SEND_MESSAGE), EnumSet.of(APITag.ALIASES, APITag.AE, APITag.DGS,
-                APITag.DATA, APITag.MS, APITag.SHUFFLING, APITag.VS));
+                APITag.DATA, APITag.MS, APITag.SHUFFLING, APITag.VS, APITag.CHILD_CHAIN_CONTROL));
     }
 
     @Override

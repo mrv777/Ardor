@@ -1,6 +1,6 @@
 <!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   ~ Copyright © 2013-2016 The Nxt Core Developers.                            ~
-  ~ Copyright © 2016-2019 Jelurida IP B.V.                                    ~
+  ~ Copyright © 2016-2020 Jelurida IP B.V.                                    ~
   ~                                                                           ~
   ~ See the LICENSE.txt file at the top-level directory of this distribution  ~
   ~ for licensing information.                                                ~
@@ -24,9 +24,9 @@
             </div>
             <div class="modal-body">
                 <form role="form" autocomplete="off">
-                    <div class="callout callout-danger remote_warning" style="display:none">
+                    <div class="callout callout-danger passphrase_warning" style="display:none">
                         <strong><span data-i18n="warning">Warning</span>:</strong>
-                        <span data-i18n="passphrase_remote_warning">Your passphrase will be sent to the server!</span>
+                        <span class="passphrase_warning_text"></span>
                     </div>
                     <div class="callout callout-danger error_message" style="display:none"></div>
                     <div class="form-group">
@@ -38,7 +38,7 @@
                         <span data-i18n="shuffling_recipient_passphrase_warning"></span>
                     </div>
                     <div class="form-group">
-                        <label for="m_shuffler_start_recipient_secretphrase" data-i18n="recipient_passphrase">Recipient Passphrase</label>
+                        <label for="m_shuffler_start_recipient_secretphrase" data-i18n="recipient_passphrase_or_private_key"></label>
                         <input type="password" name="recipientSecretPhrase" id="m_shuffler_start_recipient_secretphrase" class="form-control" placeholder="Recipient Passphrase" data-i18n="[placeholder]recipient_passphrase" tabindex="1">
                     </div>
                     <div class="form-group">
@@ -97,7 +97,7 @@
                         <div class="form-group shuffling_holding_currency" data-modal-ui-element="add_currency_modal_ui_element"></div>
                     </div>
                     <div class="row">
-                        <div class="col-xs-6 col-sm-6 col-md-6">
+                        <div class="col-xs-12 col-sm-6 col-md-6">
                             <div class="form-group">
                                 <label for="m_shuffling_create_amount">
                                     <span id="m_shuffling_create_unit"></span>
@@ -105,7 +105,7 @@
                                 <input name="amount" id="m_shuffling_create_amount" class="form-control" placeholder="" data-default="0" value="0" tabindex="2">
                             </div>
                         </div>
-                        <div class="col-xs-6 col-sm-6 col-md-6">
+                        <div class="col-xs-12 col-sm-6 col-md-6">
                             <div class="form-group shuffling_finish_height" data-modal-ui-element="block_height_modal_ui_element"></div>
                         </div>
                     </div>
@@ -143,6 +143,10 @@
             </div>
             <div class="modal-body">
                 <form role="form" autocomplete="off">
+                    <div class="callout callout-danger passphrase_warning" style="display:none">
+                        <strong><span data-i18n="warning">Warning</span>:</strong>
+                        <span class="passphrase_warning_text"></span>
+                    </div>
                     <div class="callout callout-danger error_message" style="display:none"></div>
                     <div class="form-group">
                         <label for="m_start_standbyshuffler_holding_type" data-18n="holding_type">Holding Type</label>
@@ -173,20 +177,6 @@
                         <input name="minParticipants" id="m_start_standbyshuffler_min_participants" class="form-control"
                                placeholder="" data-default="3" value="3" tabindex="2">
                     </div>
-                    <div class="callout callout-danger never_hide">
-                        <strong><span data-i18n="warning">Warning</span>:</strong>
-                        <span data-i18n="shuffling_recipient_passphrase_warning"></span>
-                    </div>
-                    <div class="form-group">
-                        <label for="m_start_standbyshuffler_recipient_secretphrases" data-i18n="recipient_passphrases">Recipient Passphrases (one per line)</label>
-                        <textarea id="m_start_standbyshuffler_recipient_secretphrases" class="form-control" rows="3"
-                                  placeholder="Recipient Passphrase" data-i18n="[placeholder]recipient_passphrase" tabindex="2"></textarea>
-                    </div>
-                    <div class="form-group">
-                        <label for="m_start_standbyshuffler_recipient_accounts" data-i18n="recipient_accounts">Recipient Accounts</label>
-                        <textarea id="m_start_standbyshuffler_recipient_accounts" class="form-control"
-                                  placeholder="Recipient Accounts" data-i18n="[placeholder]recipient_accounts" readonly></textarea>
-                    </div>
                     <div class="form-group">
                         <label data-i18n="fee_ratio">Fee Ratio</label>
                         <i class="far fa-question-circle show_popover"
@@ -198,6 +188,36 @@
                         </div>
                     </div>
                     <div data-replace-with-modal-template="secret_phrase_modal_template"></div>
+                    <ul class="tab_selector_public_key_origin nav nav-tabs nav-justified" style="margin-bottom:1rem">
+                        <li data-origin="bip32" class="active"><a href="#">Seed / Hardware</a></li>
+                        <li data-origin="passphraseList" ><a href="#">Legacy accounts</a></li>
+                    </ul>
+                    <div class="public_key_origin bip32">
+                        <div class="form-group">
+                            <label for="m_start_standbyshuffler_master_public_key" data-i18n="master_public_key">Master Public Key</label>
+                            <textarea class="form-control" name="serializedMasterPublicKey" id="m_start_standbyshuffler_master_public_key" rows="2"></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label for="m_start_standbyshuffler_child_key" data-i18n="start_from_child_index">Start From Child Index</label>
+                            <input name="startFromChildIndex" id="m_start_standbyshuffler_child_key" class="form-control" data-default="0" value="0">
+                        </div>
+                    </div>
+                    <div class="public_key_origin passphraseList hidden">
+                        <div class="callout callout-danger never_hide">
+                            <strong><span data-i18n="warning">Warning</span>:</strong>
+                            <span data-i18n="shuffling_recipient_passphrase_warning"></span>
+                        </div>
+                        <div class="form-group">
+                            <label for="m_start_standbyshuffler_recipient_secretphrases" data-i18n="recipient_passphrases">Recipient Passphrases (one per line)</label>
+                            <textarea id="m_start_standbyshuffler_recipient_secretphrases" class="form-control" rows="3"
+                                      placeholder="Recipient Passphrase" data-i18n="[placeholder]recipient_passphrase" tabindex="2"></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label for="m_start_standbyshuffler_recipient_accounts" data-i18n="recipient_accounts">Recipient Accounts</label>
+                            <textarea id="m_start_standbyshuffler_recipient_accounts" class="form-control"
+                                      placeholder="Recipient Accounts" data-i18n="[placeholder]recipient_accounts" readonly></textarea>
+                        </div>
+                    </div>
                     <input type="hidden" name="request_type" value="startStandbyShuffler" />
                 </form>
             </div>

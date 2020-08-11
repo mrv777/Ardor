@@ -1,6 +1,6 @@
 <!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   ~ Copyright © 2013-2016 The Nxt Core Developers.                            ~
-  ~ Copyright © 2016-2019 Jelurida IP B.V.                                    ~
+  ~ Copyright © 2016-2020 Jelurida IP B.V.                                    ~
   ~                                                                           ~
   ~ See the LICENSE.txt file at the top-level directory of this distribution  ~
   ~ for licensing information.                                                ~
@@ -42,47 +42,62 @@
     </div>
 </div>
 
-
 <div id="add_message_modal_template">
     <div class="form-group add_message_container">
-        <input type="checkbox" name="add_message" id="{{name}}_add_message" class="add_message" tabindex="101" /> <label for="{{name}}_add_message" style="font-weight:normal;margin-bottom:0;"> <span data-i18n="add_message_q">Add a Message?</span></label>
+        <label for="{{name}}_add_message" class="checkbox-inline">
+            <input type="checkbox" name="add_message" id="{{name}}_add_message" class="add_message" tabindex="101" /><span data-i18n="add_message_q">Add a Message?</span>
+        </label>
     </div>
     <div class="form-group optional_message">
         <label for="{{name}}_message" data-i18n="message">MESSAGE</label>
         <textarea class="form-control" id="{{name}}_message" name="message" rows="4" tabindex="102"></textarea>
         <div class="add_message_encrypt_option" style="margin-top:3px" id="{{name}}_to_specific_account_message_options">
-            <label for="{{name}}_encrypt_message" style="font-weight:normal;color:#666">
-                <input type="checkbox" name="encrypt_message" id="{{name}}_encrypt_message" value="1" data-default="checked" checked="checked" /> <span data-i18n="encrypt_message">Encrypt Message</span>
+            <label for="{{name}}_true_encrypt_message" class="radio-inline">
+                <input type="radio" name="encrypt_message" id="{{name}}_true_encrypt_message" value="1" tabindex="103"> <span data-i18n="encrypt_message">Encrypt Message</span>
+            </label>
+            <label for="{{name}}_false_encrypt_message" style="margin-left: 20px" class="radio-inline">
+                <input type="radio" name="encrypt_message" id="{{name}}_false_encrypt_message" value="0" tabindex="104"> <span data-i18n="dont_encrypt_message">Don't Encrypt Message</span>
             </label>
         </div>
         <div style="margin-top:3px;display:none" id="{{name}}_to_anyone_message_options">
-            <label for="{{name}}_encrypt_message" style="font-weight:normal;color:#666" data-i18n="message_is_not_encrypted">This message is not encrypted.</label>
+            <label for="{{name}}_encrypt_message" data-i18n="message_is_not_encrypted">This message is not encrypted.</label>
         </div>
         <div style="margin-top:3px">
-            <label for="{{name}}_message_permanent" style="font-weight:normal;color:#666">
+            <label for="{{name}}_message_permanent" class="checkbox-inline">
                 <input type="checkbox" name="permanent_message" id="{{name}}_message_permanent" value="1" data-default="unchecked" /> <span data-i18n="permanent_message">Message is Never Deleted</span>
             </label>
         </div>
     </div>
 </div>
 
-
 <div id="secret_phrase_modal_template">
     <div class="form-group secret_phrase">
         <div id="{{name}}_secret_phrase_reader" class="input-group scan-qr-code-reader" style="display:none"></div>
-        <label for="{{name}}_password" data-i18n="passphrase">PASSPHRASE</label>
+        <label for="{{name}}_password" data-i18n="passphrase_or_private_key">PASSPHRASE OR PRIVATE KEY</label>
         <button id="{{name}}_secret_phrase_scan" type="button" data-reader="{{name}}_secret_phrase_reader" data-result="{{name}}_password" class="scan-qr-code btn btn-default btn-xs ">
             <i class="far fa-qrcode"></i>
         </button>
         <input type="password" name="secretPhrase" id="{{name}}_password" class="form-control secret-phrase-input" placeholder="" tabindex="111">
         <div class="form-group">
             <div class="shared-secret-container">
-                <input type="checkbox" id="{{name}}_is_shared_secret" class="is-shared-secret" value="0" tabindex="144"/> <label for="{{name}}_is_shared_secret" style="font-weight:normal;margin-bottom:0;"> <span data-i18n="shared_secret">SHARED SECRET</span></label>
+                <label for="{{name}}_is_shared_secret" class="checkbox-inline">
+                    <input type="checkbox" id="{{name}}_is_shared_secret" class="is-shared-secret" value="0" tabindex="144"/><span data-i18n="shared_secret">SHARED SECRET</span>
+                </label>
+                <i class="far fa-question-circle modal-context-help" data-toggle="popover" data-trigger="hover" data-container="#{{name}}_modal" data-i18n="[data-content]secret_sharing_help" data-original-title="" title=""></i>
             </div>
             <div class="form-group piece_entry_group" data-modal-ui-element="multi_piece_modal_ui_element"></div>
             <div class="is_voucher">
-                <input type="checkbox" name="isVoucher" id="{{name}}_is_voucher" value="0" tabindex="143"/> <label for="{{name}}_is_voucher" style="font-weight:normal;" data-i18n="voucher">Voucher</label>
+                <label for="{{name}}_is_voucher" class="checkbox-inline">
+                    <input type="checkbox" name="isVoucher" id="{{name}}_is_voucher" value="0" tabindex="143"/><span data-i18n="voucher">Voucher</span>
+                </label>
+                <i class="far fa-question-circle modal-context-help" data-toggle="popover" data-trigger="hover" data-container="#{{name}}_modal" data-i18n="[data-content]voucher_help" data-original-title="" title=""></i>
             </div>
+        </div>
+    </div>
+    <div class="form-group hardware-wallet">
+        <label data-i18n="hardware_wallet_status"></label>
+        <div class="form-group">
+            <div class="callout callout-hardware hardware-status" style="margin-bottom: 0;"></div>
         </div>
     </div>
 </div>
@@ -98,8 +113,24 @@
     <div class="row">
         <div class="col-xs-12 col-sm-6 col-md-6">
             <div class="form-group">
-                <label for="{{name}}_fee" data-i18n="fee">FEE</label>
-                <button type="button" class="btn btn-default btn-xs btn-calculate-fee" data-loading-text="Calculating..." data-i18n="[data-loading-text]calculating"><span data-i18n="calculate">CALCULATE</span><span class="warning-label" id="{{name}}_recalc"> *</span></button>
+                <label for="{{name}}_fee" data-i18n="fee" class="fee-label">FEE</label>
+                <div class="fee-calculation-container">
+                    <div class="fee-priority-element">
+                        <label for="{{name}}_fee_priority" data-i18n="transaction_priority"
+                               style="font-weight:normal;">Priority</label>
+                        <i class="far fa-question-circle modal-context-help" data-toggle="popover" data-trigger="hover"
+                           data-container="#{{name}}_modal" data-i18n="[data-content]transaction_priority_help" data-original-title="" title=""></i>
+                    </div>
+                    <div class="fee-priority-slider-container fee-priority-element">
+                        <input id="{{name}}_fee_priority" name="transactionPriority" class="fee-priority-slider"
+                               step="1" value="1" min="0" max="2" type="range" tabindex="103"/>
+                        <span class="fee-priority-text"></span>
+                    </div>
+                    <button type="button" class="btn btn-default btn-xs btn-calculate-fee" tabindex="103"
+                            data-loading-text="Calculating..." data-i18n="[data-loading-text]calculating">
+                        <span data-i18n="calculate">CALCULATE</span><span class="warning-label" id="{{name}}_recalc"> *</span>
+                    </button>
+                </div>
                 <div class="input-group">
                     <input type="number" name="feeNXT" id="{{name}}_fee" class="form-control" step="any" placeholder="Minimum Fee" data-i18n="[placeholder]minimum_fee" tabindex="103">
                     <span class="input-group-addon coin-symbol" id="{{name}}_fee_coin"></span>
@@ -124,10 +155,10 @@
 <div id="advanced_approve_template">
     <div class="advanced_mandatory_approval" id="{{name}}_mandatory_approval" style="display:none;">
         <div id="auto_phasing_possible_group" class="row">
-            <div class="col-xs-6">
+            <div class="col-xs-12 col-sm-6">
                 <div class="form-group mandatory_approval_finish_height_group" data-modal-ui-element="block_height_modal_ui_element"></div>
             </div>
-            <div class="col-xs-6">
+            <div class="col-xs-12 col-sm-6">
                 <div class="phasing_only_enabled_info">
                     <span id="account_control_enabled_info" data-i18n="mandatory_approval_enabled_info">
                         Mandatory Approval account control is enabled. Please set Finish Height.</span>
@@ -153,10 +184,10 @@
             <span data-i18n="transaction_type_not_phasing_safe">Transaction type not safe for phasing/approval.</span>
         </div>
         <div class="row">
-            <div class="col-xs-6">
+            <div class="col-xs-12 col-sm-6">
                 <div class="form-group phasing_model_group" data-modal-ui-element="approval_model_modal_ui_element"></div>
             </div>
-            <div class="col-xs-6">
+            <div class="col-xs-12 col-sm-6">
                 <div class="form-group phasing_finish_height_group" data-modal-ui-element="block_height_modal_ui_element"></div>
             </div>
         </div>

@@ -1,6 +1,6 @@
 /*
  * Copyright © 2013-2016 The Nxt Core Developers.
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -30,6 +30,8 @@ import org.bouncycastle.crypto.params.ParametersWithIV;
 import org.bouncycastle.jcajce.provider.digest.Keccak;
 import org.bouncycastle.jcajce.provider.digest.RIPEMD160;
 
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
@@ -77,24 +79,18 @@ public final class Crypto {
         return new Keccak.Digest256();
     }
 
-    public static byte[] getKeySeed(String secretPhrase, byte[]... nonces) {
+    public static byte[] getKeySeed(byte[] privateKey, byte[]... nonces) {
         MessageDigest digest = Crypto.sha256();
-        digest.update(Convert.toBytes(secretPhrase));
+        digest.update(privateKey);
         for (byte[] nonce : nonces) {
             digest.update(nonce);
         }
         return digest.digest();
     }
 
-    public static byte[] getPublicKey(byte[] keySeed) {
+    public static byte[] getPublicKey(byte[] privateKey) {
         byte[] publicKey = new byte[32];
-        Curve25519.keygen(publicKey, null, Arrays.copyOf(keySeed, keySeed.length));
-        return publicKey;
-    }
-
-    public static byte[] getPublicKey(String secretPhrase) {
-        byte[] publicKey = new byte[32];
-        Curve25519.keygen(publicKey, null, Crypto.sha256().digest(Convert.toBytes(secretPhrase)));
+        Curve25519.keygen(publicKey, null, Arrays.copyOf(privateKey, privateKey.length));
         return publicKey;
     }
 
@@ -105,6 +101,9 @@ public final class Crypto {
     }
 
     public static byte[] getPrivateKey(String secretPhrase) {
+        if (secretPhrase == null) {
+            return null;
+        }
         byte[] s = Crypto.sha256().digest(Convert.toBytes(secretPhrase));
         Curve25519.clamp(s);
         return s;
@@ -114,11 +113,11 @@ public final class Crypto {
         Curve25519.curve(Z, k, P);
     }
 
-    public static byte[] sign(byte[] message, String secretPhrase) {
+    public static byte[] sign(byte[] message, byte[] privateKey) {
+        MessageDigest digest = Crypto.sha256();
         byte[] P = new byte[32];
         byte[] s = new byte[32];
-        MessageDigest digest = Crypto.sha256();
-        Curve25519.keygen(P, s, digest.digest(Convert.toBytes(secretPhrase)));
+        Curve25519.keygen(P, s, privateKey);
 
         byte[] m = digest.digest(message);
 
@@ -287,4 +286,32 @@ public final class Crypto {
         return Curve25519.isCanonicalSignature(signature);
     }
 
+    static byte[] getSha256Commitment(byte[] message, byte[] secretKey) {
+        return getCommitment("HmacSHA256", message, secretKey);
+    }
+
+    static byte[] getSha512Commitment(byte[] message, byte[] secretKey) {
+        return getCommitment("HmacSHA512", message, secretKey);
+    }
+
+    static byte[] getCommitment(String algorithm, byte[] message, byte[] secretKey) {
+        try {
+            Mac sha512Hmac = Mac.getInstance(algorithm);
+            SecretKeySpec keySpec = new SecretKeySpec(secretKey, algorithm);
+            sha512Hmac.init(keySpec);
+            return sha512Hmac.doFinal(message);
+        } catch (Exception e) {
+            throw new IllegalStateException(e);
+        }
+    }
+
+    /**
+     * Clamping is used to protect a key against common attacks on Ed25519 and Curve25519.
+     * In our case the lowest 3 bits of the first byte of the key of are cleared, the highest bit of the last byte is
+     * cleared, and the second highest bit of the last byte is set.
+     * @param key the key to clamp
+     */
+    public static void clamp(byte[] key) {
+        Curve25519.clamp(key);
+    }
 }

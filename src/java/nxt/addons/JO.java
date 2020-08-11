@@ -1,5 +1,5 @@
 /*
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -26,7 +26,9 @@ import java.io.IOException;
 import java.io.Reader;
 import java.util.AbstractMap;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -35,6 +37,26 @@ import java.util.Set;
  * in order to support streaming into String.
  */
 public class JO extends AbstractMap {
+
+    public static class Builder {
+        private final Map<String, Object> attributes = new HashMap<>();
+
+        public JO.Builder put(String key, Object value) {
+            attributes.put(key, value);
+            return this;
+        }
+
+        public JO.Builder putAttributes(Map<String, Object> attributes) {
+            attributes.forEach(this.attributes::put);
+            return this;
+        }
+
+        public JO build() {
+            JO jo = new JO();
+            attributes.forEach(jo::put);
+            return jo;
+        }
+    }
 
     private final JSONObject jo;
 
@@ -184,6 +206,9 @@ public class JO extends AbstractMap {
         if (value instanceof String) {
             return Double.parseDouble((String)value);
         }
+        if (value instanceof Long) {
+            return ((Long)value).doubleValue();
+        }
         return (double)value;
     }
 
@@ -196,10 +221,13 @@ public class JO extends AbstractMap {
 
     public float getFloat(String key) {
         Object value = jo.get(key);
-        if (value instanceof Float) {
-            return (float)value;
+        if (value instanceof String) {
+            return Float.parseFloat((String)value);
         }
-        return (float)getDouble(key);
+        if (value instanceof Long) {
+            return ((Long)value).floatValue();
+        }
+        return (float)value;
     }
 
     public short getShort(String key, short defaultValue) {
@@ -247,7 +275,7 @@ public class JO extends AbstractMap {
         if (o instanceof Boolean) {
             return (boolean)o;
         }
-        return Boolean.valueOf((String)o);
+        return Boolean.parseBoolean((String)o);
     }
 
     public String getString(String key, String defaultValue) {

@@ -1,6 +1,6 @@
 /*
  * Copyright © 2013-2016 The Nxt Core Developers.
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -16,14 +16,17 @@
 package nxt.ce;
 
 import nxt.Constants;
+import nxt.Nxt;
 import nxt.NxtException;
 import nxt.account.Account;
 import nxt.account.AccountLedger;
 import nxt.account.AccountLedger.LedgerEvent;
 import nxt.account.BalanceHome;
 import nxt.blockchain.Chain;
+import nxt.blockchain.ChildChain;
 import nxt.blockchain.ChildTransactionImpl;
 import nxt.blockchain.ChildTransactionType;
+import nxt.blockchain.FxtChain;
 import nxt.blockchain.Transaction;
 import nxt.blockchain.TransactionType;
 import nxt.util.Convert;
@@ -32,6 +35,9 @@ import org.json.simple.JSONObject;
 import java.math.BigDecimal;
 import java.math.MathContext;
 import java.nio.ByteBuffer;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -142,6 +148,10 @@ public abstract class CoinExchangeTransactionType extends ChildTransactionType {
                 throw new NxtException.NotValidException("Coin exchange order chain and exchange chain must be different: "
                         + attachment.getJSONObject());
             }
+            if (Nxt.getBlockchain().getHeight() >= Constants.CHILD_CHAIN_CONTROL_BLOCK && exchangeChain == FxtChain.FXT) {
+                throw new NxtException.NotValidException("Coin exchange with parent chain must be submitted on parent chain: "
+                        + attachment.getJSONObject());
+            }
             long amountNQT = Convert.unitRateToAmount(quantityQNT, exchangeChain.getDecimals(),
                                         priceNQT, chain.getDecimals());
             if (amountNQT == 0) {
@@ -174,6 +184,15 @@ public abstract class CoinExchangeTransactionType extends ChildTransactionType {
         public final boolean isPhasingSafe() {
             return true;
         }
+
+        @Override
+        protected final List<ChildChain> getInvolvedChildChains(ChildTransactionImpl transaction) {
+            OrderIssueAttachment attachment = (OrderIssueAttachment)transaction.getAttachment();
+            ChildChain chain = (ChildChain)attachment.getChain();
+            Chain exchangeChain = attachment.getExchangeChain();
+            return exchangeChain == FxtChain.FXT ? Collections.singletonList(chain) : Arrays.asList(chain, (ChildChain)exchangeChain);
+        }
+
     };
 
     /**
@@ -252,6 +271,10 @@ public abstract class CoinExchangeTransactionType extends ChildTransactionType {
                 throw new NxtException.NotValidException("Coin exchange order cancellation for order on chain "
                         + Chain.getChain(order.getChainId()).getName()
                         + " was submitted on chain " + transaction.getChain().getName());
+            }
+            if (Nxt.getBlockchain().getHeight() >= Constants.CANCEL_FXT_COIN_ORDER_FIX_BLOCK && order.getExchangeId() == FxtChain.FXT.getId()) {
+                throw new NxtException.NotValidException("Cancelling parent chain coin exchanges must be submitted on parent chain: "
+                        + attachment.getJSONObject());
             }
         }
 

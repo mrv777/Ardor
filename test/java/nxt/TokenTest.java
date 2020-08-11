@@ -1,6 +1,6 @@
 /*
  * Copyright © 2013-2016 The Nxt Core Developers.
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -17,6 +17,7 @@
 package nxt;
 
 import nxt.account.Token;
+import nxt.crypto.Crypto;
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
@@ -45,7 +46,7 @@ public class TokenTest extends BlockchainTest {
     @Test
     public void testGenerateToken() throws Exception {
         int start = Nxt.getEpochTime();
-        String tokenString = Token.generateToken("secret", "http://nxt.org");
+        String tokenString = Token.generateToken(Crypto.getPrivateKey("secret"), "http://nxt.org");
         int end = Nxt.getEpochTime();
         Token token = Token.parseToken(tokenString, "http://nxt.org");
 
@@ -56,14 +57,14 @@ public class TokenTest extends BlockchainTest {
 
     @Test
     public void emptySecret() throws Exception {
-        String tokenString = Token.generateToken("", "http://nxt.org");
+        String tokenString = Token.generateToken(Crypto.getPrivateKey(""), "http://nxt.org");
         Token token = Token.parseToken(tokenString, "http://nxt.org");
         assertTrue(token.isValid());
     }
 
     @Test
     public void emptySite() throws Exception {
-        String tokenString = Token.generateToken("secret", "");
+        String tokenString = Token.generateToken(Crypto.getPrivateKey("secret"), "");
         Token token = Token.parseToken(tokenString, "");
         assertTrue(token.isValid());
     }
@@ -74,7 +75,7 @@ public class TokenTest extends BlockchainTest {
         for (int i = 0; i < 100000; i++) {
             site.append("abcd10");
         }
-        String tokenString = Token.generateToken("secret", site.toString());
+        String tokenString = Token.generateToken(Crypto.getPrivateKey("secret"), site.toString());
 
         Token token = Token.parseToken(tokenString, site.toString());
         assertTrue(token.isValid());

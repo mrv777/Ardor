@@ -1,6 +1,6 @@
 /*
  * Copyright © 2013-2016 The Nxt Core Developers.
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -25,7 +25,7 @@ import java.nio.charset.StandardCharsets;
 import java.security.SecureRandom;
 import java.util.Arrays;
 
-public class SimpleShamirSecretSharingTest extends BlockchainTest {
+public class SimpleShamirSecretSharingTest {
     private static final BigInteger ALICE_SECRET_PHRASE_128_BIT = new BigInteger("298106192037605529109565170145082624171");
 
     @Test
@@ -73,22 +73,26 @@ public class SimpleShamirSecretSharingTest extends BlockchainTest {
     public void splitAndCombineRandomSecretPhrase() {
         // Generate the pieces
         SimpleShamirSecretSharing shamirSecretSharing = new SimpleShamirSecretSharing();
-        SecretShare[] pieces = shamirSecretSharing.split(new BigInteger(chuckSecretPhrase.getBytes(StandardCharsets.UTF_8)), 4, 7, SecretSharingGenerator.PRIME_4096_BIT, new SecureRandom());
+        SecretShare[] pieces = shamirSecretSharing.split(new BigInteger(BlockchainTest.chuckSecretPhrase.getBytes(StandardCharsets.UTF_8)), 4, 7, SecretSharingGenerator.PRIME_4096_BIT, new SecureRandom());
 
         // Select pieces and combine
         SecretShare[] selectedPieces = new SecretShare[]{pieces[1], pieces[3], pieces[5], pieces[6]};
         BigInteger combinedSecret = shamirSecretSharing.combine(selectedPieces, SecretSharingGenerator.PRIME_4096_BIT);
-        Assert.assertEquals(chuckSecretPhrase, new String(combinedSecret.toByteArray(), StandardCharsets.UTF_8));
+        Assert.assertEquals(BlockchainTest.chuckSecretPhrase, new String(combinedSecret.toByteArray(), StandardCharsets.UTF_8));
 
         // Select other pieces 5 out of 7 and combine
         selectedPieces = new SecretShare[]{pieces[0], pieces[2], pieces[3], pieces[6], pieces[4]};
         combinedSecret = shamirSecretSharing.combine(selectedPieces, SecretSharingGenerator.PRIME_4096_BIT);
-        Assert.assertEquals(chuckSecretPhrase, new String(combinedSecret.toByteArray(), StandardCharsets.UTF_8));
+        Assert.assertEquals(BlockchainTest.chuckSecretPhrase, new String(combinedSecret.toByteArray(), StandardCharsets.UTF_8));
 
         // Select only 3 out of 7 and combine
         selectedPieces = new SecretShare[]{pieces[2], pieces[3], pieces[6]};
         combinedSecret = shamirSecretSharing.combine(selectedPieces, SecretSharingGenerator.PRIME_4096_BIT);
-        Assert.assertNotEquals(chuckSecretPhrase, new String(combinedSecret.toByteArray(), StandardCharsets.UTF_8));
+        Assert.assertNotEquals(BlockchainTest.chuckSecretPhrase, new String(combinedSecret.toByteArray(), StandardCharsets.UTF_8));
     }
 
+    @Test(expected = IllegalArgumentException.class)
+    public void splitSecretZero() {
+        new SimpleShamirSecretSharing().split(BigInteger.ZERO, 2, 3, SecretSharingGenerator.PRIME_192_BIT, new SecureRandom());
+    }
 }

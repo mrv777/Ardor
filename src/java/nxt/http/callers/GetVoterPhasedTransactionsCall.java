@@ -8,6 +8,10 @@ public class GetVoterPhasedTransactionsCall extends APICall.Builder<GetVoterPhas
         super(ApiSpec.getVoterPhasedTransactions);
     }
 
+    public static GetVoterPhasedTransactionsCall create() {
+        return new GetVoterPhasedTransactionsCall();
+    }
+
     public static GetVoterPhasedTransactionsCall create(int chain) {
         return new GetVoterPhasedTransactionsCall().param("chain", chain);
     }

@@ -8,6 +8,10 @@ public class GetBalanceCall extends APICall.Builder<GetBalanceCall> {
         super(ApiSpec.getBalance);
     }
 
+    public static GetBalanceCall create() {
+        return new GetBalanceCall();
+    }
+
     public static GetBalanceCall create(int chain) {
         return new GetBalanceCall().param("chain", chain);
     }

@@ -1,0 +1,10 @@
+{
+  "autoFeeRate": true,
+  "params": {
+    "AccountBalanceNotifier": {
+      "slackWebHookUrl": "http://localhost:26875/nxt?requestType=TestApiAddOn",
+      "assets": {
+      }
+    }
+  }
+}

@@ -1,5 +1,5 @@
 /*
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -38,22 +38,23 @@ import java.util.Random;
 
 import static nxt.blockchain.ChildChain.IGNIS;
 
-class ContractTestHelper {
+@SuppressWarnings("rawtypes")
+public class ContractTestHelper {
 
-    static String bobPaysContract(String message, Chain chain) {
+    public static String bobPaysContract(String message, Chain chain) {
         return bobPaysContract(message, chain, true);
     }
 
-    static String bobPaysContract(String message, Chain chain, boolean encryptMessage) {
+    public static String bobPaysContract(String message, Chain chain, boolean encryptMessage) {
         return payContract(message, chain, encryptMessage, BlockchainTest.BOB.getSecretPhrase(), BlockchainTest.ALICE.getRsAccount());
     }
 
-    static String payContract(String message, Chain chain, boolean encryptMessage, String secretPhrase, String recipient) {
+    public static String payContract(String message, Chain chain, boolean encryptMessage, String secretPhrase, String recipient) {
         return payContract(message, chain, encryptMessage, secretPhrase, recipient, false);
     }
 
-    static String payContract(String message, Chain chain, boolean encryptMessage, String secretPhrase, String recipient, boolean addHashedSecret) {
-        APICall.Builder builder = new APICall.Builder("sendMoney").
+    public static String payContract(String message, Chain chain, boolean encryptMessage, String secretPhrase, String recipient, boolean addHashedSecret) {
+        APICall.Builder<?> builder = new APICall.Builder<>("sendMoney").
                 secretPhrase(secretPhrase).
                 param("chain", chain.getId()).
                 param("recipient", recipient).
@@ -81,12 +82,12 @@ class ContractTestHelper {
         return (String)response.get("fullHash");
     }
 
-    static String messageTriggerContract(String message) {
+    public static String messageTriggerContract(String message) {
         return messageTriggerContract(message, BlockchainTest.BOB.getSecretPhrase());
     }
 
-    static String messageTriggerContract(String message, String secretPhrase) {
-        APICall apiCall = new APICall.Builder("sendMessage").
+    public static String messageTriggerContract(String message, String secretPhrase) {
+        APICall apiCall = new APICall.Builder<>("sendMessage").
                 secretPhrase(secretPhrase).
                 param("chain", ChildChain.IGNIS.getId()).
                 param("recipient", BlockchainTest.ALICE.getRsAccount()).
@@ -100,25 +101,25 @@ class ContractTestHelper {
         return (String)response.get("fullHash");
     }
 
-    static String deployContract(Class contractClass) {
+    public static String deployContract(Class contractClass) {
         return deployContract(contractClass, null);
     }
 
-    static String deployContract(Class contractClass, JO setupParams) {
+    public static String deployContract(Class contractClass, JO setupParams) {
         return deployContract(contractClass, setupParams, true);
     }
 
-    static String deployContract(Class contractClass, JO setupParams, boolean isGenerateBlock) {
+    public static String deployContract(Class contractClass, JO setupParams, boolean isGenerateBlock) {
         String contractName = contractClass.getSimpleName();
         deployContract(contractName, contractClass.getPackage().getName(), setupParams, isGenerateBlock);
         return contractName;
     }
 
-    static void deployContract(String contractName, String packageName, JO setupParams) {
+    public static void deployContract(String contractName, String packageName, JO setupParams) {
         deployContract(contractName, packageName, setupParams, true);
     }
 
-    static void deployContract(String contractName, String packageName, JO setupParams, boolean isGenerateBlock) {
+    public static void deployContract(String contractName, String packageName, JO setupParams, boolean isGenerateBlock) {
         AccessController.doPrivileged((PrivilegedAction<Void>) () -> {
             ContractManager contractManager = new ContractManager();
             contractManager.init(contractName);
@@ -130,7 +131,9 @@ class ContractTestHelper {
             Logger.logInfoMessage("tagged data hash: " + Convert.toHexString(contractData.getTaggedDataHash()));
             JO contractReferenceTransaction = contractManager.reference(contractData, contractData.getResponse().parseHexString("fullHash"), setupParams);
             if (contractReferenceTransaction.isExist("errorCode")) {
-                Assert.fail("Failed to set contract property");
+                Assert.fail(String.format("Failed to set contract property, error: %s:%s"
+                        , contractReferenceTransaction.getLong("errorCode")
+                        , contractReferenceTransaction.getString("errorDescription")));
             }
             if (isGenerateBlock) {
                 BlockchainTest.generateBlock();
@@ -140,7 +143,7 @@ class ContractTestHelper {
     }
 
     @SuppressWarnings("SameParameterValue")
-    static void testChildTransaction(int chainId, int type, int subType, long amount, long fee, long sender, List<Long> recipients) {
+    public static void testChildTransaction(int chainId, int type, int subType, long amount, long fee, long sender, List<Long> recipients) {
         JO getBlockchainStatusCall = GetBlockchainStatusCall.create().call();
         ChainTransactionId contractResultTransactionId = null;
         List<TransactionResponse> childTransactions = GetExecutedTransactionsCall.create(IGNIS.getId()).type(0).subtype(0).height(getBlockchainStatusCall.getInt("numberOfBlocks") - 1).getTransactions();
@@ -157,7 +160,7 @@ class ContractTestHelper {
         Assert.assertNotNull(contractResultTransactionId);
     }
 
-    static String getRandomSeed(int seed) {
+    public static String getRandomSeed(int seed) {
         return Convert.toHexString(Convert.longToBytes(new Random(seed).nextLong()));
     }
 }

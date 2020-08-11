@@ -1,6 +1,6 @@
 /*
  * Copyright © 2013-2016 The Nxt Core Developers.
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -45,9 +45,9 @@ import java.util.stream.Collectors;
 
 public class APICall {
 
-    public static final int IGNIS_CHAIN_ID = 2; // Avoid using the ChilcChain object since this depends on the whole Nxt infrastructure
+    private static final int IGNIS_CHAIN_ID = 2; // Avoid using the ChildChain object since this depends on the whole Nxt infrastructure
 
-    private APIConnector apiConnector;
+    private final APIConnector apiConnector;
 
     private APICall(Builder<?> builder) {
         URL remoteUrl = builder.remoteUrl;
@@ -63,11 +63,11 @@ public class APICall {
 
     public static class Builder<T extends Builder> {
         protected final Map<String, List<String>> params = new HashMap<>();
-        private List<String> validParams = new ArrayList<>();
+        private final List<String> validParams = new ArrayList<>();
         private boolean isValidationEnabled = true;
         private final Map<String, byte[]> parts = new HashMap<>();
-        private String validFileParam;
-        private String requestType;
+        private final List<String> validFileParams;
+        private final String requestType;
         private URL remoteUrl;
         private boolean isTrustRemoteCertificate;
 
@@ -76,14 +76,18 @@ public class APICall {
         }
 
         public Builder(ApiSpec apiSpec) {
-            this.requestType = apiSpec.name();
-            params.put("requestType", Collections.singletonList(this.requestType));
-            validParams.addAll(apiSpec.getParameters());
-            if (apiSpec.isChainSpecific()) {
-                validParams.add("chain");
+            this(apiSpec.name(), apiSpec.getParameters(), apiSpec.getFileParameters(), apiSpec.isChainSpecific());
+        }
+
+        protected Builder(String requestType, List<String> validParams, List<String> validFileParams, boolean isChainSpecific) {
+            this.requestType = requestType;
+            this.params.put("requestType", Collections.singletonList(this.requestType));
+            this.validParams.addAll(validParams);
+            this.validFileParams = validFileParams;
+            if (isChainSpecific) {
+                this.validParams.add("chain");
                 param("chain", "" + IGNIS_CHAIN_ID); // Ignis specific API
             }
-            validFileParam = apiSpec.getFileParameter();
         }
 
         public T remote(URL url) {
@@ -175,6 +179,14 @@ public class APICall {
             return param("secretPhrase", value);
         }
 
+        public T privateKey(byte[] value) {
+            return privateKey(Convert.toHexString(value));
+        }
+
+        public T privateKey(String value) {
+            return param("privateKey", value);
+        }
+
         public T sharedPiece(String... sharedPiece) {
             return param("sharedPiece", sharedPiece);
         }
@@ -224,14 +236,13 @@ public class APICall {
         }
 
         public T parts(String key, byte[] b) {
-            if (!validFileParam.equals(key)) {
+            if (!validFileParams.contains(key)) {
                 throw new IllegalArgumentException(String.format("Invalid file parameter %s for request type %s", key, requestType));
             }
             parts.put(key, b);
             return self();
         }
 
-        @SuppressWarnings("unchecked")
         private T self() {
             return (T) this;
         }
@@ -312,10 +323,11 @@ public class APICall {
             if (jo.isExist("errorCode")) {
                 throw new IllegalStateException(jo.toJSONString());
             }
-            if (!jo.isExist("deadline")) {
+            JO transactionJSON = jo.getJo("transactionJSON");
+            if (!transactionJSON.isExist("deadline")) {
                 throw new IllegalStateException("Response object does not represent a transaction " + jo.toJSONString());
             }
-            return TransactionResponse.create(jo.getJo("transactionJSON"));
+            return TransactionResponse.create(transactionJSON);
         }
 
         public List<BlockResponse> getBlocks() {
@@ -403,14 +415,22 @@ public class APICall {
     }
 
     public static class InvocationError {
-        private JSONObject jsonObject;
+        private final JSONObject jsonObject;
 
         public InvocationError(JSONObject jsonObject) {
             this.jsonObject = jsonObject;
         }
 
-        public String getErrorCode() {
-            return str("errorCode");
+        public long getErrorCode() {
+            return getLong("errorCode");
+        }
+
+        private long getLong(String errorCode) {
+            final Object object = assertNotNull(jsonObject.get(errorCode));
+            if (object instanceof Long) {
+                return (Long) object;
+            }
+            return Long.parseLong(object.toString());
         }
 
         public String getErrorDescription() {

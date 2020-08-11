@@ -8,6 +8,10 @@ public class GetExpectedBuyOffersCall extends APICall.Builder<GetExpectedBuyOffe
         super(ApiSpec.getExpectedBuyOffers);
     }
 
+    public static GetExpectedBuyOffersCall create() {
+        return new GetExpectedBuyOffersCall();
+    }
+
     public static GetExpectedBuyOffersCall create(int chain) {
         return new GetExpectedBuyOffersCall().param("chain", chain);
     }

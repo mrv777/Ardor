@@ -1,6 +1,6 @@
 /*
  * Copyright © 2013-2016 The Nxt Core Developers.
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -127,7 +127,7 @@ public final class TaggedDataAttachment extends Attachment.AbstractAttachment im
         this.data = data;
         this.filename = filename;
         this.hash = null;
-        if (isText && !Arrays.equals(data, Convert.toBytes(Convert.toString(data)))) {
+        if (isText && !Convert.isUtf8Text(data)) {
             throw new NxtException.NotValidException("Data is not UTF-8 text");
         }
     }

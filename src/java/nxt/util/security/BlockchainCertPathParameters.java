@@ -1,5 +1,5 @@
 /*
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -19,7 +19,7 @@ import java.security.cert.CertPathParameters;
 
 public class BlockchainCertPathParameters implements CertPathParameters {
 
-    private BlockchainCertificate certificate;
+    private final BlockchainCertificate certificate;
 
     public BlockchainCertPathParameters(BlockchainCertificate certificate) {
         this.certificate = certificate;

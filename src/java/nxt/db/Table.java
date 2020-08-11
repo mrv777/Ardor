@@ -1,6 +1,6 @@
 /*
  * Copyright © 2013-2016 The Nxt Core Developers.
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -16,6 +16,7 @@
 
 package nxt.db;
 
+import nxt.Constants;
 import nxt.dbschema.Db;
 
 import java.sql.Connection;
@@ -51,6 +52,18 @@ public class Table {
     public void truncate() {
         if (!db.isInTransaction()) {
             throw new IllegalStateException("Not in transaction");
+        }
+        try (Connection con = getConnection();
+             Statement stmt = con.createStatement()) {
+            stmt.executeUpdate("TRUNCATE TABLE " + schemaTable);
+        } catch (SQLException e) {
+            throw new RuntimeException(e.toString(), e);
+        }
+    }
+
+    public final void truncateAll() {
+        if (!Constants.isAutomatedTest) {
+            throw new IllegalStateException("Only allowed within automated tests");
         }
         try (Connection con = getConnection();
              Statement stmt = con.createStatement()) {

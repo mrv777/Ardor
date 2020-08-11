@@ -1,6 +1,6 @@
 /*
  * Copyright © 2013-2016 The Nxt Core Developers.
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -28,6 +28,7 @@ import java.io.InputStreamReader;
 
 public class GeneratePublicKey {
 
+    // TODO add support for generating from seed and from private key
     public static void main(String[] args) {
         SecurityManager sm = System.getSecurityManager();
         if (sm != null) {
@@ -44,7 +45,7 @@ public class GeneratePublicKey {
         if (console == null) {
             try (BufferedReader inputReader = new BufferedReader(new InputStreamReader(System.in))) {
                 while ((secretPhrase = inputReader.readLine()) != null) {
-                    byte[] publicKey = Crypto.getPublicKey(secretPhrase);
+                    byte[] publicKey = Crypto.getPublicKey(Crypto.getPrivateKey(secretPhrase));
                     System.out.println(Convert.toHexString(publicKey));
                 }
             } catch (IOException e) {
@@ -54,7 +55,7 @@ public class GeneratePublicKey {
             char[] chars;
             while ((chars = console.readPassword("Enter secret phrase: ")) != null && chars.length > 0) {
                 secretPhrase = new String(chars);
-                byte[] publicKey = Crypto.getPublicKey(secretPhrase);
+                byte[] publicKey = Crypto.getPublicKey(Crypto.getPrivateKey(secretPhrase));
                 System.out.println(Convert.toHexString(publicKey));
             }
         }

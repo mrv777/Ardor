@@ -42,6 +42,7 @@
 
   - better think twice than code twice
   - communicate with community and us
+  - don't over-engineer
 
 ### Implementation ###
 
@@ -49,7 +50,8 @@
     - use the existing code as example for whitespace and indentation
     - the default settings of IntelliJ IDEA are good enough
     - make sure your code fits in
-    - use [IDE-Code-Style-Config]
+      - avoid overuse of static imports
+    - don't reformat old code
   - Code should be self-documenting and readable, only special cases need comments
   - The "Effective Java" book is a must read
   - Some of the advice in "Clean Code" is good

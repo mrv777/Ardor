@@ -1,5 +1,5 @@
 /*
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -25,6 +25,7 @@ import nxt.blockchain.ChildChain;
 import nxt.blockchain.FxtChain;
 import nxt.http.APICall;
 import nxt.http.assetexchange.AssetExchangeTest;
+import nxt.http.callers.SendMoneyCall;
 import nxt.util.Convert;
 import nxt.util.JSON;
 import nxt.util.JSONAssert;
@@ -61,7 +62,6 @@ public class BundlerTest extends BlockchainTest {
                 param("chain", ChildChain.IGNIS.getId()).
                 build().invoke();
     }
-
 
     protected long startTwoRulesBundler(long publicRate, long personalBundlerOverpay) {
         JSONArray rulesArray = new JSONArray();
@@ -118,11 +118,11 @@ public class BundlerTest extends BlockchainTest {
     }
 
     protected String createTransaction(Tester sender, long fee, String message) {
-        APICall.Builder builder = new APICall.Builder("sendMoney").secretPhrase(sender.getSecretPhrase()).
-                recipient(DAVE.getId()).param("amountNQT", 10 * ChildChain.IGNIS.ONE_COIN).
-                param("feeNQT", fee);
+        SendMoneyCall builder = SendMoneyCall.create(ChildChain.IGNIS.getId()).secretPhrase(sender.getSecretPhrase()).
+                recipient(DAVE.getId()).amountNQT(10 * ChildChain.IGNIS.ONE_COIN).
+                deadline(30).feeNQT(fee);
         if (message != null) {
-            builder.param("message", message);
+            builder.message(message);
         }
         JSONAssert result = new JSONAssert(builder.build().invoke());
         return result.str("fullHash");

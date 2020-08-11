@@ -1,6 +1,6 @@
 /******************************************************************************
  * Copyright © 2013-2016 The Nxt Core Developers.                             *
- * Copyright © 2016-2019 Jelurida IP B.V.                                     *
+ * Copyright © 2016-2020 Jelurida IP B.V.                                     *
  *                                                                            *
  * See the LICENSE.txt file at the top-level directory of this distribution   *
  * for licensing information.                                                 *
@@ -17,11 +17,13 @@
 /**
  * @depends {nrs.js}
  */
-var NRS = (function(NRS, $) {
-    NRS.forms.setPhasingOnlyControlComplete = function() {};
-	NRS.pages.account_control = function() {};
-	NRS.setup.account_control = function() {};
-	$("#set_mandatory_approval_modal").on("show.bs.modal", function() {});
+NRS.onSiteBuildDone().then(() => {
+	NRS = (function(NRS, $) {
+		NRS.forms.setPhasingOnlyControlComplete = function() {};
+		NRS.pages.account_control = function() {};
+		NRS.setup.account_control = function() {};
+		$("#set_mandatory_approval_modal").on("show.bs.modal", function() {});
 
-	return NRS;
-}(NRS || {}, jQuery));
+		return NRS;
+	}(NRS || {}, jQuery));
+});

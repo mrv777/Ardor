@@ -1,5 +1,5 @@
 /*
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -21,6 +21,10 @@ import nxt.blockchain.TransactionType;
 import nxt.http.APIEnum;
 import nxt.http.APITag;
 
+import java.security.AccessController;
+import java.security.PrivilegedAction;
+import java.util.Collections;
+import java.util.List;
 import java.util.Set;
 
 public class ChainWrapper {
@@ -65,11 +69,11 @@ public class ChainWrapper {
 
     public boolean isAllowed(TransactionType transactionType) {
         return chain.isAllowed(transactionType);
-    };
+    }
 
     public Set<TransactionType> getDisabledTransactionTypes() {
         return chain.getDisabledTransactionTypes();
-    };
+    }
 
     public Set<APIEnum> getDisabledAPIs() {
         return chain.getDisabledAPIs();
@@ -77,6 +81,17 @@ public class ChainWrapper {
 
     public Set<APITag> getDisabledAPITags() {
         return chain.getDisabledAPITags();
+    }
+
+    public boolean isEnabled() {
+        return !isChildChain() || AccessController.doPrivileged((PrivilegedAction<Boolean>)((ChildChain)chain)::isEnabled);
+    }
+
+    public List<Long> getMasterAdminAccounts() {
+        if (!isChildChain()) {
+            return Collections.emptyList();
+        }
+        return ((ChildChain)chain).getMasterAdminAccounts();
     }
 
     @Override

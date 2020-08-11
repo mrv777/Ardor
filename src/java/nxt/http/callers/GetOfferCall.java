@@ -8,6 +8,10 @@ public class GetOfferCall extends APICall.Builder<GetOfferCall> {
         super(ApiSpec.getOffer);
     }
 
+    public static GetOfferCall create() {
+        return new GetOfferCall();
+    }
+
     public static GetOfferCall create(int chain) {
         return new GetOfferCall().param("chain", chain);
     }

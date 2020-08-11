@@ -1,5 +1,5 @@
 /*
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -25,7 +25,6 @@ import nxt.tools.ContractManager;
 import nxt.util.Convert;
 import org.junit.Assert;
 import org.junit.BeforeClass;
-import org.junit.Ignore;
 import org.junit.Test;
 
 import java.security.AccessController;
@@ -58,7 +57,7 @@ public class ContractManagerTest extends AbstractContractTest {
             ContractManager contractManager = new ContractManager();
             contractManager.init("RandomPayment");
             ContractManager.ContractData contractData = contractManager.upload(RandomPayment.class.getSimpleName(), RandomPayment.class.getPackage().getName());
-            byte[] fullHash = contractData.getResponse().parseHexString("fullHash");
+            final byte[] fullHash = contractData.getResponse().parseHexString("fullHash");
             contractManager.reference(contractData, fullHash);
             generateBlock(); // Contract class is confirmed
             List<TransactionResponse> transactionList = GetExecutedTransactionsCall.create(2).height(getHeight()).sender(ALICE.getId()).type(6).getTransactions();
@@ -139,40 +138,36 @@ public class ContractManagerTest extends AbstractContractTest {
      * Run this test using a Java JDK from the same version used by the IntelliJ compiler.
      * The test won't pass when using a Java JRE or when using a different version of JDK.
      * This test won't run from a suite due to permission problems. Always run it using this test class.
-     * Comment out the @Ignore annotation to run.
      */
     @Test
-    @Ignore
     public void verifyClassFile() {
-            ContractManager contractManager = new ContractManager();
-            String contractName = ForgingReward.class.getSimpleName();
-            contractManager.init(contractName);
-            ContractManager.ContractData contractData = contractManager.upload(contractName, ForgingReward.class.getPackage().getName());
-            byte[] fullHash = contractData.getResponse().parseHexString("fullHash");
-            contractManager.reference(contractData, fullHash);
-            generateBlock(); // Contract class is confirmed
-            boolean result = contractManager.verify(Convert.toHexString(fullHash), "addons/src/java/com/jelurida/ardor/contracts/ForgingReward.java");
-            Assert.assertTrue(result);
+        ContractManager contractManager = new ContractManager();
+        String contractName = ForgingReward.class.getSimpleName();
+        contractManager.init(contractName);
+        ContractManager.ContractData contractData = contractManager.upload(contractName, ForgingReward.class.getPackage().getName());
+        byte[] fullHash = contractData.getResponse().parseHexString("fullHash");
+        contractManager.reference(contractData, fullHash);
+        generateBlock(); // Contract class is confirmed
+        boolean result = contractManager.verify(Convert.toHexString(fullHash), "addons/src/java/com/jelurida/ardor/contracts/ForgingReward.java");
+        Assert.assertTrue(result);
     }
 
     /**
      * Run this test using a Java JDK from the same version used by the IntelliJ compiler.
      * The test won't pass when using a Java JRE or when using a different version of JDK.
      * This test won't run from a suite due to permission problems. Always run it using this test class.
-     * Comment out the @Ignore annotation to run
      */
     @Test
-    @Ignore
     public void verifySingleSourceJarFile() {
-            ContractManager contractManager = new ContractManager();
-            String contractName = AllowedActions.class.getSimpleName(); // Need single source contract compiled into multiple class files like this one
-            contractManager.init(contractName);
-            ContractManager.ContractData contractData = contractManager.upload(contractName, ForgingReward.class.getPackage().getName());
-            byte[] fullHash = contractData.getResponse().parseHexString("fullHash");
-            contractManager.reference(contractData, fullHash);
-            generateBlock(); // Contract class is confirmed
-            boolean result = contractManager.verify(Convert.toHexString(fullHash), "addons/src/java/com/jelurida/ardor/contracts/AllowedActions.java");
-            Assert.assertTrue(result);
+        ContractManager contractManager = new ContractManager();
+        String contractName = AllowedActions.class.getSimpleName(); // Need single source contract compiled into multiple class files like this one
+        contractManager.init(contractName);
+        ContractManager.ContractData contractData = contractManager.upload(contractName, ForgingReward.class.getPackage().getName());
+        byte[] fullHash = contractData.getResponse().parseHexString("fullHash");
+        contractManager.reference(contractData, fullHash);
+        generateBlock(); // Contract class is confirmed
+        boolean result = contractManager.verify(Convert.toHexString(fullHash), "addons/src/java/com/jelurida/ardor/contracts/AllowedActions.java");
+        Assert.assertTrue(result);
     }
 
     @Test

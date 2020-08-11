@@ -8,6 +8,10 @@ public class GetCurrencyPhasedTransactionsCall extends APICall.Builder<GetCurren
         super(ApiSpec.getCurrencyPhasedTransactions);
     }
 
+    public static GetCurrencyPhasedTransactionsCall create() {
+        return new GetCurrencyPhasedTransactionsCall();
+    }
+
     public static GetCurrencyPhasedTransactionsCall create(int chain) {
         return new GetCurrencyPhasedTransactionsCall().param("chain", chain);
     }

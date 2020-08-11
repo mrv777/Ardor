@@ -1,6 +1,6 @@
 /******************************************************************************
  * Copyright © 2013-2016 The Nxt Core Developers.                             *
- * Copyright © 2016-2019 Jelurida IP B.V.                                     *
+ * Copyright © 2016-2020 Jelurida IP B.V.                                     *
  *                                                                            *
  * See the LICENSE.txt file at the top-level directory of this distribution   *
  * for licensing information.                                                 *
@@ -21,8 +21,6 @@
 (function () {
     "use strict";
     var lastScript = $('script.sitebuild').last();
-    var progress = $('#progress');
-    var progressStatic = $('#progress-static-img');
 
     var action = lastScript.attr('data-action');
     var path = lastScript.attr('data-path');
@@ -34,14 +32,5 @@
             NRS[action]();
         }
     }
-
-
-    var total = parseInt(progress.attr('data-total'));
-    var done = parseInt(progress.attr('data-done')) + 1;
-    var progressPercent = (done / total) * 100;
-
-    progress.css('width', progressPercent + '%');
-    progressStatic.css('filter', 'grayscale(' + Math.floor(100 - progressPercent) + '%)');
-    progress.attr('data-done', done);
 })();
 

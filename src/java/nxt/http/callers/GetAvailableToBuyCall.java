@@ -8,6 +8,10 @@ public class GetAvailableToBuyCall extends APICall.Builder<GetAvailableToBuyCall
         super(ApiSpec.getAvailableToBuy);
     }
 
+    public static GetAvailableToBuyCall create() {
+        return new GetAvailableToBuyCall();
+    }
+
     public static GetAvailableToBuyCall create(int chain) {
         return new GetAvailableToBuyCall().param("chain", chain);
     }

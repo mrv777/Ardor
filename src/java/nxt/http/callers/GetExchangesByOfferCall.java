@@ -8,6 +8,10 @@ public class GetExchangesByOfferCall extends APICall.Builder<GetExchangesByOffer
         super(ApiSpec.getExchangesByOffer);
     }
 
+    public static GetExchangesByOfferCall create() {
+        return new GetExchangesByOfferCall();
+    }
+
     public static GetExchangesByOfferCall create(int chain) {
         return new GetExchangesByOfferCall().param("chain", chain);
     }

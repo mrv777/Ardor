@@ -8,6 +8,10 @@ public class GetShufflingParticipantsCall extends APICall.Builder<GetShufflingPa
         super(ApiSpec.getShufflingParticipants);
     }
 
+    public static GetShufflingParticipantsCall create() {
+        return new GetShufflingParticipantsCall();
+    }
+
     public static GetShufflingParticipantsCall create(int chain) {
         return new GetShufflingParticipantsCall().param("chain", chain);
     }

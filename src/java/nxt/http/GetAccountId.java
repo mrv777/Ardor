@@ -1,6 +1,6 @@
 /*
  * Copyright © 2013-2016 The Nxt Core Developers.
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -34,10 +34,14 @@ public final class GetAccountId extends APIServlet.APIRequestHandler {
     @Override
     protected JSONStreamAware processRequest(HttpServletRequest req) throws ParameterException {
 
+        byte[] privateKey = ParameterParser.getPrivateKey(req, false);
         byte[] publicKey = ParameterParser.getPublicKey(req);
         long accountId = Account.getId(publicKey);
         JSONObject response = new JSONObject();
         JSONData.putAccount(response, "account", accountId);
+        if (privateKey != null) {
+            response.put("privateKey", Convert.toHexString(privateKey));
+        }
         response.put("publicKey", Convert.toHexString(publicKey));
 
         return response;

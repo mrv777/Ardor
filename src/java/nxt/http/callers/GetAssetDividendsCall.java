@@ -8,6 +8,10 @@ public class GetAssetDividendsCall extends APICall.Builder<GetAssetDividendsCall
         super(ApiSpec.getAssetDividends);
     }
 
+    public static GetAssetDividendsCall create() {
+        return new GetAssetDividendsCall();
+    }
+
     public static GetAssetDividendsCall create(int chain) {
         return new GetAssetDividendsCall().param("chain", chain);
     }

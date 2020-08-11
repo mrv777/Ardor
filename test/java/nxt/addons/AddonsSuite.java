@@ -1,6 +1,6 @@
 /*
  * Copyright © 2013-2016 The Nxt Core Developers.
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -16,15 +16,21 @@
 
 package nxt.addons;
 
+import nxt.SafeShutdownSuite;
+import nxt.addons.taxreport.TaxReportAddOnTest;
+import nxt.addons.taxreport.TaxReportTest;
 import org.junit.runner.RunWith;
 import org.junit.runners.Suite;
+
 
 @RunWith(Suite.class)
 @Suite.SuiteClasses({
         SaveAssetSnapshotTest.class,
         SaveCurrencySnapshotTest.class,
+        TaxReportTest.class,
+        TaxReportAddOnTest.class
         //StandbyShufflingConfigFileTest.class,
         //StandbyShufflingTest.class
 })
-public class AddonsSuite {
+public class AddonsSuite extends SafeShutdownSuite {
 }

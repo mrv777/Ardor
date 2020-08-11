@@ -8,6 +8,10 @@ public class GetPrunableMessagesCall extends APICall.Builder<GetPrunableMessages
         super(ApiSpec.getPrunableMessages);
     }
 
+    public static GetPrunableMessagesCall create() {
+        return new GetPrunableMessagesCall();
+    }
+
     public static GetPrunableMessagesCall create(int chain) {
         return new GetPrunableMessagesCall().param("chain", chain);
     }

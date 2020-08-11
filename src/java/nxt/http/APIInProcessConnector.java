@@ -1,5 +1,5 @@
 /*
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -57,7 +57,7 @@ public class APIInProcessConnector implements APIConnector {
             return;
         }
         String paramsStr = params.entrySet().stream().map(e -> {
-            if (API.SENSITIVE_PARAMS.contains(e.getKey())) {
+            if (APIServlet.isSensitiveParam(e.getKey())) {
                 return e.getKey() + "={hidden}";
             }
             if (e.getValue().size() == 1) {

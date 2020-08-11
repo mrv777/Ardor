@@ -1,6 +1,6 @@
 /*
  * Copyright © 2013-2016 The Nxt Core Developers.
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -30,6 +30,8 @@ import org.json.simple.JSONStreamAware;
 
 import javax.servlet.http.HttpServletRequest;
 
+import java.util.Collections;
+
 import static nxt.http.JSONResponses.INCORRECT_DGS_LISTING_DESCRIPTION;
 import static nxt.http.JSONResponses.INCORRECT_DGS_LISTING_NAME;
 import static nxt.http.JSONResponses.INCORRECT_DGS_LISTING_TAGS;
@@ -40,7 +42,7 @@ public final class DGSListing extends CreateTransaction {
     static final DGSListing instance = new DGSListing();
 
     private DGSListing() {
-        super("messageFile", new APITag[] {APITag.DGS, APITag.CREATE_TRANSACTION},
+        super(new APITag[] {APITag.DGS, APITag.CREATE_TRANSACTION},
                 "name", "description", "tags", "quantity", "priceNQT");
     }
 

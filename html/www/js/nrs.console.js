@@ -1,6 +1,6 @@
 /******************************************************************************
  * Copyright © 2013-2016 The Nxt Core Developers.                             *
- * Copyright © 2016-2019 Jelurida IP B.V.                                     *
+ * Copyright © 2016-2020 Jelurida IP B.V.                                     *
  *                                                                            *
  * See the LICENSE.txt file at the top-level directory of this distribution   *
  * for licensing information.                                                 *
@@ -17,159 +17,170 @@
 /**
  * @depends {nrs.js}
  */
-var NRS = (function (NRS, $) {
-    var level = 1;
-    var java;
+(isNode ? client : NRS).onSiteBuildDone().then(() => {
+    NRS = (function (NRS, $) {
+        var level = 1;
+        var java;
 
-    NRS.logConsole = function (msg, isDateIncluded, isDisplayTimeExact) {
-        if (window.console) {
-            try {
-                var prefix = "";
-                if (!isDateIncluded) {
-                    prefix = new Date().toISOString() + " ";
+        NRS.logConsole = function (msg, isDateIncluded, isDisplayTimeExact) {
+            if (console) {
+                try {
+                    var prefix = "";
+                    if (!isDateIncluded) {
+                        prefix = new Date().toISOString() + " ";
+                    }
+                    var postfix = "";
+                    if (isDisplayTimeExact) {
+                        postfix = " (" + NRS.timeExact() + ")";
+                    }
+                    var line = prefix + msg + postfix;
+                    if (java) {
+                        java.log(line);
+                    } else {
+                        console.log(line);
+                    }
+                } catch (e) {
+                    // IE11 when running in compatibility mode
                 }
-                var postfix = "";
-                if (isDisplayTimeExact) {
-                    postfix = " (" + NRS.timeExact() + ")";
+
+            }
+        };
+
+        NRS.logException = function(e) {
+            if (typeof e === "string") {
+                NRS.logConsole(e);
+                return;
+            }
+            if (e.name) {
+                NRS.logConsole(e.name);
+            }
+            if (e.message) {
+                NRS.logConsole(e.message);
+            }
+            if (e.stack) {
+                NRS.logConsole(e.stack);
+            }
+        };
+
+        NRS.isLogConsole = function (msgLevel) {
+            return msgLevel <= level;
+        };
+
+        NRS.setLogConsoleLevel = function (logLevel) {
+            level = logLevel;
+        };
+
+        NRS.logProperty = function(property) {
+            NRS.logConsole(property + " = " + eval(property.escapeHTML()));
+        };
+
+        NRS.logArrayContent = function(array) {
+            var data = '[';
+            for (var i=0; i<array.length; i++) {
+                data += array[i];
+                if (i < array.length - 1) {
+                    data += ", ";
                 }
-                var line = prefix + msg + postfix;
-                if (java) {
-                    java.log(line);
+            }
+            data += ']';
+            NRS.logConsole(data);
+        };
+
+        NRS.timeExact = function () {
+            return window.performance.now() ||
+                window.performance.mozNow() ||
+                window.performance.msNow() ||
+                window.performance.oNow() ||
+                window.performance.webkitNow() ||
+                Date.now; // none found - fallback to browser default
+        };
+
+        NRS.showConsole = function () {
+            NRS.console = window.open("", "console", "width=750,height=400,menubar=no,scrollbars=yes,status=no,toolbar=no,resizable=yes");
+            $(NRS.console.document.head).html("<title>" + $.t("console") + "</title><style type='text/css'>body { background:black; color:white; font-family:courier-new,courier;font-size:14px; } pre { font-size:14px; } #console { padding-top:15px; }</style>");
+            $(NRS.console.document.body).html("<div style='position:fixed;top:0;left:0;right:0;padding:5px;background:#efefef;color:black;'>" + $.t("console_opened") + "<div style='float:right;text-decoration:underline;color:blue;font-weight:bold;cursor:pointer;' onclick='document.getElementById(\"console\").innerHTML=\"\"'>clear</div></div><div id='console'></div>");
+        };
+
+        NRS.addToConsole = function (url, type, data, response, error) {
+            if (!NRS.console) {
+                return;
+            }
+
+            if (!NRS.console.document || !NRS.console.document.body) {
+                NRS.console = null;
+                return;
+            }
+
+            url = url.replace(/&random=[\.\d]+/, "", url);
+
+            NRS.addToConsoleBody(url + " (" + type + ") " + new Date().toString(), "url");
+
+            if (data) {
+                if (typeof data == "string") {
+                    var d = NRS.queryStringToObject(data);
+                    NRS.addToConsoleBody(JSON.stringify(d, null, "\t"), "post");
                 } else {
-                    console.log(line);
+                    NRS.addToConsoleBody(JSON.stringify(data, null, "\t"), "post");
                 }
-            } catch (e) {
-                // IE11 when running in compatibility mode
             }
 
-        }
-    };
-
-    NRS.logException = function(e) {
-        NRS.logConsole(e.message);
-        if (e.stack) {
-            NRS.logConsole(e.stack);
-        }
-    };
-
-    NRS.isLogConsole = function (msgLevel) {
-        return msgLevel <= level;
-    };
-
-    NRS.setLogConsoleLevel = function (logLevel) {
-        level = logLevel;
-    };
-
-    NRS.logProperty = function(property) {
-        NRS.logConsole(property + " = " + eval(property.escapeHTML()));
-    };
-
-    NRS.logArrayContent = function(array) {
-        var data = '[';
-        for (var i=0; i<array.length; i++) {
-            data += array[i];
-            if (i < array.length - 1) {
-                data += ", ";
-            }
-        }
-        data += ']';
-        NRS.logConsole(data);
-    };
-
-    NRS.timeExact = function () {
-        return window.performance.now() ||
-            window.performance.mozNow() ||
-            window.performance.msNow() ||
-            window.performance.oNow() ||
-            window.performance.webkitNow() ||
-            Date.now; // none found - fallback to browser default
-    };
-
-    NRS.showConsole = function () {
-        NRS.console = window.open("", "console", "width=750,height=400,menubar=no,scrollbars=yes,status=no,toolbar=no,resizable=yes");
-        $(NRS.console.document.head).html("<title>" + $.t("console") + "</title><style type='text/css'>body { background:black; color:white; font-family:courier-new,courier;font-size:14px; } pre { font-size:14px; } #console { padding-top:15px; }</style>");
-        $(NRS.console.document.body).html("<div style='position:fixed;top:0;left:0;right:0;padding:5px;background:#efefef;color:black;'>" + $.t("console_opened") + "<div style='float:right;text-decoration:underline;color:blue;font-weight:bold;cursor:pointer;' onclick='document.getElementById(\"console\").innerHTML=\"\"'>clear</div></div><div id='console'></div>");
-    };
-
-    NRS.addToConsole = function (url, type, data, response, error) {
-        if (!NRS.console) {
-            return;
-        }
-
-        if (!NRS.console.document || !NRS.console.document.body) {
-            NRS.console = null;
-            return;
-        }
-
-        url = url.replace(/&random=[\.\d]+/, "", url);
-
-        NRS.addToConsoleBody(url + " (" + type + ") " + new Date().toString(), "url");
-
-        if (data) {
-            if (typeof data == "string") {
-                var d = NRS.queryStringToObject(data);
-                NRS.addToConsoleBody(JSON.stringify(d, null, "\t"), "post");
+            if (error) {
+                NRS.addToConsoleBody(response, "error");
             } else {
-                NRS.addToConsoleBody(JSON.stringify(data, null, "\t"), "post");
+                NRS.addToConsoleBody(JSON.stringify(response, null, "\t"), (response.errorCode ? "error" : ""));
             }
-        }
+        };
 
-        if (error) {
-            NRS.addToConsoleBody(response, "error");
-        } else {
-            NRS.addToConsoleBody(JSON.stringify(response, null, "\t"), (response.errorCode ? "error" : ""));
-        }
-    };
+        NRS.addToConsoleBody = function (text, type) {
+            var color = "";
 
-    NRS.addToConsoleBody = function (text, type) {
-        var color = "";
+            switch (type) {
+                case "url":
+                    color = "#29FD2F";
+                    break;
+                case "post":
+                    color = "lightgray";
+                    break;
+                case "error":
+                    color = "red";
+                    break;
+            }
+            if (NRS.isLogConsole(10)) {
+                NRS.logConsole(text, true);
+            }
+            $(NRS.console.document.body).find("#console").append("<pre" + (color ? " style='color:" + color + "'" : "") + ">" + text.escapeHTML() + "</pre>");
+        };
 
-        switch (type) {
-            case "url":
-                color = "#29FD2F";
-                break;
-            case "post":
-                color = "lightgray";
-                break;
-            case "error":
-                color = "red";
-                break;
-        }
-        if (NRS.isLogConsole(10)) {
-            NRS.logConsole(text, true);
-        }
-        $(NRS.console.document.body).find("#console").append("<pre" + (color ? " style='color:" + color + "'" : "") + ">" + text.escapeHTML() + "</pre>");
-    };
+        NRS.queryStringToObject = function (qs) {
+            qs = qs.split("&");
 
-    NRS.queryStringToObject = function (qs) {
-        qs = qs.split("&");
-
-        if (!qs) {
-            return {};
-        }
-
-        var obj = {};
-
-        for (var i = 0; i < qs.length; ++i) {
-            var p = qs[i].split('=');
-
-            if (p.length != 2) {
-                continue;
+            if (!qs) {
+                return {};
             }
 
-            obj[p[0]] = decodeURIComponent(p[1].replace(/\+/g, " "));
-        }
+            var obj = {};
 
-        if ("secretPhrase" in obj) {
-            obj.secretPhrase = "***";
-        }
+            for (var i = 0; i < qs.length; ++i) {
+                var p = qs[i].split('=');
 
-        return obj;
-    };
+                if (p.length != 2) {
+                    continue;
+                }
 
-    return NRS;
-}(isNode ? client : NRS || {}, jQuery));
+                obj[p[0]] = decodeURIComponent(p[1].replace(/\+/g, " "));
+            }
 
-if (isNode) {
-    module.exports = NRS;
-}
+            if ("secretPhrase" in obj) {
+                obj.secretPhrase = "***";
+            }
+
+            return obj;
+        };
+
+        return NRS;
+    }(isNode ? client : NRS || {}, jQuery));
+
+    if (isNode) {
+        module.exports = NRS;
+    }
+});

@@ -1,6 +1,6 @@
 <!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   ~ Copyright © 2013-2016 The Nxt Core Developers.                            ~
-  ~ Copyright © 2016-2019 Jelurida IP B.V.                                    ~
+  ~ Copyright © 2016-2020 Jelurida IP B.V.                                    ~
   ~                                                                           ~
   ~ See the LICENSE.txt file at the top-level directory of this distribution  ~
   ~ for licensing information.                                                ~
@@ -30,16 +30,17 @@
 
                     <form id="settings_form" role="form" autocomplete="off">
                         <div class="box-body">
-                            <div class="form-group" id="settings_admin_password_div">
-                                <label for="settings_admin_password" data-i18n="admin_password">Server Administration Password</label>
-                                <div class="input-group" style="width:150px">
-                                    <input type="password" name="admin_password" id="settings_admin_password" class="form-control" />
-                                </div>
-                            </div>
                             <div class="form-group">
-                                <label for="settings_language" data-i18n="language">Language</label>
-                                <select name="language" id="settings_language" class="form-control" style="width:150px">
-                                </select>
+                                <label data-i18n="language">Language</label>
+                                <div>
+                                    <div class="btn-group languageSelector">
+                                        <button type="button" class="btn btn-default dropdown-toggle" data-toggle="dropdown"
+                                                aria-haspopup="true" aria-expanded="false" style="width:150px">
+                                            <span class="currentLanguage"></span> <span class="caret"></span>
+                                        </button>
+                                        <ul class="dropdown-menu"></ul>
+                                    </div>
+                                </div>
                             </div>
                             <div class="form-group">
                                 <label for="settings_regional_format" data-i18n="regional_format">Regional format</label>

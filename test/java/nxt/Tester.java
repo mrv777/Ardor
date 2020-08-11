@@ -1,6 +1,6 @@
 /*
  * Copyright © 2013-2016 The Nxt Core Developers.
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -52,7 +52,7 @@ public class Tester {
     public Tester(String secretPhrase) {
         this.secretPhrase = secretPhrase;
         this.privateKey = Crypto.getPrivateKey(secretPhrase);
-        this.publicKey = Crypto.getPublicKey(secretPhrase);
+        this.publicKey = Crypto.getPublicKey(Crypto.getPrivateKey(secretPhrase));
         this.publicKeyStr = Convert.toHexString(publicKey);
         this.id = Account.getId(publicKey);
         this.strId = Long.toUnsignedString(id);
@@ -67,15 +67,17 @@ public class Tester {
                 initialChainBalance.put(chain.getId(), chain.getBalanceHome().getBalance(account.getId()).getBalance());
                 initialChainUnconfirmedBalance.put(chain.getId(), chain.getBalanceHome().getBalance(account.getId()).getUnconfirmedBalance());
             }
-            DbIterator<Account.AccountAsset> assets = account.getAssets(0, -1);
-            for (Account.AccountAsset accountAsset : assets) {
-                initialAssetQuantity.put(accountAsset.getAssetId(), accountAsset.getQuantityQNT());
-                initialUnconfirmedAssetQuantity.put(accountAsset.getAssetId(), accountAsset.getUnconfirmedQuantityQNT());
+            try (DbIterator<Account.AccountAsset> assets = account.getAssets(0, -1)) {
+                for (Account.AccountAsset accountAsset : assets) {
+                    initialAssetQuantity.put(accountAsset.getAssetId(), accountAsset.getQuantityQNT());
+                    initialUnconfirmedAssetQuantity.put(accountAsset.getAssetId(), accountAsset.getUnconfirmedQuantityQNT());
+                }
             }
-            DbIterator<Account.AccountCurrency> currencies = account.getCurrencies(0, -1);
-            for (Account.AccountCurrency accountCurrency : currencies) {
-                initialCurrencyUnits.put(accountCurrency.getCurrencyId(), accountCurrency.getUnits());
-                initialUnconfirmedCurrencyUnits.put(accountCurrency.getCurrencyId(), accountCurrency.getUnconfirmedUnits());
+            try (DbIterator<Account.AccountCurrency> currencies = account.getCurrencies(0, -1)) {
+                for (Account.AccountCurrency accountCurrency : currencies) {
+                    initialCurrencyUnits.put(accountCurrency.getCurrencyId(), accountCurrency.getUnits());
+                    initialUnconfirmedCurrencyUnits.put(accountCurrency.getCurrencyId(), accountCurrency.getUnconfirmedUnits());
+                }
             }
         } else {
             initialFxtBalance = 0;

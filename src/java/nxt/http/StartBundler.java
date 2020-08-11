@@ -1,6 +1,6 @@
 /*
  * Copyright © 2013-2016 The Nxt Core Developers.
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -45,7 +45,7 @@ public final class StartBundler extends APIServlet.APIRequestHandler {
 
     @Override
     protected JSONStreamAware processRequest(HttpServletRequest req) throws NxtException {
-        String secretPhrase = ParameterParser.getSecretPhrase(req, true);
+        byte[] privateKey = ParameterParser.getPrivateKey(req, true);
         ChildChain childChain = ParameterParser.getChildChain(req);
 
         JSONArray bundlingRulesJson = ParameterParser.getJsonArray(req, "bundlingRulesJSON");
@@ -80,7 +80,7 @@ public final class StartBundler extends APIServlet.APIRequestHandler {
             List<Bundler.Filter> filters = ParameterParser.getBundlingFilters(req);
             rules = Collections.singletonList(Bundler.createBundlingRule(minRateNQTPerFXT, overpayFQTPerFXT, feeCalculatorName, filters));
         }
-        long accountId = Account.getId(Crypto.getPublicKey(secretPhrase));
+        long accountId = Account.getId(Crypto.getPublicKey(privateKey));
         if (totalFeesLimitFQT > FxtChain.FXT.getBalanceHome().getBalance(accountId).getUnconfirmedBalance()) {
             return JSONResponses.NOT_ENOUGH_FUNDS;
         }
@@ -89,7 +89,7 @@ public final class StartBundler extends APIServlet.APIRequestHandler {
             return JSONResponses.error("Accounts under phasing only control cannot run a bundler");
         }
 
-        Bundler bundler = Bundler.addOrChangeBundler(childChain, secretPhrase, totalFeesLimitFQT, rules);
+        Bundler bundler = Bundler.addOrChangeBundler(childChain, privateKey, totalFeesLimitFQT, rules);
         Peers.broadcastBundlerRates();
         return JSONData.bundler(bundler);
     }

@@ -1,5 +1,5 @@
 /*
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -16,6 +16,7 @@
 package nxt.addons;
 
 import nxt.blockchain.Generator;
+import nxt.crypto.Crypto;
 import org.json.simple.parser.ParseException;
 
 import java.io.BufferedReader;
@@ -32,7 +33,8 @@ public final class StartForging extends StartAuto {
     protected void processFile(BufferedReader reader) throws IOException, ParseException {
         String line;
         while ((line = reader.readLine()) != null && !line.trim().isEmpty()) {
-            Generator.startForging(line.trim());
+            // TODO add support for loading private keys
+            Generator.startForging(Crypto.getPrivateKey(line.trim()));
         }
     }
 

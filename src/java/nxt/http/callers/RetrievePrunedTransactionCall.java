@@ -8,6 +8,10 @@ public class RetrievePrunedTransactionCall extends APICall.Builder<RetrievePrune
         super(ApiSpec.retrievePrunedTransaction);
     }
 
+    public static RetrievePrunedTransactionCall create() {
+        return new RetrievePrunedTransactionCall();
+    }
+
     public static RetrievePrunedTransactionCall create(int chain) {
         return new RetrievePrunedTransactionCall().param("chain", chain);
     }

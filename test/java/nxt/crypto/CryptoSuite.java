@@ -1,6 +1,6 @@
 /*
  * Copyright © 2013-2016 The Nxt Core Developers.
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -16,6 +16,7 @@
 
 package nxt.crypto;
 
+import nxt.http.AbstractHttpApiSuite;
 import org.junit.runner.RunWith;
 import org.junit.runners.Suite;
 
@@ -24,5 +25,5 @@ import org.junit.runners.Suite;
         NoDbCryptoSuite.class,
         SimpleShamirSecretSharingTest.class
 })
-public class CryptoSuite {
+public class CryptoSuite extends AbstractHttpApiSuite {
 }

@@ -8,6 +8,10 @@ public class GetCurrencyCall extends APICall.Builder<GetCurrencyCall> {
         super(ApiSpec.getCurrency);
     }
 
+    public static GetCurrencyCall create() {
+        return new GetCurrencyCall();
+    }
+
     public static GetCurrencyCall create(int chain) {
         return new GetCurrencyCall().param("chain", chain);
     }

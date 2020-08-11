@@ -38,6 +38,16 @@
         },
         mask: function(mask, settings) {
             var input, defs, tests, partialPosition, firstNonMaskPos, lastRequiredNonMaskPos, len, oldVal;
+            function initMask(newMask) {
+                mask = newMask;
+                tests = [];
+                partialPosition = len = newMask.length;
+                firstNonMaskPos = null;
+                $.each(newMask.split(""), function(i, c) {
+                    "?" == c ? (len--, partialPosition = i) : defs[c] ? (tests.push(new RegExp(defs[c])), 
+                    null === firstNonMaskPos && (firstNonMaskPos = tests.length - 1), partialPosition > i && (lastRequiredNonMaskPos = tests.length - 1)) : tests.push(null);
+                });
+            }
             if (!mask && this.length > 0) {
                 input = $(this[0]);
                 var fn = input.data($.mask.dataName);
@@ -47,11 +57,8 @@
                 autoclear: $.mask.autoclear,
                 placeholder: $.mask.placeholder,
                 completed: null
-            }, settings), defs = $.mask.definitions, tests = [], partialPosition = len = mask.length, 
-            firstNonMaskPos = null, $.each(mask.split(""), function(i, c) {
-                "?" == c ? (len--, partialPosition = i) : defs[c] ? (tests.push(new RegExp(defs[c])), 
-                null === firstNonMaskPos && (firstNonMaskPos = tests.length - 1), partialPosition > i && (lastRequiredNonMaskPos = tests.length - 1)) : tests.push(null);
-            }), this.trigger("unmask").each(function() {
+            }, settings), defs = $.mask.definitions,
+                initMask(mask), this.trigger("unmask").each(function() {
                 function tryFireCompleted() {
                     if (settings.completed) {
                         for (var i = firstNonMaskPos; lastRequiredNonMaskPos >= i; i++) if (tests[i] && buffer[i] === getPlaceholder(i)) return;
@@ -93,7 +100,7 @@
                     if (settings.unmask !== false) {
                         if (oldVal && oldVal == NRS.getAccountMask("_")
                                 && (curVal.length == 0
-                                    || (oldVal.length > curVal.length && pos.begin == NRS.constants.ACCOUNT_MASK_LEN - 1))) {
+                                    || (oldVal.length > curVal.length && pos.begin == NRS.getAccountMask().length - 1))) {
                             //Deleted the whole string, or a backspaces was pressed after the prefix
                             input.val("");
                             $(this).trigger("unmask");
@@ -112,18 +119,18 @@
                         androidSetCaret(input, pos.end);
                     } else {
                         var curValUpper = curVal.toUpperCase();
-                        var addressStart = curValUpper.indexOf(NRS.constants.ACCOUNT_MASK_PREFIX, NRS.constants.ACCOUNT_MASK_LEN);
+                        var addressStart = curValUpper.indexOf(NRS.getAccountMask(), NRS.getAccountMask().length);
                         if (addressStart > 0) {
-                            var insertedAddress = curValUpper.substr(addressStart, NRS.constants.ACCOUNT_MASK_LEN + 20);
+                            var insertedAddress = curValUpper.substr(addressStart, NRS.getAccountMask().length + 20);
                             if (NRS.isRsAccount(insertedAddress)) {
                                 //since pasting into a masked field will first trigger androidInputEvent, search for inserted address and use it
                                 input.val(insertedAddress);
                             }
                         }
                         checkVal(!0);
-                        
                         var caretAdjusted = false;
                         var newVal = input.val();
+                        //console.log("checkVal " + curValUpper + " " + newVal);
                         if (curValUpper.length == newVal.length + 1) {
                             for (var i = 0; i < newVal.length; i++) {
                                 if (tests[i] && newVal.charAt(i) == getPlaceholder(i)) {
@@ -131,6 +138,12 @@
                                         //checkVal moved the inserted character to position i-1 (which was empty before). Adjust the caret
                                         androidSetCaret(input, i);
                                         caretAdjusted = true;
+                                    }
+                                    if (i > 1 && curValUpper.charAt(i-1) == newVal.charAt(i-2) &&
+                                            curValUpper.charAt(i-2) == newVal.charAt(i-1) && !tests[i-2]) {
+                                         //Entered a letter before an empty position. Move the caret after the new letter
+                                         androidSetCaret(input, i);
+                                         caretAdjusted = true;
                                     }
                                     break;
                                 }
@@ -145,6 +158,7 @@
                 }
                 function androidSetCaret(input, pos) {
                     var proxy = function() {
+                        //console.log("androidSetCaret " + pos);
                         $.proxy($.fn.caret, input, pos)();
                     };
                     setTimeout(proxy, 0);
@@ -164,7 +178,7 @@
 
                         if (settings.unmask !== false) {
                             //backspace, remove
-                            if ((pos.begin == 0 && pos.end == NRS.constants.ACCOUNT_MASK_LEN + 20) || (currentInput == NRS.getAccountMask("_") && pos.begin == NRS.constants.ACCOUNT_MASK_LEN)) {
+                            if ((pos.begin == 0 && pos.end == NRS.getAccountMask().length + 20) || (currentInput == NRS.getAccountMask("_") && pos.begin == NRS.getAccountMask().length)) {
                                 input.val("");
                                 $(this).trigger("unmask");
                                 return;
@@ -236,11 +250,25 @@
                     partialPosition ? i : firstNonMaskPos;
                 }
 
-                var input = $(this), buffer = $.map(mask.split(""), function(c, i) {
-                    return "?" != c ? defs[c] ? getPlaceholder(i) : c : void 0;
-                }), defaultBuffer = buffer.join(""), focusText = input.val();
+                function initBuffer() {
+                    buffer = $.map(mask.split(""), function(c, i) {
+                        return "?" != c ? defs[c] ? getPlaceholder(i) : c : void 0;
+                    });
+                    defaultBuffer = buffer.join("");
+                }
+
+                function adjustMaskPrefix(newAddress) {
+                    let newPrefix = newAddress.split("-")[0];
+                    let maskPrefixLength = mask.indexOf("-");
+                    let newMask = newPrefix + mask.substr(maskPrefixLength);
+                    initMask(newMask);
+                    initBuffer();
+                }
+
+                var input = $(this), buffer, defaultBuffer, focusText = input.val();
+                initBuffer();
                 input.bind("keyup.remask", function(e) {
-                    if (input.val().toUpperCase() == NRS.constants.ACCOUNT_MASK_PREFIX) {
+                    if (input.val().toUpperCase() == NRS.getAccountMask()) {
                         input.val("").mask(NRS.getAccountMask("*"))./*unbind(".remask").*/trigger("focus");
                     }
                 }).bind("paste.remask", function(e) {
@@ -249,13 +277,14 @@
                         newInput = NRS.nxtToAccountPrefix(newInput);
                         input.val(newInput);
                         var myRegexStr = NRS.constants.ACCOUNT_REGEX_STR.substring(1);
-                        var newAddress = String(newInput.match(new RegExp(myRegexStr, "i")));
+                        var newAddress = String(newInput.match(new RegExp(myRegexStr, "i"))).split(",")[0];
                         newAddress = NRS.nxtToAccountPrefix(newAddress);
                         if (NRS.isRsAccount(newAddress)) {
                             input.val(newAddress);
+                            adjustMaskPrefix(newAddress);
                             checkVal(true);
-                        } else if (NRS.isRsAccount(newInput) || NRS.getRsAccountRegex(NRS.constants.ACCOUNT_PREFIX, true).test(newInput)) {
-                            input.mask(NRS.getAccountMask("*")).trigger("checkRecipient")/*.unbind(".remask")*/;
+                        } else if (NRS.isRsAccount(newInput) || NRS.getRsAccountRegex(true).test(newInput)) {
+                            input.mask(NRS.getAccountMask("*")).trigger("checkRecipient").unbind(".remask");
                         }
                     }, 0);
                 });

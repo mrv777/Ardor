@@ -1,6 +1,6 @@
 /*
  * Copyright © 2013-2016 The Nxt Core Developers.
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -23,6 +23,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.Arrays;
 import java.util.Objects;
+import java.util.function.ToLongFunction;
 import java.util.stream.Stream;
 
 import static java.util.stream.Collectors.joining;
@@ -113,6 +114,14 @@ public interface DbKey {
             return new LongKey(id);
         }
 
+        public static <T> LongKeyFactory<T> create(String idColumn, ToLongFunction<T> getId) {
+            return new LongKeyFactory<T>(idColumn) {
+                @Override
+                public DbKey newKey(T t) {
+                    return newKey(getId.applyAsLong(t));
+                }
+            };
+        }
     }
 
     abstract class StringKeyFactory<T> extends Factory<T> {
@@ -187,6 +196,28 @@ public interface DbKey {
             return new LongLongKey(idA, idB);
         }
 
+    }
+
+    abstract class LongIntKeyFactory<T> extends Factory<T> {
+        private final String idColumnA;
+        private final String idColumnB;
+
+        protected LongIntKeyFactory(String idColumnA, String idColumnB) {
+            super(" WHERE " + idColumnA + " = ? AND " + idColumnB + " = ? ",
+                    idColumnA + ", " + idColumnB,
+                    " a." + idColumnA + " = b." + idColumnA + " AND a." + idColumnB + " = b." + idColumnB + " ");
+            this.idColumnA = idColumnA;
+            this.idColumnB = idColumnB;
+        }
+
+        @Override
+        public DbKey newKey(ResultSet rs) throws SQLException {
+            return new LongIntKey(rs.getLong(idColumnA), rs.getInt(idColumnB));
+        }
+
+        public DbKey newKey(long idA, int idB) {
+            return new LongIntKey(idA, idB);
+        }
     }
 
     abstract class HashLongKeyFactory<T> extends Factory<T> {
@@ -446,6 +477,34 @@ public interface DbKey {
             return (int) (idA ^ (idA >>> 32)) ^ (int) (idB ^ (idB >>> 32));
         }
 
+    }
+
+    final class LongIntKey implements DbKey {
+
+        private final long idA;
+        private final int idB;
+
+        private LongIntKey(long idA, int idB) {
+            this.idA = idA;
+            this.idB = idB;
+        }
+
+        @Override
+        public int setPK(PreparedStatement pstmt, int index) throws SQLException {
+            pstmt.setLong(index, idA);
+            pstmt.setInt(index + 1, idB);
+            return index + 2;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            return o instanceof LongIntKey && ((LongIntKey) o).idA == idA && ((LongIntKey) o).idB == idB;
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(idA, idB);
+        }
     }
 
     final class HashLongKey implements DbKey {

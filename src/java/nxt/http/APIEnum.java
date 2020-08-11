@@ -1,6 +1,6 @@
 /*
  * Copyright © 2013-2016 The Nxt Core Developers.
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -315,7 +315,19 @@ public enum APIEnum {
     GET_HASHED_SECRET_PHASED_TRANSACTIONS("getHashedSecretPhasedTransactions", GetHashedSecretPhasedTransactions.instance),
     SPLIT_SECRET("splitSecret", SplitSecret.instance),
     COMBINE_SECRET("combineSecret", CombineSecret.instance),
-    MANAGE_PEERS_NETWORKING("managePeersNetworking", ManagePeersNetworking.instance);
+    MANAGE_PEERS_NETWORKING("managePeersNetworking", ManagePeersNetworking.instance),
+    GET_LEDGER_MASTER_PUBLIC_KEY("getLedgerMasterPublicKey", GetLedgerMasterPublicKey.instance),
+    DERIVE_ACCOUNT_FROM_MASTER_PUBLIC_KEY("deriveAccountFromMasterPublicKey", DeriveAccountFromMasterPublicKey.instance),
+    DERIVE_ACCOUNT_FROM_SEED("deriveAccountFromSeed", DeriveAccountFromSeed.instance),
+    GET_ACCOUNT_PERMISSIONS("getAccountPermissions", GetAccountPermissions.instance),
+    ADD_ACCOUNT_PERMISSION("addAccountPermission", AddAccountPermission.instance),
+    REMOVE_ACCOUNT_PERMISSION("removeAccountPermission", RemoveAccountPermission.instance),
+    GET_CHAIN_PERMISSIONS("getChainPermissions", GetChainPermissions.instance),
+    GET_EPOCH_TIME("getEpochTime", GetEpochTime.instance),
+    BOOTSTRAP_API_PROXY("bootstrapAPIProxy", BootstrapAPIProxy.instance),
+    GET_CONFIGURATION("getConfiguration", GetConfiguration.instance),
+    SET_CONFIGURATION("setConfiguration", SetConfiguration.instance),
+    GET_API_PROXY_REPORTS("getAPIProxyReports", GetAPIProxyReports.instance);
 
     private static final Map<String, APIEnum> apiByName = new HashMap<>();
 

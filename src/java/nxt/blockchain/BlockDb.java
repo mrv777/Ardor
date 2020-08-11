@@ -1,6 +1,6 @@
 /*
  * Copyright © 2013-2016 The Nxt Core Developers.
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -17,6 +17,7 @@
 package nxt.blockchain;
 
 import nxt.db.DbUtils;
+import nxt.db.DerivedDbTable;
 import nxt.db.Table;
 import nxt.dbschema.Db;
 import nxt.util.Logger;
@@ -329,13 +330,7 @@ public final class BlockDb {
                         Logger.logErrorMessage(e.toString(), e);
                     }
                 });
-                BlockchainProcessorImpl.getInstance().getDerivedTables().forEach(table -> {
-                    try {
-                        stmt.executeUpdate("TRUNCATE TABLE " + table.toString());
-                    } catch (SQLException e) {
-                        Logger.logErrorMessage(e.toString(), e);
-                    }
-                });
+                BlockchainProcessorImpl.getInstance().getDerivedTables().forEach(DerivedDbTable::truncate);
                 stmt.executeUpdate("SET REFERENTIAL_INTEGRITY TRUE");
                 Db.db.commitTransaction();
             } catch (SQLException e) {

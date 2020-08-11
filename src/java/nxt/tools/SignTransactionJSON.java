@@ -1,6 +1,6 @@
 /*
  * Copyright © 2013-2016 The Nxt Core Developers.
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -70,7 +70,7 @@ public final class SignTransactionJSON {
                 JSONObject json = (JSONObject) JSONValue.parseWithException(reader);
                 byte[] publicKeyHash = Crypto.sha256().digest(Convert.parseHexString((String) json.get("senderPublicKey")));
                 String senderRS = Convert.rsAccount(Convert.fullHashToId(publicKeyHash));
-                String secretPhrase;
+                String secretPhrase; // TODO add support for private key
                 Console console = System.console();
                 if (console == null) {
                     try (BufferedReader inputReader = new BufferedReader(new InputStreamReader(System.in))) {
@@ -80,7 +80,7 @@ public final class SignTransactionJSON {
                     secretPhrase = new String(console.readPassword("Secret phrase for account " + senderRS + ": "));
                 }
                 Transaction.Builder builder = Nxt.newTransactionBuilder(json);
-                Transaction transaction = builder.build(secretPhrase);
+                Transaction transaction = builder.build(Crypto.getPrivateKey(secretPhrase));
                 JSON.writeJSONString(transaction.getJSONObject(), writer);
                 writer.newLine();
                 System.out.println("Signed transaction JSON saved as: " + signed.getAbsolutePath());

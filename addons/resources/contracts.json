@@ -1,4 +1,5 @@
 {
+  "autoFeeRate": true,
   "params": {
     "LeaseRenewal": {
       "secretPhrases": [
@@ -9,6 +10,146 @@
     },
     "LiberlandCitizenRegistry": {
       "xToken": "Register as Liberland user and follow the process to obtain an SSO token (or ask me for token)"
+    },
+    "CoinExchangeTradingBot": {
+      "cmcUrl": "https://pro-api.coinmarketcap.com/v1/cryptocurrency/quotes/latest",
+      "cmcApiKey": "",
+      "cmcFromSymbols": "ARDR,IGNIS,MPG",
+      "cmcToSymbols": "IGNIS,EUR,MPG",
+      "pairs": [
+        {
+          "pairSymbols": {
+            "from": "ARDR",
+            "to": "IGNIS",
+            "fromHolding": "COIN",
+            "toHolding": "COIN"
+          },
+          "refreshInterval": 3,
+          "fixedExchangeRate": 0.5,
+          "bidPriceLevels": [
+            {
+              "discountPercent": 5,
+              "quantity": 500,
+              "rateAdjustmentStep": 0.01
+            },
+            {
+              "discountPercent": 15,
+              "quantity": 1000,
+              "rateAdjustmentStep": 0.01
+            }
+          ],
+          "askPriceLevels": [
+            {
+              "discountPercent": 5,
+              "quantity": 200,
+              "rateAdjustmentStep": 0.01
+            },
+            {
+              "discountPercent": 15,
+              "quantity": 400,
+              "rateAdjustmentStep": 0.01
+            }
+          ]
+        },
+        {
+          "pairSymbols": {
+            "from": "ARDR",
+            "to": "AEUR",
+            "fromHolding": "COIN",
+            "toHolding": "COIN"
+          },
+          "fixedExchangeRate": 0.5,
+          "refreshInterval": 3,
+          "bidPriceLevels": [
+            {
+              "discountPercent": 5,
+              "quantity": 500,
+              "rateAdjustmentStep": 0.01
+            },
+            {
+              "discountPercent": 15,
+              "quantity": 1000,
+              "rateAdjustmentStep": 0.01
+            }
+          ],
+          "askPriceLevels": [
+            {
+              "discountPercent": 5,
+              "quantity": 200,
+              "rateAdjustmentStep": 0.01
+            },
+            {
+              "discountPercent": 15,
+              "quantity": 400,
+              "rateAdjustmentStep": 0.01
+            }
+          ]
+        },
+        {
+          "pairSymbols": {
+            "from": "IGNIS",
+            "to": "AEUR",
+            "fromHolding": "COIN",
+            "toHolding": "COIN"
+          },
+          "fixedExchangeRate": 0.5,
+          "refreshInterval": 3,
+          "bidPriceLevels": [
+            {
+              "discountPercent": 5,
+              "quantity": 500,
+              "rateAdjustmentStep": 0.01
+            },
+            {
+              "discountPercent": 15,
+              "quantity": 1000,
+              "rateAdjustmentStep": 0.01
+            },
+            {
+              "discountPercent": 25,
+              "quantity": 2000,
+              "rateAdjustmentStep": 0.01
+            },
+            {
+              "discountPercent": 35,
+              "quantity": 4000,
+              "rateAdjustmentStep": 0.01
+            },
+            {
+              "discountPercent": 45,
+              "quantity": 8000,
+              "rateAdjustmentStep": 0.01
+            }
+          ],
+          "askPriceLevels": [
+            {
+              "discountPercent": 5,
+              "quantity": 200,
+              "rateAdjustmentStep": 0.01
+            },
+            {
+              "discountPercent": 15,
+              "quantity": 400,
+              "rateAdjustmentStep": 0.01
+            },
+            {
+              "discountPercent": 25,
+              "quantity": 600,
+              "rateAdjustmentStep": 0.01
+            },
+            {
+              "discountPercent": 35,
+              "quantity": 800,
+              "rateAdjustmentStep": 0.01
+            },
+            {
+              "discountPercent": 45,
+              "quantity": 1000,
+              "rateAdjustmentStep": 0.01
+            }
+          ]
+        }
+      ]
     }
   }
 }

@@ -1,6 +1,6 @@
 /*
  * Copyright © 2013-2016 The Nxt Core Developers.
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -21,6 +21,7 @@ import nxt.Nxt;
 import nxt.NxtException;
 import nxt.account.Account;
 import nxt.account.PublicKeyAnnouncementAppendix;
+import nxt.blockchain.Appendix;
 import nxt.blockchain.Attachment;
 import nxt.blockchain.Chain;
 import nxt.blockchain.ChainTransactionId;
@@ -32,11 +33,9 @@ import nxt.blockchain.FxtTransactionType;
 import nxt.blockchain.Transaction;
 import nxt.crypto.Crypto;
 import nxt.messaging.EncryptToSelfMessageAppendix;
-import nxt.messaging.EncryptedMessageAppendix;
 import nxt.messaging.MessageAppendix;
-import nxt.messaging.PrunableEncryptedMessageAppendix;
 import nxt.messaging.PrunablePlainMessageAppendix;
-import nxt.peer.Peers;
+import nxt.peer.FeeRateCalculator;
 import nxt.util.Convert;
 import nxt.util.JSON;
 import nxt.util.Logger;
@@ -46,18 +45,20 @@ import org.json.simple.JSONObject;
 import org.json.simple.JSONStreamAware;
 
 import javax.servlet.http.HttpServletRequest;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
 import static nxt.http.JSONResponses.FEATURE_NOT_AVAILABLE;
 import static nxt.http.JSONResponses.INCORRECT_EC_BLOCK;
-import static nxt.http.JSONResponses.MISSING_SECRET_PHRASE;
+import static nxt.http.JSONResponses.MISSING_SECRET_PHRASE_OR_PRIVATE_KEY;
 import static nxt.http.JSONResponses.NOT_ENOUGH_FUNDS;
+import static nxt.peer.FeeRateCalculator.TransactionPriority.NORMAL;
 
 public abstract class CreateTransaction extends APIServlet.APIRequestHandler {
 
-    private static final String[] commonParameters = new String[]{"secretPhrase", "publicKey", "feeNQT", "feeRateNQTPerFXT", "minBundlerBalanceFXT", "minBundlerFeeLimitFQT",
+    private static final String[] commonParameters = new String[]{"secretPhrase", "privateKey", "publicKey", "feeNQT", "feeRateNQTPerFXT", "minBundlerBalanceFXT", "minBundlerFeeLimitFQT",
             "deadline", "referencedTransaction", "broadcast", "timestamp",
             "message", "messageIsText", "messageIsPrunable",
             "messageToEncrypt", "messageToEncryptIsText", "encryptedMessageData", "encryptedMessageNonce", "encryptedMessageIsPrunable", "compressMessageToEncrypt",
@@ -72,8 +73,13 @@ public abstract class CreateTransaction extends APIServlet.APIRequestHandler {
             "phasingExpression",
             "recipientPublicKey",
             "ecBlockId", "ecBlockHeight", "voucher",
-            "sharedPiece", "sharedPiece", "sharedPiece", "sharedPieceAccount"
+            "sharedPiece", "sharedPiece", "sharedPiece", "sharedPieceAccount",
+            "transactionPriority"
     };
+
+    private static final List<String> commonFileParameters = Collections.unmodifiableList(Arrays.asList(
+            "messageFile", "messageToEncryptFile", "encryptToSelfMessageFile", "encryptedMessageFile"
+    ));
 
     private static String[] addCommonParameters(String[] parameters) {
         String[] result = Arrays.copyOf(parameters, parameters.length + commonParameters.length);
@@ -85,15 +91,22 @@ public abstract class CreateTransaction extends APIServlet.APIRequestHandler {
         return Collections.unmodifiableList(Arrays.asList(commonParameters));
     }
 
-    CreateTransaction(APITag[] apiTags, String... parameters) {
-        super(apiTags, addCommonParameters(parameters));
-        if (!getAPITags().contains(APITag.CREATE_TRANSACTION)) {
-            throw new RuntimeException("CreateTransaction API " + getClass().getName() + " is missing APITag.CREATE_TRANSACTION tag");
-        }
+    private static List<String> addCommonFileParameters(List<String> fileParameters) {
+        List<String> result = new ArrayList<>(fileParameters);
+        result.addAll(commonFileParameters);
+        return result;
     }
 
-    protected CreateTransaction(String fileParameter, APITag[] apiTags, String... parameters) {
-        super(fileParameter, apiTags, addCommonParameters(parameters));
+    public static List<String> getCommonFileParameters() {
+        return commonFileParameters;
+    }
+
+    CreateTransaction(APITag[] apiTags, String... parameters) {
+        this(Collections.emptyList(), apiTags, parameters);
+    }
+
+    protected CreateTransaction(List<String> fileParameters, APITag[] apiTags, String... parameters) {
+        super(addCommonFileParameters(fileParameters), apiTags, addCommonParameters(parameters));
         if (!getAPITags().contains(APITag.CREATE_TRANSACTION)) {
             throw new RuntimeException("CreateTransaction API " + getClass().getName() + " is missing APITag.CREATE_TRANSACTION tag");
         }
@@ -131,28 +144,18 @@ public abstract class CreateTransaction extends APIServlet.APIRequestHandler {
         final long recipientId = parameters.getRecipientId();
         final long senderId = parameters.getSenderId() == 0 ? parameters.getSenderAccount().getId() : parameters.getSenderId();
 
-        String secretPhrase = ParameterParser.getSecretPhrase(req, false);
+        byte[] privateKey = ParameterParser.getPrivateKey(req, false);
         boolean isVoucher = "true".equalsIgnoreCase(req.getParameter("voucher"));
         String publicKeyValue = Convert.emptyToNull(req.getParameter("publicKey"));
-        boolean broadcast = !"false".equalsIgnoreCase(req.getParameter("broadcast")) && secretPhrase != null && !isVoucher;
-        EncryptedMessageAppendix encryptedMessage = null;
-        PrunableEncryptedMessageAppendix prunableEncryptedMessage = null;
+        boolean broadcast = !"false".equalsIgnoreCase(req.getParameter("broadcast")) && privateKey != null && !isVoucher;
+        Appendix encryptedMessage = null;
         if (attachment.getTransactionType().canHaveRecipient() && recipientId != 0) {
             Account recipient = Account.getAccount(recipientId);
-            if ("true".equalsIgnoreCase(req.getParameter("encryptedMessageIsPrunable"))) {
-                prunableEncryptedMessage = (PrunableEncryptedMessageAppendix) ParameterParser.getEncryptedMessage(req, recipient, true);
-            } else {
-                encryptedMessage = (EncryptedMessageAppendix) ParameterParser.getEncryptedMessage(req, recipient, false);
-            }
+            encryptedMessage = ParameterParser.getEncryptedMessage(req, recipient);
         }
         EncryptToSelfMessageAppendix encryptToSelfMessage = ParameterParser.getEncryptToSelfMessage(req);
-        MessageAppendix message = null;
-        PrunablePlainMessageAppendix prunablePlainMessage = null;
-        if ("true".equalsIgnoreCase(req.getParameter("messageIsPrunable"))) {
-            prunablePlainMessage = (PrunablePlainMessageAppendix) ParameterParser.getPlainMessage(req, true);
-        } else {
-            message = (MessageAppendix) ParameterParser.getPlainMessage(req, false);
-        }
+        Appendix message = parameters.getMessage();
+
         PublicKeyAnnouncementAppendix publicKeyAnnouncement = null;
         String recipientPublicKey = Convert.emptyToNull(req.getParameter("recipientPublicKey"));
         if (recipientPublicKey != null) {
@@ -165,11 +168,11 @@ public abstract class CreateTransaction extends APIServlet.APIRequestHandler {
             phasing = parsePhasing(req);
         }
 
-        if (secretPhrase == null && publicKeyValue == null) {
-            return MISSING_SECRET_PHRASE;
+        if (privateKey == null && publicKeyValue == null) {
+            return MISSING_SECRET_PHRASE_OR_PRIVATE_KEY;
         }
 
-        short deadline = (short) ParameterParser.getInt(req, "deadline", 1, Short.MAX_VALUE, 15);
+        short deadline = parameters.getDeadline();
         long feeNQT = ParameterParser.getLong(req, "feeNQT", -1L, Constants.MAX_BALANCE_NQT, -1L);
         int ecBlockHeight = ParameterParser.getInt(req, "ecBlockHeight", 0, Integer.MAX_VALUE, false);
         long ecBlockId = Convert.parseUnsignedLong(req.getParameter("ecBlockId"));
@@ -184,16 +187,19 @@ public abstract class CreateTransaction extends APIServlet.APIRequestHandler {
         JSONObject response = new JSONObject();
 
         // shouldn't try to get publicKey from senderAccount as it may have not been set yet
-        byte[] publicKey = secretPhrase != null && !isVoucher ? Crypto.getPublicKey(secretPhrase) : Convert.parseHexString(publicKeyValue);
+        byte[] publicKey = privateKey != null && !isVoucher ? Crypto.getPublicKey(privateKey) : Convert.parseHexString(publicKeyValue);
 
         // Allow the caller to specify the chain for the transaction instead of using
         // the 'chain' request parameter
         Chain chain = parameters.getChain();
 
         if (feeNQT < 0L && feeRateNQTPerFXT < 0L && chain != FxtChain.FXT) {
-            long minBundlerBalanceFXT = ParameterParser.getLong(req, "minBundlerBalanceFXT", 0, Constants.MAX_BALANCE_FXT, Constants.minBundlerBalanceFXT);
-            long minBundlerFeeLimitFQT = ParameterParser.getLong(req, "minBundlerFeeLimitFQT", 0, Constants.MAX_BALANCE_FXT * Constants.ONE_FXT, Constants.minBundlerFeeLimitFXT * Constants.ONE_FXT);
-            feeRateNQTPerFXT = Peers.getBestBundlerRate(chain, minBundlerBalanceFXT, minBundlerFeeLimitFQT, Peers.getBestBundlerRateWhitelist());
+            FeeRateCalculator feeRateCalculator = FeeRateCalculator.create()
+                    .setMinBalance(ParameterParser.getLong(req, "minBundlerBalanceFXT", 0, Constants.MAX_BALANCE_FXT, Constants.minBundlerBalanceFXT))
+                    .setMinFeeLimit(ParameterParser.getLong(req, "minBundlerFeeLimitFQT", 0, Constants.MAX_BALANCE_FXT * Constants.ONE_FXT, Constants.minBundlerFeeLimitFXT * Constants.ONE_FXT))
+                    .setPriority(ParameterParser.getPriority(req, "transactionPriority", NORMAL))
+                    .build();
+            feeRateNQTPerFXT = feeRateCalculator.getBestRate(chain);
             broadcast = false;
             if (!isVoucher) {
                 response.put("bundlerRateNQTPerFXT", String.valueOf(feeRateNQTPerFXT));
@@ -211,8 +217,6 @@ public abstract class CreateTransaction extends APIServlet.APIRequestHandler {
                 builder = ((ChildTransaction.Builder) builder)
                         .referencedTransaction(referencedTransactionId)
                         .feeRateNQTPerFXT(feeRateNQTPerFXT)
-                        .appendix(encryptedMessage)
-                        .appendix(message)
                         .appendix(publicKeyAnnouncement)
                         .appendix(encryptToSelfMessage)
                         .appendix(phasing);
@@ -225,10 +229,10 @@ public abstract class CreateTransaction extends APIServlet.APIRequestHandler {
                 if (referencedTransactionId != null) {
                     return JSONResponses.error("Referenced transactions not allowed for Ardor transactions");
                 }
-                if (encryptedMessage != null) {
+                if (encryptedMessage != null && !(encryptedMessage instanceof Appendix.Prunable)) {
                     return JSONResponses.error("Permanent encrypted message attachments not allowed for Ardor transactions");
                 }
-                if (message != null) {
+                if (message != null && !(message instanceof Appendix.Prunable)) {
                     return JSONResponses.error("Permanent message attachments not allowed for Ardor transactions");
                 }
                 if (publicKeyAnnouncement != null) {
@@ -241,8 +245,8 @@ public abstract class CreateTransaction extends APIServlet.APIRequestHandler {
                     return JSONResponses.error("Phasing attachments not allowed for Ardor transactions");
                 }
             }
-            builder.appendix(prunablePlainMessage)
-                    .appendix(prunableEncryptedMessage);
+            builder.appendix(encryptedMessage)
+                    .appendix(message);
             if (attachment.getTransactionType().canHaveRecipient()) {
                 builder.recipientId(recipientId);
             }
@@ -253,7 +257,7 @@ public abstract class CreateTransaction extends APIServlet.APIRequestHandler {
             if (timestamp > 0) {
                 builder.timestamp(timestamp);
             }
-            Transaction transaction = builder.build(secretPhrase, isVoucher);
+            Transaction transaction = builder.build(privateKey, isVoucher);
             try {
                 long balance = chain.getBalanceHome().getBalance(senderId).getUnconfirmedBalance();
                 if (Math.addExact(amountNQT, transaction.getFee()) > balance) {
@@ -280,10 +284,10 @@ public abstract class CreateTransaction extends APIServlet.APIRequestHandler {
             try {
                 response.put("unsignedTransactionBytes", Convert.toHexString(transaction.getUnsignedBytes()));
             } catch (NxtException.NotYetEncryptedException ignore) {}
-            if (secretPhrase != null) {
+            if (privateKey != null) {
                 if (isVoucher) {
                     response.put("signature", Convert.toHexString(transaction.getSignature()));
-                    response.put("publicKey", Convert.toHexString(Crypto.getPublicKey(secretPhrase)));
+                    response.put("publicKey", Convert.toHexString(Crypto.getPublicKey(privateKey)));
                     response.put("requestType", req.getParameter("requestType"));
                     ParameterParser.parseVoucher(response);
                 } else {
@@ -340,9 +344,11 @@ public abstract class CreateTransaction extends APIServlet.APIRequestHandler {
         private long senderId;
         private long recipientId;
         private long amountNQT;
+        private short deadline;
         private Attachment attachment;
         private Chain txChain;
         private ChainTransactionId referencedTransactionId;
+        private Appendix message;
 
         protected CreateTransactionParameters(HttpServletRequest req) {
             this.req = req;
@@ -368,6 +374,11 @@ public abstract class CreateTransaction extends APIServlet.APIRequestHandler {
             return this;
         }
 
+        public CreateTransactionParameters setDeadline(short deadline) {
+            this.deadline = deadline;
+            return this;
+        }
+
         public CreateTransactionParameters setAttachment(Attachment attachment) {
             this.attachment = attachment;
             return this;
@@ -380,6 +391,12 @@ public abstract class CreateTransaction extends APIServlet.APIRequestHandler {
 
         public CreateTransactionParameters setReferencedTransactionId(ChainTransactionId referencedTransactionId) {
             this.referencedTransactionId = referencedTransactionId;
+            return this;
+        }
+
+        public CreateTransactionParameters setMessage(String message, boolean messageIsText, boolean isPrunable) {
+            this.message = isPrunable ? new PrunablePlainMessageAppendix(message, messageIsText)
+                    : new MessageAppendix(message, messageIsText);
             return this;
         }
 
@@ -426,6 +443,20 @@ public abstract class CreateTransaction extends APIServlet.APIRequestHandler {
 
         protected final JSONStreamAware createTransaction() throws NxtException {
             return createTransactionFromParameters(this);
+        }
+
+        public Appendix getMessage() throws ParameterException {
+            if (message != null) {
+                return message;
+            }
+            return ParameterParser.getPlainMessage(req);
+        }
+
+        public short getDeadline() throws ParameterException {
+            if (deadline != 0) {
+                return deadline;
+            }
+            return (short) ParameterParser.getInt(req, "deadline", 1, Short.MAX_VALUE, 15);
         }
     }
 }

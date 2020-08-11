@@ -1,6 +1,6 @@
 /*
  * Copyright © 2013-2016 The Nxt Core Developers.
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -19,7 +19,7 @@ package nxt.freeze;
 import nxt.account.HoldingType;
 import nxt.blockchain.Block;
 import nxt.db.DbIterator;
-import nxt.db.TransactionalDb;
+import nxt.dbschema.Db;
 import nxt.util.Listener;
 
 public abstract class AbstractFreezeBlockHandler implements Listener<Block> {
@@ -34,7 +34,7 @@ public abstract class AbstractFreezeBlockHandler implements Listener<Block> {
         int height = block.getHeight();
         try (DbIterator<HoldingFreeze> freezes = HoldingFreeze.getFreezes(holdingType, height)) {
             for (HoldingFreeze freeze : freezes) {
-                TransactionalDb.runInDbTransaction(() -> handleFreeze(freeze.getHoldingId()));
+                Db.db.runInDbTransaction(() -> handleFreeze(freeze.getHoldingId()));
             }
         }
     }

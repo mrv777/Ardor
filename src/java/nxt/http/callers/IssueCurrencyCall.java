@@ -50,7 +50,7 @@ public class IssueCurrencyCall extends CreateTransactionCallBuilder<IssueCurrenc
         return param("maxDifficulty", maxDifficulty);
     }
 
-    public IssueCurrencyCall decimals(String decimals) {
+    public IssueCurrencyCall decimals(int decimals) {
         return param("decimals", decimals);
     }
 

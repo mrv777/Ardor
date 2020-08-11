@@ -15,7 +15,7 @@
     },
     {
       "className": "IgnisArdorRates",
-	  "filePath": "./addons/resources/contracts.jar",
+	  "filePath": "./addons/resources/ignis.ardor.rates.contract.jar",
       "params": {
 		"frequency": 3
 	  }

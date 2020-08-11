@@ -1,6 +1,6 @@
 /*
  * Copyright © 2013-2016 The Nxt Core Developers.
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -38,7 +38,7 @@ public final class GenerateToken extends APIServlet.APIRequestHandler {
     @Override
     protected JSONStreamAware processRequest(HttpServletRequest req) throws ParameterException {
 
-        String secretPhrase = ParameterParser.getSecretPhrase(req, true);
+        byte[] privateKey = ParameterParser.getPrivateKey(req, true);
         String website = Convert.emptyToNull(req.getParameter("website"));
         if (website == null) {
             return MISSING_WEBSITE;
@@ -46,7 +46,7 @@ public final class GenerateToken extends APIServlet.APIRequestHandler {
 
         try {
 
-            String tokenString = Token.generateToken(secretPhrase, website.trim());
+            String tokenString = Token.generateToken(privateKey, website.trim());
 
             JSONObject response = JSONData.token(Token.parseToken(tokenString, website));
             response.put("token", tokenString);

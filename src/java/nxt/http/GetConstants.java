@@ -1,6 +1,6 @@
 /*
  * Copyright © 2013-2016 The Nxt Core Developers.
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -31,6 +31,7 @@ import nxt.ms.CurrencyType;
 import nxt.peer.Peer;
 import nxt.shuffling.ShufflingParticipantHome;
 import nxt.shuffling.ShufflingStage;
+import nxt.util.Convert;
 import nxt.util.JSON;
 import nxt.util.Logger;
 import nxt.voting.PhasingPollHome;
@@ -41,9 +42,11 @@ import org.json.simple.JSONStreamAware;
 
 import javax.servlet.http.HttpServletRequest;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 public final class GetConstants extends APIServlet.APIRequestHandler {
 
@@ -62,6 +65,12 @@ public final class GetConstants extends APIServlet.APIRequestHandler {
                 response.put("maxChildBlockPayloadLength", Constants.MAX_CHILDBLOCK_PAYLOAD_LENGTH);
                 response.put("maxNumberOfFxtTransactions", Constants.MAX_NUMBER_OF_FXT_TRANSACTIONS);
                 response.put("maxNumberOfChildTransaction", Constants.MAX_NUMBER_OF_CHILD_TRANSACTIONS);
+
+                response.put("maxArbitraryMessageLength", Constants.MAX_ARBITRARY_MESSAGE_LENGTH);
+                response.put("maxEncryptedMessageLength", Constants.MAX_ENCRYPTED_MESSAGE_LENGTH);
+                response.put("maxPrunableMessageLength", Constants.MAX_PRUNABLE_MESSAGE_LENGTH);
+                response.put("maxPrunableEncryptedMessageLength", Constants.MAX_PRUNABLE_ENCRYPTED_MESSAGE_LENGTH);
+
                 JSONObject lastKnownBlock = new JSONObject();
                 lastKnownBlock.put("id", Long.toUnsignedString(Constants.LAST_KNOWN_BLOCK_ID));
                 lastKnownBlock.put("height", Constants.LAST_KNOWN_BLOCK);
@@ -269,6 +278,10 @@ public final class GetConstants extends APIServlet.APIRequestHandler {
                     json.put("ONE_COIN", String.valueOf(chain.ONE_COIN));
                     if (chain instanceof ChildChain) {
                         json.put("SHUFFLING_DEPOSIT_NQT", String.valueOf(((ChildChain) chain).SHUFFLING_DEPOSIT_NQT));
+                        json.put("permissionPolicy", String.valueOf(((ChildChain) chain).getPermissionPolicy().getName()));
+                        JSONArray masterAdmins = new JSONArray();
+                        ((ChildChain)chain).getMasterAdminAccounts().forEach(accountId -> masterAdmins.add(Convert.rsAccount(accountId)));
+                        json.put("masterAdmins", masterAdmins);
                     }
                     JSONArray disabledTransactionTypes = new JSONArray();
                     chain.getDisabledTransactionTypes().forEach(type -> disabledTransactionTypes.add(type.getName()));
@@ -283,6 +296,11 @@ public final class GetConstants extends APIServlet.APIRequestHandler {
                 response.put("chainProperties", chainPropertiesJSON);
                 response.put("initialBaseTarget", Long.toUnsignedString(Constants.INITIAL_BASE_TARGET));
                 response.put("secretPhraseWords", Constants.COMPRESSED_SECRET_PHRASE_WORDS);
+
+                // We prefer to send the path as array since the client corrupts the path string when escaping the response
+                JSONArray jsonArray = new JSONArray();
+                jsonArray.addAll(Arrays.stream(Constants.getBip32RootPath().toPathArray()).boxed().map(i -> i & 0x00000000FFFFFFFFL).collect(Collectors.toList())); // use unsigned int values
+                response.put("bip32PathPrefix", jsonArray);
                 CONSTANTS = JSON.prepare(response);
             } catch (Exception e) {
                 Logger.logErrorMessage(e.toString(), e);

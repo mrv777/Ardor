@@ -8,6 +8,10 @@ public class GetPhasingPollVoteCall extends APICall.Builder<GetPhasingPollVoteCa
         super(ApiSpec.getPhasingPollVote);
     }
 
+    public static GetPhasingPollVoteCall create() {
+        return new GetPhasingPollVoteCall();
+    }
+
     public static GetPhasingPollVoteCall create(int chain) {
         return new GetPhasingPollVoteCall().param("chain", chain);
     }

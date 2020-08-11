@@ -8,6 +8,10 @@ public class GetPollResultCall extends APICall.Builder<GetPollResultCall> {
         super(ApiSpec.getPollResult);
     }
 
+    public static GetPollResultCall create() {
+        return new GetPollResultCall();
+    }
+
     public static GetPollResultCall create(int chain) {
         return new GetPollResultCall().param("chain", chain);
     }

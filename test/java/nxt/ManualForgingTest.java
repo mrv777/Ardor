@@ -1,6 +1,6 @@
 /*
  * Copyright © 2013-2016 The Nxt Core Developers.
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -33,11 +33,11 @@ public class ManualForgingTest extends AbstractForgingTest {
         properties.setProperty("nxt.timeMultiplier", "1");
         AbstractForgingTest.init(properties);
         Assert.assertTrue("nxt.fakeForgingPublicKey must be defined in nxt.properties", Nxt.getStringProperty("nxt.fakeForgingPublicKey") != null);
-        final byte[] testPublicKey = Crypto.getPublicKey(testForgingSecretPhrase);
+        final byte[] testPublicKey = Crypto.getPublicKey(Crypto.getPrivateKey(testForgingSecretPhrase));
         Nxt.setTime(new Time.CounterTime(Nxt.getEpochTime()));
         try {
             for (int i = 0; i < 10; i++) {
-                blockchainProcessor.generateBlock(testForgingSecretPhrase, Nxt.getEpochTime());
+                blockchainProcessor.generateBlock(Crypto.getPrivateKey(testForgingSecretPhrase), Nxt.getEpochTime());
                 Assert.assertArrayEquals(testPublicKey, blockchain.getLastBlock().getGeneratorPublicKey());
             }
         } catch (BlockchainProcessor.BlockNotAcceptedException e) {

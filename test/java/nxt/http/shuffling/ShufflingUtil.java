@@ -1,6 +1,6 @@
 /*
  * Copyright © 2013-2016 The Nxt Core Developers.
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -21,6 +21,7 @@ import nxt.Tester;
 import nxt.account.HoldingType;
 import nxt.addons.JO;
 import nxt.blockchain.ChildChain;
+import nxt.blockchain.Fee;
 import nxt.http.APICall;
 import nxt.util.Convert;
 import nxt.util.Logger;
@@ -39,9 +40,10 @@ public class ShufflingUtil {
     static long shufflingCurrency;
     static final int chainId = ChildChain.IGNIS.getId();
     static final long SHUFFLING_REGISTER_FEE = ChildChain.IGNIS.ONE_COIN/100;
-    static final long SHUFFLING_PROCESSING_FEE = ChildChain.IGNIS.ONE_COIN/10;
+    static final long SHUFFLING_PROCESSING_FEE = ChildChain.IGNIS.ONE_COIN/10 + Fee.NEW_ACCOUNT_FEE;
+    static final long SHUFFLING_VERIFY_FEE = ChildChain.IGNIS.ONE_COIN/10;
     static final long SHUFFLING_TOTAL_FEE = 2 * SHUFFLING_REGISTER_FEE + SHUFFLING_PROCESSING_FEE;
-    static final long SHUFFLING_RECIPIENTS_FEE = (ChildChain.IGNIS.ONE_COIN * 11)/100;
+    static final long SHUFFLING_RECIPIENTS_FEE = (ChildChain.IGNIS.ONE_COIN * 11)/100 + Fee.NEW_ACCOUNT_FEE;
 
     static JO create(Tester creator) {
         return create(creator, 4);
@@ -55,7 +57,7 @@ public class ShufflingUtil {
                 param("participantCount", String.valueOf(participantCount)).
                 param("registrationPeriod", 10).
                 build();
-        JSONObject response = apiCall.invoke();
+        JSONObject response = apiCall.invokeNoError();
         Logger.logMessage("shufflingCreateResponse: " + response.toJSONString());
         return JO.valueOf(response);
     }

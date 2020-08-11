@@ -1,5 +1,5 @@
 /*
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -15,6 +15,7 @@
 
 package nxt.addons;
 
+import nxt.Constants;
 import nxt.Nxt;
 import nxt.account.AccountRestrictions;
 import nxt.blockchain.Block;
@@ -24,6 +25,7 @@ import nxt.blockchain.FxtChain;
 import nxt.crypto.Crypto;
 import nxt.http.APICall;
 import nxt.http.JSONData;
+import nxt.http.callers.GetCoinExchangeOrderCall;
 import nxt.http.callers.GetConstantsCall;
 import nxt.http.responses.BlockResponse;
 import nxt.util.Convert;
@@ -43,6 +45,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
+@SuppressWarnings("unused")
 public abstract class AbstractContractContext {
 
     public static final int INTERNAL_ERROR_CODE_THRESHOLD = 10000;
@@ -56,7 +59,7 @@ public abstract class AbstractContractContext {
 
     private final Blockchain blockchain = AccessController.doPrivileged((PrivilegedAction<Blockchain>)Nxt::getBlockchain);
 
-    public enum EventSource { BLOCK, TRANSACTION, REQUEST, VOUCHER, NONE;
+    public enum EventSource { BLOCK, TRANSACTION, REQUEST, VOUCHER, NODE_RUNTIME_LIFECYCLE, CONTRACT_REFERENCE_LIFECYCLE, NONE;
 
         public boolean isTransaction() {
             return this == TRANSACTION;
@@ -91,10 +94,10 @@ public abstract class AbstractContractContext {
 
     protected EventSource source;
     protected ContractRunnerConfig config;
-    private JO contractSetupParameters;
+    protected JO contractSetupParameters;
     protected final String contractName;
+    protected JO response;
     private final String logMessagePrefix;
-    private JO response;
     private RandomnessSource randomnessSource;
 
     private static volatile JO blockchainConstants;
@@ -245,6 +248,14 @@ public abstract class AbstractContractContext {
         return response;
     }
 
+    public void setResponse(JO response) {
+        throw new UnsupportedOperationException();
+    }
+
+    public boolean canSetResponse() {
+        return false;
+    }
+
     /**
      * Generate response of the contract invocation
      * @param response the Json object which represents the contract invocation response
@@ -370,12 +381,11 @@ public abstract class AbstractContractContext {
             return 0;
         }
         long feeFQT = transactionResponse.getLong("minimumFeeFQT");
-        int chainId = Integer.parseInt(builder.getParam("chain"));
-        ChainWrapper chain = chainById.get(chainId);
-        if (!chain.isChildChain()) {
+        if (isParentTransaction(builder)) {
             return feeFQT;
         }
-
+        int chainId = Integer.parseInt(builder.getParam("chain"));
+        ChainWrapper chain = chainById.get(chainId);
         long feeRatio = config.getCurrentFeeRateNQTPerFXT(chainId);
         if (feeRatio == -1) {
             return -1;
@@ -394,6 +404,7 @@ public abstract class AbstractContractContext {
         String message = messageJson.toJSONString();
         builder.param("message", message);
         builder.param("messageIsPrunable", "true");
+        //TODO: support privateKey ?
         if (!builder.isParamSet("secretPhrase")) {
             if (builder.isParamSet("messageToEncrypt")) {
                 return generateInternalErrorResponse(MESSAGE_TO_ENCRYPT_WITHOUT_SECRET_PHRASE,"%s: do not use the messageToEncrypt parameter, encrypt the data yourself and submit the encryptedMessageData and encryptedMessageNonce instead", getClass().getName());
@@ -402,7 +413,7 @@ public abstract class AbstractContractContext {
         }
         int chainId = Integer.parseInt(builder.getParam("chain"));
         if (!builder.isParamSet("feeNQT")) {
-            if (chainById.get(chainId).isChildChain()) {
+            if (!isParentTransaction(builder)) {
                 builder.param("feeRateNQTPerFXT", config.getCurrentFeeRateNQTPerFXT(chainId));
             }
         }
@@ -411,7 +422,7 @@ public abstract class AbstractContractContext {
         builder.param("ecBlockId", Long.toUnsignedString(lastBlock.getId()));
         builder.param("timestamp", lastBlock.getTimestamp());
         String referencedTransaction = getReferencedTransaction();
-        if (referencedTransaction != null && chainById.get(chainId).isChildChain()) {
+        if (referencedTransaction != null && !isParentTransaction(builder)) {
             builder.param("referencedTransaction", referencedTransaction);
         }
         AccountRestrictions.PhasingOnly phasingOnly =
@@ -439,6 +450,24 @@ public abstract class AbstractContractContext {
         }
         APICall apiCall = builder.build();
         return apiCall.getJsonResponse();
+    }
+
+    private boolean isParentTransaction(APICall.Builder builder) {
+        int chainId = Integer.parseInt(builder.getParam("chain"));
+        if (!chainById.get(chainId).isChildChain()) {
+            return true;
+        }
+        // transactions from the Coin Exchange to buy parent tokens are stored on the parent chain
+        if ("exchangeCoins".equals(builder.getParam("requestType")) &&
+                Integer.toString(FxtChain.FXT.getId()).equals(builder.getParam("exchange"))) {
+            return true;
+        }
+        // for cancel coin exchange orders we need to know the exchange to decide
+        if ("cancelCoinExchange".equals(builder.getParam("requestType"))) {
+            JO order = GetCoinExchangeOrderCall.create().order(builder.getParam("order")).call();
+            return order.getInt("exchange") == FxtChain.FXT.getId();
+        }
+        return false;
     }
 
     protected JO getPhasingAttachment() {
@@ -483,6 +512,10 @@ public abstract class AbstractContractContext {
         return digest.digest(b);
     }
 
+    public String getNetworkType() {
+        return Constants.isTestnet ? "Testnet" : "Mainnet";
+    }
+
     /**
      * Sign a message with an account secret phrase
      * @param message the message bytes
@@ -490,7 +523,18 @@ public abstract class AbstractContractContext {
      * @return the signature bytes
      */
     public byte[] sign(byte[] message, String secretPhrase) {
-        return Crypto.sign(message, secretPhrase);
+        byte[] privateKey = Crypto.getPrivateKey(secretPhrase);
+        return sign(message, privateKey);
+    }
+
+    /**
+     * Sign a message with an account private key
+     * @param message the message bytes
+     * @param privateKey the account secret phrase
+     * @return the signature bytes
+     */
+    private byte[] sign(byte[] message, byte[] privateKey) {
+        return Crypto.sign(message, privateKey);
     }
 
     /**
@@ -630,7 +674,17 @@ public abstract class AbstractContractContext {
      * @return the public key
      */
     public byte[] getPublicKey(String secretPhrase) {
-        return Crypto.getPublicKey(secretPhrase);
+        byte[] privateKey = Crypto.getPrivateKey(secretPhrase);
+        return getPublicKey(privateKey);
+    }
+
+    /**
+     * Convert private key to public key
+     * @param privateKey the secret phrase
+     * @return the public key
+     */
+    private byte[] getPublicKey(byte[] privateKey) {
+        return Crypto.getPublicKey(privateKey);
     }
 
     /**

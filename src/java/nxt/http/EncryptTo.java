@@ -1,6 +1,6 @@
 /*
  * Copyright © 2013-2016 The Nxt Core Developers.
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -56,8 +56,8 @@ public final class EncryptTo extends APIServlet.APIRequestHandler {
         } catch (RuntimeException e) {
             return INCORRECT_MESSAGE_TO_ENCRYPT;
         }
-        String secretPhrase = ParameterParser.getSecretPhrase(req, true);
-        EncryptedData encryptedData = Account.encryptTo(recipientPublicKey, plainMessageBytes, secretPhrase, compress);
+        byte[] privateKey = ParameterParser.getPrivateKey(req, true);
+        EncryptedData encryptedData = Account.encryptTo(privateKey, recipientPublicKey, plainMessageBytes, compress);
         return JSONData.encryptedData(encryptedData);
 
     }

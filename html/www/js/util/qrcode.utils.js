@@ -1,6 +1,6 @@
 /******************************************************************************
  * Copyright © 2013-2016 The Nxt Core Developers.                             *
- * Copyright © 2016-2019 Jelurida IP B.V.                                     *
+ * Copyright © 2016-2020 Jelurida IP B.V.                                     *
  *                                                                            *
  * See the LICENSE.txt file at the top-level directory of this distribution   *
  * for licensing information.                                                 *
@@ -21,65 +21,9 @@ var NRS = (function (NRS) {
             $.growl($.t("scanning_not_allowed"));
             return;
         }
-        if (NRS.isCordovaScanningEnabled()) {
-            if (NRS.isCameraPermissionRequired()) {
-                NRS.logConsole("request camera permission");
-                cordova.plugins.permissions.hasPermission(cordova.plugins.permissions.CAMERA, function(status) {
-                    cordovaCheckCameraPermission(status, callback)
-                }, null);
-            } else {
-                NRS.logConsole("scan without requesting camera permission");
-                cordovaScan(callback);
-            }
-        } else {
-            NRS.logConsole("scan using desktop browser");
-            html5Scan(readerId, callback);
-        }
+        NRS.logConsole("scan using desktop browser");
+        html5Scan(readerId, callback);
     };
-
-    function cordovaCheckCameraPermission(status, callback) {
-        if(!status.hasPermission) {
-            var errorCallback = function() {
-                NRS.logConsole('Camera permission not granted');
-            };
-
-            NRS.logConsole('Request camera permission');
-            cordova.plugins.permissions.requestPermission(cordova.plugins.permissions.CAMERA, function(status) {
-                if(!status.hasPermission) {
-                    NRS.logConsole('Camera status has no permission');
-                    errorCallback();
-                    return;
-                }
-                cordovaScan(callback);
-            }, errorCallback);
-            return;
-        }
-        NRS.logConsole('Camera already has permission');
-        cordovaScan(callback);
-    }
-
-    function cordovaScan(callback) {
-        try {
-            NRS.logConsole("before scan");
-            cordova.plugins.barcodeScanner.scan(function(result) {
-                cordovaScanQRDone(result, callback)
-            }, function (error) {
-                NRS.logConsole(error);
-            });
-        } catch (e) {
-            NRS.logConsole(e.message);
-        }
-    }
-
-    function cordovaScanQRDone(result, callback) {
-        NRS.logConsole("Scan result format: " + result.format);
-        if (!result.cancelled && result.format == "QR_CODE") {
-            NRS.logConsole("Scan complete, send result to callback");
-            callback(result.text);
-        } else {
-            NRS.logConsole("Scan cancelled");
-        }
-    }
 
     function html5Scan(readerId, callback) {
         var reader = $("#" + readerId);
@@ -127,9 +71,16 @@ var NRS = (function (NRS) {
 
     var scanner;
 
-    function html5_qrcode(currentElem, qrcodeSuccess, qrcodeError) {
+    async function html5_qrcode(currentElem, qrcodeSuccess, qrcodeError) {
         var vidElem = $('<video></video>').addClass('qr').appendTo(currentElem);
         var video = vidElem[0];
+
+        if (NRS.isAndroidWebView()) {
+            try {
+                await navigator.mediaDevices.getUserMedia({ video: true });
+            } catch(ignore) {
+            }
+        }
 
         Instascan.Camera.getCameras().then(function (cameras) {
             if (cameras.length > 0) {
@@ -141,12 +92,12 @@ var NRS = (function (NRS) {
                         var name = cam.name ? cam.name : "Camera " + camId;
                         $('<option />', {value: camId, text: name}).appendTo(selectBox);
                     }
-                    selectBox.val(NRS.mobileSettings.camera_id);
+                    selectBox.val(NRS.deviceSettings.camera_id);
                     selectBox.change(function() {
-                        NRS.mobileSettings.camera_id = selectBox.val();
-                        NRS.setJSONItem("mobile_settings", NRS.mobileSettings);
+                        NRS.deviceSettings.camera_id = selectBox.val();
+                        NRS.setJSONItem("device_settings", NRS.deviceSettings);
                         scanner.stop();
-                        scanner.start(cameras[NRS.mobileSettings.camera_id]);
+                        scanner.start(cameras[NRS.deviceSettings.camera_id]);
                     });
                     selectBox.prependTo(currentElem);
                 }
@@ -155,7 +106,7 @@ var NRS = (function (NRS) {
                     qrcodeSuccess(content);
                     scanner.stop();
                 });
-                scanner.start(cameras[NRS.mobileSettings.camera_id]);
+                scanner.start(cameras[NRS.deviceSettings.camera_id]);
             } else {
                 qrcodeError();
                 NRS.stopScanQRCode();

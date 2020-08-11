@@ -1,6 +1,6 @@
 <!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   ~ Copyright © 2013-2016 The Nxt Core Developers.                            ~
-  ~ Copyright © 2016-2019 Jelurida IP B.V.                                    ~
+  ~ Copyright © 2016-2020 Jelurida IP B.V.                                    ~
   ~                                                                           ~
   ~ See the LICENSE.txt file at the top-level directory of this distribution  ~
   ~ for licensing information.                                                ~
@@ -238,7 +238,7 @@
                 <h4 class="modal-title" data-i18n="Asset Distribution">Asset Distribution</h4>
             </div>
             <div class="modal-body">                            
-                <div class="data-container data-loading" style="max-height:350px;overflow:auto">
+                <div class="data-container data-loading table-responsive" style="max-height:350px;overflow:auto">
                     <table class="table table-striped" id="asset_distribution_table">
                         <thead>
                         <tr>
@@ -272,7 +272,7 @@
             <div class="modal-body">
                 <div id="asset_dividend" style="max-height:350px;overflow:auto">
                     <script type="text/x-handlebars-template">
-                        <div class="data-container {{when isLoading 'data-loading' isEmpty 'data-empty'}}">
+                        <div class="data-container {{when isLoading 'data-loading' isEmpty 'data-empty'}} table-responsive">
                             <table class="table table-striped" id="asset_dividend_table">
                                 <thead>
                                     <tr>

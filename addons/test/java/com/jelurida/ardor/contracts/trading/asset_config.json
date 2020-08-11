@@ -1,0 +1,47 @@
+{
+  "autoFeeRate": true,
+  "params": {
+    "CoinExchangeTradingBot": {
+      "cmcUrl": "https://pro-api.coinmarketcap.com/v1/cryptocurrency/quotes/latest",
+      "cmcApiKey": "",
+      "cmcFromSymbols": "ARDR,IGNIS,MPG",
+      "cmcToSymbols": "IGNIS,EUR,MPG",
+      "pairs": [
+        {
+          "pairSymbols": {
+            "to": "-0",
+            "from": "IGNIS",
+            "toHolding": "ASSET",
+            "fromHolding": "COIN"
+          },
+          "refreshInterval": 3,
+          "fixedExchangeRate": 2.0,
+          "bidPriceLevels": [
+            {
+              "discountPercent": 5,
+              "quantity": 500,
+              "rateAdjustmentStep": 0.01
+            },
+            {
+              "discountPercent": 15,
+              "quantity": 1000,
+              "rateAdjustmentStep": 0.01
+            }
+          ],
+          "askPriceLevels": [
+            {
+              "discountPercent": 5,
+              "quantity": 200,
+              "rateAdjustmentStep": 0.01
+            },
+            {
+              "discountPercent": 15,
+              "quantity": 300,
+              "rateAdjustmentStep": 0.01
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

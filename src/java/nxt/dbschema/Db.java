@@ -1,6 +1,6 @@
 /*
  * Copyright © 2013-2016 The Nxt Core Developers.
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -58,7 +58,9 @@ public final class Db {
         static {
             List<DbVersion> dbVersions = new ArrayList<>();
             dbVersions.add(new FxtDbVersion(db));
-            ChildChain.getAll().forEach(childchain -> dbVersions.add(new ChildDbVersion(db, childchain.getName())));
+            ChildChain.getAll().stream()
+                    .map(childchain -> new ChildDbVersion(db, childchain.getName()))
+                    .forEach(dbVersions::add);
             db.init(dbVersions);
         }
     }
@@ -68,5 +70,4 @@ public final class Db {
     }
 
     private Db() {} // never
-
 }

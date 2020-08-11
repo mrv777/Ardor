@@ -1,6 +1,6 @@
 /*
  * Copyright © 2013-2016 The Nxt Core Developers.
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -58,20 +58,20 @@ public class StopFundingMonitor extends APIServlet.APIRequestHandler {
      */
     @Override
     protected JSONStreamAware processRequest(HttpServletRequest req) throws ParameterException {
-        String secretPhrase = ParameterParser.getSecretPhrase(req, false);
+        byte[] privateKey = ParameterParser.getPrivateKey(req, false);
         long accountId = ParameterParser.getAccountId(req, false);
         JSONObject response = new JSONObject();
-        if (secretPhrase == null) {
+        if (privateKey == null) {
             API.verifyPassword(req);
         }
-        if (secretPhrase != null || accountId != 0) {
-            if (secretPhrase != null) {
+        if (privateKey != null || accountId != 0) {
+            if (privateKey != null) {
                 if (accountId != 0) {
-                    if (Account.getId(Crypto.getPublicKey(secretPhrase)) != accountId) {
+                    if (Account.getId(Crypto.getPublicKey(privateKey)) != accountId) {
                         return JSONResponses.INCORRECT_ACCOUNT;
                     }
                 } else {
-                    accountId = Account.getId(Crypto.getPublicKey(secretPhrase));
+                    accountId = Account.getId(Crypto.getPublicKey(privateKey));
                 }
             }
             HoldingType holdingType = ParameterParser.getHoldingType(req);

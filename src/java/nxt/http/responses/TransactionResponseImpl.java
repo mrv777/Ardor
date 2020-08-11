@@ -1,5 +1,5 @@
 /*
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -30,6 +30,7 @@ import nxt.util.Convert;
 import nxt.util.Logger;
 import org.json.simple.JSONObject;
 
+import java.math.BigInteger;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
 import java.util.Arrays;
@@ -42,35 +43,35 @@ public class TransactionResponseImpl implements TransactionResponse {
     private final long transactionId;
     private final int confirmations;
 
-    private TransactionType transactionType;
-    private int chainId;
-    private long senderId;
-    private byte[] senderPublicKey;
-    private long recipientId;
-    private int height;
-    private long blockId;
-    private short index;
-    private int timestamp;
-    private int blockTimeStamp;
-    private short deadline;
-    private long amount;
-    private long fee;
-    ChainTransactionId referencedTransaction;
-    private byte[] signature;
+    private final TransactionType transactionType;
+    private final int chainId;
+    private final long senderId;
+    private final byte[] senderPublicKey;
+    private final long recipientId;
+    private final int height;
+    private final long blockId;
+    private final short index;
+    private final int timestamp;
+    private final int blockTimeStamp;
+    private final short deadline;
+    private final long amount;
+    private final long fee;
+    private final ChainTransactionId referencedTransaction;
+    private final byte[] signature;
     private final byte[] signatureHash;
-    private byte[] fullHash;
-    private byte version;
-    private int ecBlockHeight;
-    private long ecBlockId;
-    private boolean isPhased;
-    private boolean isBundled;
-    private PrunableEncryptedMessageAppendix encryptedAppendix;
+    private final byte[] fullHash;
+    private final byte version;
+    private final int ecBlockHeight;
+    private final long ecBlockId;
+    private final boolean isPhased;
+    private final boolean isBundled;
+    private final PrunableEncryptedMessageAppendix encryptedAppendix;
 
-    public TransactionResponseImpl(JSONObject response) {
+    TransactionResponseImpl(JSONObject response) {
         this(new JO(response));
     }
 
-    public TransactionResponseImpl(JO response) {
+    TransactionResponseImpl(JO response) {
         this.transactionJson = response;
         transactionType = TransactionType.findTransactionType(transactionJson.getByte("type"), transactionJson.getByte("subtype"));
         chainId = transactionJson.getInt("chain");
@@ -80,20 +81,28 @@ public class TransactionResponseImpl implements TransactionResponse {
         senderPublicKey = Convert.parseHexString(transactionJson.getString("senderPublicKey"));
         if (transactionJson.isExist("recipient")) {
             recipientId = transactionJson.getEntityId("recipient");
+        } else {
+            recipientId = 0;
         }
         amount = transactionJson.getLong("amountNQT");
         fee = transactionJson.getLong("feeNQT");
         if (Chain.getChain(chainId) != FxtChain.FXT) {
             if (transactionJson.isExist("referencedTransaction")) {
-                JO referencedTransaction = new JO(transactionJson.get("referencedTransaction"));
-                this.referencedTransaction = new ChainTransactionId(referencedTransaction.getInt("chain"), referencedTransaction.parseHexString("transactionFullHash"));
+                JO referencedTransactionJson = new JO(transactionJson.get("referencedTransaction"));
+                referencedTransaction = new ChainTransactionId(referencedTransactionJson.getInt("chain"), referencedTransactionJson.parseHexString("transactionFullHash"));
+            } else {
+                referencedTransaction = null;
             }
             fxtTransaction = transactionJson.getEntityId("fxtTransaction");
             if (transactionJson.isExist("isBundled")) {
                 isBundled = transactionJson.getBoolean("isBundled");
+            } else {
+                isBundled = false;
             }
         } else {
             fxtTransaction = 0;
+            referencedTransaction = null;
+            isBundled = false;
         }
         if (transactionJson.isExist("signature")) {
             signature = transactionJson.parseHexString("signature");
@@ -102,10 +111,13 @@ public class TransactionResponseImpl implements TransactionResponse {
             if (Chain.getChain(chainId) == FxtChain.FXT) {
                 transactionId = transactionJson.getEntityId("transaction");
             } else {
-                transactionId = 0;
+                BigInteger bigInteger = new BigInteger(1, new byte[]{fullHash[7], fullHash[6], fullHash[5], fullHash[4], fullHash[3], fullHash[2], fullHash[1], fullHash[0]});
+                transactionId = bigInteger.longValue();
             }
         } else {
+            signature = null;
             signatureHash = null;
+            fullHash = null;
             transactionId = 0;
         }
         senderId = transactionJson.getEntityId("sender");
@@ -123,11 +135,16 @@ public class TransactionResponseImpl implements TransactionResponse {
             blockTimeStamp = transactionJson.getInt("blockTimestamp");
             index = transactionJson.getShort("transactionIndex");
         } else {
+            blockId = 0;
             confirmations = -1;
+            blockTimeStamp = 0;
+            index = -1;
         }
         JO attachment = transactionJson.getJo("attachment");
         if (attachment != null && attachment.isExist("encryptedMessage") && attachment.isExist("version.PrunableEncryptedMessage")) {
             encryptedAppendix = new PrunableEncryptedMessageAppendix(attachment.toJSONObject());
+        } else {
+            encryptedAppendix = null;
         }
     }
 

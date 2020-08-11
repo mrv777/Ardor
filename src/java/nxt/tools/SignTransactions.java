@@ -1,6 +1,6 @@
 /*
  * Copyright © 2013-2016 The Nxt Core Developers.
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -18,6 +18,7 @@ package nxt.tools;
 
 import nxt.Nxt;
 import nxt.blockchain.Transaction;
+import nxt.crypto.Crypto;
 import nxt.util.Convert;
 import nxt.util.security.BlockchainPermission;
 
@@ -52,6 +53,7 @@ public final class SignTransactions {
                 System.out.println("File already exists: " + signed.getAbsolutePath());
                 System.exit(1);
             }
+            // TODO add support for private key
             String secretPhrase;
             Console console = System.console();
             if (console == null) {
@@ -68,7 +70,7 @@ public final class SignTransactions {
                 while ((line = reader.readLine()) != null) {
                     byte[] transactionBytes = Convert.parseHexString(line);
                     Transaction.Builder builder = Nxt.newTransactionBuilder(transactionBytes);
-                    Transaction transaction = builder.build(secretPhrase);
+                    Transaction transaction = builder.build(Crypto.getPrivateKey(secretPhrase));
                     writer.write(Convert.toHexString(transaction.getBytes()));
                     writer.newLine();
                     n += 1;

@@ -1,6 +1,6 @@
 /*
  * Copyright © 2013-2016 The Nxt Core Developers.
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -16,6 +16,8 @@
 
 package nxtdesktop;
 
+import com.jelurida.ardor.integration.wallet.ledger.application.ArdorAppBridge;
+import com.jelurida.ardor.integration.wallet.ledger.application.ArdorAppInterface;
 import javafx.application.Platform;
 import javafx.scene.input.Clipboard;
 import javafx.scene.input.ClipboardContent;
@@ -52,6 +54,10 @@ public class JavaScriptBridge {
 
     public void log(String message) {
         Logger.logInfoMessage(message);
+    }
+
+    public void error(String message) {
+        Logger.logInfoMessage("console.error: " + message);
     }
 
     @SuppressWarnings("unused")
@@ -125,6 +131,15 @@ public class JavaScriptBridge {
     }
 
     @SuppressWarnings("unused")
+    public ArdorAppInterface getHardwareWallet() {
+        SecurityManager sm = System.getSecurityManager();
+        if (sm != null) {
+            sm.checkPermission(new BlockchainPermission("hardware"));
+        }
+        return ArdorAppBridge.getApp();
+    }
+
+    @SuppressWarnings("unused")
     public void downloadTextFile(String text, String filename) {
         application.downloadFile(text, filename);
     }
@@ -132,6 +147,14 @@ public class JavaScriptBridge {
     @SuppressWarnings("unused")
     public boolean isFileReaderSupported() {
         String version = System.getProperty("javafx.version");
-        return Integer.parseInt(version.substring(0, version.indexOf('.'))) >= 12;
+        String[] tokens = version.split("\\.");
+        if (tokens.length < 3) {
+            return false;
+        }
+        // Supported in JavaFX 11.0.6 or 12 and higher
+        int majorVersion = Integer.parseInt(tokens[0]);
+        int minorVersion = Integer.parseInt(tokens[1]);
+        int hotFix = Integer.parseInt(tokens[2]);
+        return majorVersion >= 12 || majorVersion == 11 && minorVersion >=0 && hotFix >= 6;
     }
 }

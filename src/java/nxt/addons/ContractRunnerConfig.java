@@ -1,5 +1,5 @@
 /*
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -16,6 +16,7 @@
 package nxt.addons;
 
 import nxt.crypto.EncryptedData;
+import nxt.peer.FeeRateCalculator;
 
 public interface ContractRunnerConfig {
 
@@ -30,6 +31,8 @@ public interface ContractRunnerConfig {
     String getAccountRs();
 
     boolean isAutoFeeRate();
+
+    FeeRateCalculator.TransactionPriority getAutoFeeRatePriority();
 
     long getMinBundlerBalanceFXT();
 
@@ -55,9 +58,9 @@ public interface ContractRunnerConfig {
 
     byte[] decryptFrom(byte[] publicKey, EncryptedData encryptedData, boolean uncompress);
 
-    String getSecretPhrase();
+    byte[] getPrivateKey();
 
-    String getValidatorSecretPhrase();
+    byte[] getValidatorPrivateKey();
 
     String getStatus();
 

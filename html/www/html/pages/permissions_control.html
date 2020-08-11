@@ -1,0 +1,89 @@
+<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  ~ Copyright © 2013-2016 The Nxt Core Developers.                            ~
+  ~ Copyright © 2016-2020 Jelurida IP B.V.                                    ~
+  ~                                                                           ~
+  ~ See the LICENSE.txt file at the top-level directory of this distribution  ~
+  ~ for licensing information.                                                ~
+  ~                                                                           ~
+  ~ Unless otherwise agreed in a custom licensing agreement with Jelurida B.V.,
+  ~ no part of this software, including this file, may be copied, modified,   ~
+  ~ propagated, or distributed except according to the terms contained in the ~
+  ~ LICENSE.txt file.                                                         ~
+  ~                                                                           ~
+  ~ Removal or modification of this copyright notice is prohibited.           ~
+  ~                                                                           ~
+  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+<div id="permissions_control_page" class="page paginated">
+    <script type="text/x-handlebars-template">
+        <section class="content-header">
+            <h1>{{i18n "permissions_control"}}</h1>
+                <div style="position:absolute;top:9px;right:9px;">           
+                    <button type="button" class="btn btn-default"
+                        data-toggle="modal" data-target="#grant_permission_modal" data-permissions="{{permissionsStringified}}"
+                        style="display:inline-block;vertical-align:middle;">
+                            <i class="fa fa-user-plus"></i>
+                            <span>{{i18n "grant_permission"}}</span>
+                    </button>
+                    <button type="button" class="btn btn-default"
+                        data-toggle="modal" data-target="#remove_permission_modal" data-permissions="{{permissionsStringified}}"
+                        style="display:inline-block;vertical-align:middle;">
+                            <i class="fa fa-user-times"></i>
+                            <span>{{i18n "remove_permission"}}</span>
+                    </button>
+                </div>
+        </section>
+        <section class="content">
+            <div class="data-container {{when isLoading 'data-loading'}}">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>
+                                {{i18n "granted_by"}}
+                                <div class="btn-group" data-toggle="buttons" id="permissions_granter_type">
+                                    <label class="btn btn-default {{#unless onlyGrantedByMe}}active{{/unless}}" data-type="everyone">
+                                        <input type="radio" name="granter_type"> <span>{{i18n "everyone"}}</span>
+                                    </label>
+                                    <label class="btn btn-default {{#if onlyGrantedByMe}}active{{/if}}" data-type="you">
+                                        <input type="radio" name="granter_type"> <span>{{i18n "you"}}</span>
+                                    </label>
+                                </div>
+                            </th>
+                            <th>{{i18n "permissions"}}</th>
+                            <th>{{i18n "account"}}</th>
+                            <th>{{i18n "height"}}</th>
+                            <th>{{i18n "actions"}}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {{#each accounts}}
+                        <tr>
+                            <td>{{{granterLink}}}</td>
+                            <td>
+                                <span class="badge" style="background-color: rgb(51, 122, 183);">
+                                    {{permissionLabel}}
+                                </span>
+                            </td>
+                            <td>{{{accountLink}}}</td>
+                            <td>{{{heightLink}}}</td>
+                            <td>
+                                <a href="#" class="btn btn-xs" data-toggle="modal" data-target="#grant_permission_modal" 
+                                    data-account="{{accountRS}}" data-permissions="{{../permissionsStringified}}">
+                                    {{i18n "grant_permission"}}
+                                </a>
+                                {{#if canGrant}}
+                                <a href="#" class="btn btn-xs" data-toggle="modal" data-target="#remove_permission_modal"
+                                    data-account="{{accountRS}}" data-permission="{{../this.permission}}" data-permissions="{{../../permissionsStringified}}">
+                                    {{i18n "remove_permission"}}
+                                </a>
+                                {{/if}}
+                            </td>
+                        </tr>
+                        {{/each}}
+                    </tbody>
+                </table>
+                <div class="data-loading-container"><img src="img/loading_indicator.gif" alt="Loading..." width="32" height="32" /></div>
+            </div>           
+            <div class="data-pagination"></div>
+        </section>
+    </script>
+</div>

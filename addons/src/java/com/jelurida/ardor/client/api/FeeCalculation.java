@@ -1,5 +1,5 @@
 /*
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -54,7 +54,7 @@ public class FeeCalculation {
                 amountNQT(12345678).
                 deadline(15).
                 broadcast(false).
-                publicKey(Crypto.getPublicKey(SECRET_PHRASE)).
+                publicKey(Crypto.getPublicKey(Crypto.getPrivateKey(SECRET_PHRASE))).
                 remote(remoteUrl).
                 message("012345678901234567890123456789012"). // permanent attached message of more than 32 bytes increases the ARDR fee
                 call();

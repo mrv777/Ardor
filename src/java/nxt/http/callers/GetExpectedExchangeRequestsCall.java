@@ -8,6 +8,10 @@ public class GetExpectedExchangeRequestsCall extends APICall.Builder<GetExpected
         super(ApiSpec.getExpectedExchangeRequests);
     }
 
+    public static GetExpectedExchangeRequestsCall create() {
+        return new GetExpectedExchangeRequestsCall();
+    }
+
     public static GetExpectedExchangeRequestsCall create(int chain) {
         return new GetExpectedExchangeRequestsCall().param("chain", chain);
     }

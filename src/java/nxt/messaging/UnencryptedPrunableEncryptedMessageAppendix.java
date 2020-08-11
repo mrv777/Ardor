@@ -1,6 +1,6 @@
 /*
  * Copyright © 2013-2016 The Nxt Core Developers.
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -113,8 +113,8 @@ public final class UnencryptedPrunableEncryptedMessageAppendix extends PrunableE
     public void loadPrunable(Transaction transaction, boolean includeExpiredPrunable) {}
 
     @Override
-    public void encrypt(String secretPhrase) {
-        setEncryptedData(EncryptedData.encrypt(getPlaintext(), secretPhrase, recipientPublicKey));
+    public void encrypt(byte[] privateKey) {
+        setEncryptedData(EncryptedData.encrypt(getPlaintext(), privateKey, recipientPublicKey));
     }
 
     @Override

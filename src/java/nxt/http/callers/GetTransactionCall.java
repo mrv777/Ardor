@@ -8,6 +8,10 @@ public class GetTransactionCall extends APICall.Builder<GetTransactionCall> {
         super(ApiSpec.getTransaction);
     }
 
+    public static GetTransactionCall create() {
+        return new GetTransactionCall();
+    }
+
     public static GetTransactionCall create(int chain) {
         return new GetTransactionCall().param("chain", chain);
     }

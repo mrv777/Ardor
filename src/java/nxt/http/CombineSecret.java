@@ -1,6 +1,6 @@
 /*
  * Copyright © 2013-2016 The Nxt Core Developers.
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -17,6 +17,7 @@
 package nxt.http;
 
 import nxt.crypto.SecretSharingGenerator;
+import nxt.util.Convert;
 import nxt.util.JSON;
 import nxt.util.Logger;
 import org.json.simple.JSONObject;
@@ -35,18 +36,26 @@ public final class CombineSecret extends APIServlet.APIRequestHandler {
 
     @Override
     protected JSONStreamAware processRequest(HttpServletRequest req) {
-        String[] secretPhrasePieces = req.getParameterValues("pieces");
-        if (secretPhrasePieces == null) {
+        String[] secretPieces = req.getParameterValues("pieces");
+        if (secretPieces == null) {
             return JSONResponses.missing("pieces");
         }
         try {
-            String secretPhrase = SecretSharingGenerator.combine(secretPhrasePieces);
             JSONObject response = new JSONObject();
-            response.put("secretPhrase", secretPhrase);
+
+            if (SecretSharingGenerator.isPrivateKeySecret(secretPieces)) {
+                byte[] privateKey = SecretSharingGenerator.combinePrivateKey(secretPieces);
+                response.put("privateKey", Convert.toHexString(privateKey));
+            } else {
+                String secret = SecretSharingGenerator.combine(secretPieces);
+                response.put("secret", secret);
+            }
+
             return JSON.prepare(response);
         } catch (RuntimeException e) {
-            Logger.logInfoMessage("Failed to split secretPhrase", e);
-            return JSONResponses.error(e.toString());
+            String msg = "Failed to combine secret";
+            Logger.logInfoMessage(msg, e);
+            return JSONResponses.error(msg);
         }
     }
 

@@ -1,6 +1,6 @@
 /*
  * Copyright © 2013-2016 The Nxt Core Developers.
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -22,11 +22,11 @@ import java.util.Map;
 public enum APITag {
 
     ACCOUNTS("Accounts"), ACCOUNT_CONTROL("Account Control"), ALIASES("Aliases"), AE("Asset Exchange"),
-    BLOCKS("Blocks"), CE("Coin Exchange"),
+    BLOCKS("Blocks"), CHILD_CHAIN_CONTROL("Child Chain Control"), CE("Coin Exchange"),
     CREATE_TRANSACTION("Create Transaction"), DGS("Digital Goods Store"), FORGING("Forging"), MESSAGES("Messages"),
     MS("Monetary System"), NETWORK("Networking"), PHASING("Phasing"), SEARCH("Search"), INFO("Server Info"),
     SHUFFLING("Shuffling"), DATA("Tagged Data"), TOKENS("Tokens"), TRANSACTIONS("Transactions"), VS("Voting System"),
-    UTILS("Utils"), DEBUG("Debug"), ADDONS("Add-ons");
+    UTILS("Utils"), BIP32("Bip32"), DEBUG("Debug"), ADDONS("Add-ons");
 
     private static final Map<String, APITag> apiTags = new HashMap<>();
     static {

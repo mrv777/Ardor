@@ -8,6 +8,10 @@ public class GetAliasCountCall extends APICall.Builder<GetAliasCountCall> {
         super(ApiSpec.getAliasCount);
     }
 
+    public static GetAliasCountCall create() {
+        return new GetAliasCountCall();
+    }
+
     public static GetAliasCountCall create(int chain) {
         return new GetAliasCountCall().param("chain", chain);
     }

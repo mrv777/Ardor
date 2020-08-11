@@ -1,6 +1,6 @@
 /*
  * Copyright © 2013-2016 The Nxt Core Developers.
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -52,18 +52,18 @@ public final class DownloadPrunableMessage extends APIServlet.APIRequestHandler 
             }
             prunableMessage = prunableMessageHome.getPrunableMessage(transactionFullHash);
         }
-        String secretPhrase = ParameterParser.getSecretPhrase(request, false);
+        byte[] privateKey = ParameterParser.getPrivateKey(request, false);
         byte[] sharedKey = ParameterParser.getBytes(request, "sharedKey", false);
-        if (sharedKey.length != 0 && secretPhrase != null) {
-            return JSONResponses.either("secretPhrase", "sharedKey");
+        if (sharedKey.length != 0 && privateKey != null) {
+            return JSONResponses.either("secretPhrase", "privateKey", "sharedKey");
         }
         byte[] data = null;
         if (prunableMessage != null) {
             try {
-                if (secretPhrase != null) {
-                    data = prunableMessage.decrypt(secretPhrase);
+                if (privateKey != null) {
+                    data = prunableMessage.decryptUsingPrivateKey(privateKey);
                 } else if (sharedKey.length > 0) {
-                    data = prunableMessage.decrypt(sharedKey);
+                    data = prunableMessage.decryptUsingSharedKey(sharedKey);
                 } else {
                     data = prunableMessage.getMessage();
                 }

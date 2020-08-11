@@ -8,6 +8,10 @@ public class GetLastExchangesCall extends APICall.Builder<GetLastExchangesCall> 
         super(ApiSpec.getLastExchanges);
     }
 
+    public static GetLastExchangesCall create() {
+        return new GetLastExchangesCall();
+    }
+
     public static GetLastExchangesCall create(int chain) {
         return new GetLastExchangesCall().param("chain", chain);
     }

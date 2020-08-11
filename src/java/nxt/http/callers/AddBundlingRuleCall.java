@@ -8,6 +8,10 @@ public class AddBundlingRuleCall extends APICall.Builder<AddBundlingRuleCall> {
         super(ApiSpec.addBundlingRule);
     }
 
+    public static AddBundlingRuleCall create() {
+        return new AddBundlingRuleCall();
+    }
+
     public static AddBundlingRuleCall create(int chain) {
         return new AddBundlingRuleCall().param("chain", chain);
     }

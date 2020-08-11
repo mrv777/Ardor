@@ -1,6 +1,6 @@
 /*
  * Copyright © 2013-2016 The Nxt Core Developers.
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -28,9 +28,7 @@ import nxt.util.Logger;
 import org.json.simple.JSONObject;
 
 import java.nio.ByteBuffer;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
 public final class ChildBlockFxtTransactionType extends FxtTransactionType {
 
@@ -147,10 +145,9 @@ public final class ChildBlockFxtTransactionType extends FxtTransactionType {
     @Override
     protected void applyAttachment(FxtTransactionImpl transaction, Account senderAccount, Account recipientAccount) {
         ChildBlockAttachment attachment = (ChildBlockAttachment) transaction.getAttachment();
-        long totalFee = 0;
+        long totalFee = ((ChildBlockFxtTransaction)transaction).getChildTransactionsFee();
         for (ChildTransactionImpl childTransaction : transaction.getSortedChildTransactions()) {
             childTransaction.apply();
-            totalFee = Math.addExact(totalFee, childTransaction.getFee());
             if ((childTransaction.getIndex() + 1) % Constants.BATCH_COMMIT_SIZE == 0) {
                 Db.db.commitTransaction();
             }
@@ -188,6 +185,12 @@ public final class ChildBlockFxtTransactionType extends FxtTransactionType {
     public boolean isDuplicate(Transaction transaction, Map<TransactionType, Map<String, Integer>> duplicates) {
         ChildBlockAttachment attachment = (ChildBlockAttachment) transaction.getAttachment();
         return isDuplicate(ChildBlockFxtTransactionType.INSTANCE, String.valueOf(attachment.getChainId()), duplicates, true);
+    }
+
+    @Override
+    protected final List<ChildChain> getInvolvedChildChains(FxtTransactionImpl transaction) {
+        ChildBlockAttachment attachment = (ChildBlockAttachment) transaction.getAttachment();
+        return Collections.singletonList(ChildChain.getChildChain(attachment.getChainId()));
     }
 
 }

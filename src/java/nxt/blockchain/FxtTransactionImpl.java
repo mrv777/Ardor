@@ -1,6 +1,6 @@
 /*
  * Copyright © 2013-2016 The Nxt Core Developers.
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -55,15 +55,15 @@ public class FxtTransactionImpl extends TransactionImpl implements FxtTransactio
         }
 
         @Override
-        public FxtTransactionImpl build(String secretPhrase, boolean isVoucher) throws NxtException.NotValidException {
-            preBuild(secretPhrase, isVoucher);
+        public FxtTransactionImpl build(byte[] privateKey, boolean isVoucher) throws NxtException.NotValidException {
+            preBuild(privateKey, isVoucher);
             return getTransactionType() == ChildBlockFxtTransactionType.INSTANCE ?
-                    new ChildBlockFxtTransactionImpl(this, secretPhrase, isVoucher) : new FxtTransactionImpl(this, secretPhrase, isVoucher);
+                    new ChildBlockFxtTransactionImpl(this, privateKey, isVoucher) : new FxtTransactionImpl(this, privateKey, isVoucher);
         }
 
         @Override
-        public FxtTransactionImpl build(String secretPhrase) throws NxtException.NotValidException {
-            return build(secretPhrase, false);
+        public FxtTransactionImpl build(byte[] privateKey) throws NxtException.NotValidException {
+            return build(privateKey, false);
         }
 
         @Override
@@ -77,7 +77,7 @@ public class FxtTransactionImpl extends TransactionImpl implements FxtTransactio
     private final long feeFQT;
     private final byte[] signature;
 
-    FxtTransactionImpl(BuilderImpl builder, String secretPhrase, boolean isVoucher) throws NxtException.NotValidException {
+    FxtTransactionImpl(BuilderImpl builder, byte[] privateKey, boolean isVoucher) throws NxtException.NotValidException {
         super(builder);
         if (builder.fee <= 0 || (Constants.correctInvalidFees && builder.signature == null)) {
             int effectiveHeight = (getHeight() < Integer.MAX_VALUE ? getHeight() : Nxt.getBlockchain().getHeight());
@@ -86,16 +86,16 @@ public class FxtTransactionImpl extends TransactionImpl implements FxtTransactio
         } else {
             this.feeFQT = builder.fee;
         }
-        if (builder.signature != null && secretPhrase != null) {
+        if (builder.signature != null && privateKey != null) {
             throw new NxtException.NotValidException("Transaction is already signed");
         } else if (builder.signature != null) {
             this.signature = builder.signature;
-        } else if (secretPhrase != null) {
+        } else if (privateKey != null) {
             byte[] senderPublicKey = builder.senderPublicKey != null ? builder.senderPublicKey : Account.getPublicKey(builder.senderId);
-            if (senderPublicKey != null && ! Arrays.equals(senderPublicKey, Crypto.getPublicKey(secretPhrase)) && !isVoucher) {
+            if (senderPublicKey != null && ! Arrays.equals(senderPublicKey, Crypto.getPublicKey(privateKey)) && !isVoucher) {
                 throw new NxtException.NotValidException("Secret phrase doesn't match transaction sender public key");
             }
-            this.signature = Crypto.sign(bytes(), secretPhrase);
+            this.signature = Crypto.sign(bytes(), privateKey);
             bytes = null;
         } else {
             this.signature = null;
@@ -165,6 +165,10 @@ public class FxtTransactionImpl extends TransactionImpl implements FxtTransactio
             }
             validateEcBlock();
             AccountRestrictions.checkTransaction(this);
+            for (ChildChain childChain : this.getType().getInvolvedChildChains(this)) {
+                childChain.getPermissionChecker().checkTransaction(this);
+            }
+
         } catch (NxtException.NotValidException e) {
             if (getSignature() != null) {
                 Logger.logMessage("Invalid transaction " + getStringId());

@@ -8,6 +8,10 @@ public class GetTradesCall extends APICall.Builder<GetTradesCall> {
         super(ApiSpec.getTrades);
     }
 
+    public static GetTradesCall create() {
+        return new GetTradesCall();
+    }
+
     public static GetTradesCall create(int chain) {
         return new GetTradesCall().param("chain", chain);
     }

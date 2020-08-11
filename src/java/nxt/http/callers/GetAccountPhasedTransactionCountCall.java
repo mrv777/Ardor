@@ -8,6 +8,10 @@ public class GetAccountPhasedTransactionCountCall extends APICall.Builder<GetAcc
         super(ApiSpec.getAccountPhasedTransactionCount);
     }
 
+    public static GetAccountPhasedTransactionCountCall create() {
+        return new GetAccountPhasedTransactionCountCall();
+    }
+
     public static GetAccountPhasedTransactionCountCall create(int chain) {
         return new GetAccountPhasedTransactionCountCall().param("chain", chain);
     }

@@ -1,5 +1,5 @@
 /*
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -24,6 +24,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.Reader;
+import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -101,6 +102,14 @@ public class ResourceLookup {
             return ClassLoader.getSystemResourceAsStream(resourceName);
         } else {
             return ResourceLookup.class.getClassLoader().getResourceAsStream(resourceName);
+        }
+    }
+
+    public static URL getSystemResource(String resourceName) {
+        if (USE_SYSTEM_CLASS_LOADER) {
+            return ClassLoader.getSystemResource(resourceName);
+        } else {
+            return ResourceLookup.class.getClassLoader().getResource(resourceName);
         }
     }
 

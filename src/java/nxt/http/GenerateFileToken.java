@@ -1,6 +1,6 @@
 /*
  * Copyright © 2013-2016 The Nxt Core Developers.
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -36,14 +36,14 @@ public final class GenerateFileToken extends APIServlet.APIRequestHandler {
 
     @Override
     protected JSONStreamAware processRequest(HttpServletRequest req) throws ParameterException {
-        String secretPhrase = ParameterParser.getSecretPhrase(req, true);
+        byte[] privateKey = ParameterParser.getPrivateKey(req, true);
         ParameterParser.FileData fileData = ParameterParser.getFileData(req, "file", true);
         if (fileData == null) {
             return INCORRECT_FILE;
         }
         byte[] data = fileData.getData();
         try {
-            String tokenString = Token.generateToken(secretPhrase, data);
+            String tokenString = Token.generateToken(privateKey, data);
             JSONObject response = JSONData.token(Token.parseToken(tokenString, data));
             response.put("token", tokenString);
             return response;

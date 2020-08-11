@@ -1,6 +1,6 @@
 /*
  * Copyright © 2013-2016 The Nxt Core Developers.
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -67,14 +67,14 @@ public final class ChildTransactionImpl extends TransactionImpl implements Child
         }
 
         @Override
-        public ChildTransactionImpl build(String secretPhrase, boolean isVoucher) throws NxtException.NotValidException {
-            preBuild(secretPhrase, isVoucher);
-            return new ChildTransactionImpl(this, secretPhrase, isVoucher);
+        public ChildTransactionImpl build(byte[] privateKey, boolean isVoucher) throws NxtException.NotValidException {
+            preBuild(privateKey, isVoucher);
+            return new ChildTransactionImpl(this, privateKey, isVoucher);
         }
 
         @Override
-        public ChildTransactionImpl build(String secretPhrase) throws NxtException.NotValidException {
-            return build(secretPhrase, false);
+        public ChildTransactionImpl build(byte[] privateKey) throws NxtException.NotValidException {
+            return build(privateKey, false);
         }
 
         @Override
@@ -113,7 +113,7 @@ public final class ChildTransactionImpl extends TransactionImpl implements Child
 
     private volatile long fxtTransactionId;
 
-    private ChildTransactionImpl(BuilderImpl builder, String secretPhrase, boolean isVoucher) throws NxtException.NotValidException {
+    private ChildTransactionImpl(BuilderImpl builder, byte[] privateKey, boolean isVoucher) throws NxtException.NotValidException {
         super(builder);
         this.childChain = ChildChain.getChildChain(builder.chainId);
         this.referencedTransactionId = builder.referencedTransactionId;
@@ -159,16 +159,16 @@ public final class ChildTransactionImpl extends TransactionImpl implements Child
         } else {
             this.fee = builder.fee;
         }
-        if (builder.signature != null && secretPhrase != null) {
+        if (builder.signature != null && privateKey != null) {
             throw new NxtException.NotValidException("Transaction is already signed");
         } else if (builder.signature != null) {
             this.signature = builder.signature;
-        } else if (secretPhrase != null) {
+        } else if (privateKey != null) {
             byte[] senderPublicKey = builder.senderPublicKey != null ? builder.senderPublicKey : Account.getPublicKey(builder.senderId);
-            if (senderPublicKey != null && ! Arrays.equals(senderPublicKey, Crypto.getPublicKey(secretPhrase)) && !isVoucher) {
+            if (senderPublicKey != null && !Arrays.equals(senderPublicKey, Crypto.getPublicKey(privateKey)) && !isVoucher) {
                 throw new NxtException.NotValidException("Secret phrase doesn't match transaction sender public key");
             }
-            this.signature = Crypto.sign(bytes(), secretPhrase);
+            this.signature = Crypto.sign(bytes(), privateKey);
             bytes = null;
         } else {
             this.signature = null;
@@ -302,9 +302,6 @@ public final class ChildTransactionImpl extends TransactionImpl implements Child
     public void validate() throws NxtException.ValidationException {
         try {
             super.validate();
-            if (!childChain.isEnabled()) {
-                throw new NxtException.NotYetEnabledException("Child chain " + childChain.getName() + " not yet enabled for accepting transactions");
-            }
             if (ChildTransactionType.findTransactionType(getType().getType(), getType().getSubtype()) == null) {
                 throw new NxtException.NotValidException("Invalid transaction type " + getType().getName() + " for ChildTransaction");
             }
@@ -344,6 +341,12 @@ public final class ChildTransactionImpl extends TransactionImpl implements Child
                 validateEcBlock();
                 AccountRestrictions.checkTransaction(this);
                 AssetControl.checkTransaction(this);
+                if (Nxt.getBlockchain().getHeight() >= Constants.CHILD_CHAIN_CONTROL_BLOCK) {
+                    TransactionType transactionType = this.getType();
+                    for (ChildChain childChain : transactionType.getInvolvedChildChains(this)) {
+                        childChain.getPermissionChecker().checkTransaction(this);
+                    }
+                }
             }
         } catch (NxtException.NotValidException e) {
             if (getSignature() != null) {

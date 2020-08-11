@@ -1,6 +1,6 @@
 <!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   ~ Copyright © 2013-2016 The Nxt Core Developers.                            ~
-  ~ Copyright © 2016-2019 Jelurida IP B.V.                                    ~
+  ~ Copyright © 2016-2020 Jelurida IP B.V.                                    ~
   ~                                                                           ~
   ~ See the LICENSE.txt file at the top-level directory of this distribution  ~
   ~ for licensing information.                                                ~
@@ -13,53 +13,57 @@
   ~ Removal or modification of this copyright notice is prohibited.           ~
   ~                                                                           ~
   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
-
-<div id="messages_page" class="page">
+  <div id="messages_page" class="page">
     <section class="content-header">
         <h1 data-i18n="chat">Chat</h1>
     </section>
-    <section class="content content-stretch" style="position:fixed;margin-top:3px;padding:0; width:100%; height:100%; height: calc(100% - 101px); overflow:hidden;">
-        <div class="content-spliter">
-          <div class="content-splitter-inner">
-              <div class="content-splitter-sidebar" id="message_sidebar" style="width:250px;overflow-x:hidden;">
-                  <div class="content-splitter-sidebar-inner">
-                    <div class="list-group unselectable sidebar_context" id="messages_sidebar">
-                        <div style="text-align:center;padding-top:10px;"><span data-i18n="loading_please_wait">Loading, please wait</span><span class="loading_dots"><span>.</span><span>.</span><span>.</span></span></div>
-                    </div>
-                     </div>
-                 </div>
-                 <div class="content-splitter-right" id="message_content" style="left:250px">
-                    <div class="content-splitter-right-inner">
-                        <div id="no_message_selected" style="padding-top: 150px;text-align:center;" data-i18n="select_contact_in_sidebar">Please select a contact in the left sidebar.</div>
-                        <div id="no_messages_available" style="padding-top: 150px;text-align:center;display:none;">
-                            <span data-i18n="no_messages_available">No messages available</span>, 
-                            <a href="#" data-toggle="modal" data-target="#send_message_modal" data-i18n="send_one_message">send one</a>.
-                        </div>
-                        
-                        <div id="message_details">
-                        </div>
-                        <form role="form" id="inline_message_form" method="post" style="display:none;position:fixed;bottom:0;right:20px;left:485px;" autocomplete="off">
-                            <div class="form-group">
-                                <textarea class="form-control" name="inline_message_text" id="inline_message_text" rows="3" placeholder="Message" data-i18n="[placeholder]message"></textarea>
-                            </div>
-                            <div class="row">
-                                <div class="col-xs-10 col-sm-10 col-md-10">
-                                    <div class="form-group">
-                                        <input type="password" class="form-control secret_phrase" id="inline_message_password" name="inline_message_password" placeholder="Passphrase" data-i18n="[placeholder]passphrase" style="display:inline;width:35%">
-                                        <label for="inline_message_encrypt" style="font-weight:normal;color:#666"><input type="checkbox" name="encrypt_message" id="inline_message_encrypt" value="1" checked="checked" /> <span data-i18n="encrypt_message">Encrypt Message</span></label>
-                                    </div>
-                                </div>
-                                <div class="col-xs-2-col-sm-2 col-md-2">
-                                    <div class="form-group" style="text-align:right">
-                                        <input type="hidden" name="inline_message_recipient" id="inline_message_recipient" value="" />
-                                        <button type="submit" id="inline_message_submit" class="btn btn-default" data-loading-text="Submitting..." data-i18n="send;[data-loading-text]submitting;">Send</button>
-                                    </div>
-                                </div>
-                            </div>
-                        </form>
-                    </div>
+    <section class="content content-flex">
+        <div class="content-splitter-sidebar" id="message_sidebar">
+            <div class="content-splitter-sidebar-inner">
+                <div class="list-group unselectable sidebar_context" id="messages_sidebar">
+                    <div style="text-align:center;padding-top:10px;"><span data-i18n="loading_please_wait">Loading, please wait</span><span class="loading_dots"><span>.</span><span>.</span><span>.</span></span></div>
                 </div>
             </div>
+        </div>
+        <div class="content-splitter-right" id="message_content" style="position: relative; height: 100%; display: flex; flex-direction: column; justify-content: flex-end;">
+            <div class="content-splitter-right-inner" style="overflow-x: hidden; overflow-y: auto;">
+                <div id="no_message_selected" style="position: absolute; top: 50%; left: 50%; transform: translateX(-50%) translateY(-50%); text-align: center;">
+                    <span class="regular-view" data-i18n="select_contact_in_sidebar">Please select a contact in the left sidebar.</span>
+                    <span class="mobile-view" style="display: none" data-i18n="select_contact_in_sidebar_mobile">Please select a contact from the menu above.</span>
+                </div>
+                <div id="no_messages_available" style="padding-top: 150px;text-align:center;display:none;">
+                    <span data-i18n="no_messages_available">No messages available</span>, 
+                    <a href="#" data-toggle="modal" data-target="#send_message_modal" data-i18n="send_one_message">send one</a>.
+                </div>
+                <div id="message_details">
+                </div>
+            </div>
+            <form role="form" id="inline_message_form" method="post" autocomplete="off">
+                <div class="form-group">
+                    <textarea class="form-control" name="inline_message_text" id="inline_message_text" rows="3" placeholder="Message" data-i18n="[placeholder]message"></textarea>
+                </div>
+                <div class="row">
+                    <div class="col-xs-12 col-sm-10 col-md-10">
+                        <div class="form-group">
+                            <input type="password" class="form-control secret_phrase" id="inline_message_password" name="inline_message_password" placeholder="Passphrase" data-i18n="[placeholder]passphrase" style="display:inline-block;">
+                            <div class="add_message_encrypt_option" style="margin-top:3px" id="inline_message_to_specific_account_message_options">
+                                <label for="inline_message_true_encrypt_message" class="radio-inline">
+                                    <input type="radio" name="encrypt_message" id="inline_message_true_encrypt_message" value="1" tabindex="103"> <span data-i18n="encrypt_message">Encrypt Message</span>
+                                </label>
+                                <label for="inline_message_false_encrypt_message" style="margin-left: 20px" class="radio-inline">
+                                    <input type="radio" name="encrypt_message" id="inline_message_false_encrypt_message" value="0" tabindex="104"> <span data-i18n="dont_encrypt_message">Don't Encrypt Message</span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-xs-12 col-sm-2 col-md-2">
+                        <div class="form-group" style="text-align:right">
+                            <input type="hidden" name="inline_message_recipient" id="inline_message_recipient" value="" />
+                            <button data-toggle="modal" data-target="#send_message_modal" id="inline_message_submit" class="btn btn-default" data-loading-text="Submitting..." data-i18n="send;[data-loading-text]submitting;">Send</button>
+                        </div>
+                    </div>
+                </div>
+            </form>
         </div>
     </section>
 </div>
@@ -70,7 +74,7 @@
     </section>
     <section class="content" id="my_messages_section">
         <script type="text/x-handlebars-template">
-            <div class="data-container {{when isLoading 'data-loading' isEmpty 'data-empty'}}">
+            <div class="data-container {{when isLoading 'data-loading' isEmpty 'data-empty'}} table-responsive">
                 <table class="table table-striped" id="my_messages_table">
                     <thead>
                     <tr>

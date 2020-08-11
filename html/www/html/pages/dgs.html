@@ -1,6 +1,6 @@
 <!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   ~ Copyright © 2013-2016 The Nxt Core Developers.                            ~
-  ~ Copyright © 2016-2019 Jelurida IP B.V.                                    ~
+  ~ Copyright © 2016-2020 Jelurida IP B.V.                                    ~
   ~                                                                           ~
   ~ See the LICENSE.txt file at the top-level directory of this distribution  ~
   ~ for licensing information.                                                ~
@@ -30,7 +30,7 @@
     </section>
 
     <section id="dgs_top" class="content-header">
-        <h1>
+        <h1 class="col-xs-12 col-sm-7">
             <span data-i18n="marketplace">Marketplace</span>
             <span class="dgs_search_pageheader_addon dgs_search_pageheader_addon_seller">
                 | <span data-i18n="seller">Seller</span> <span class="dgs_search_pageheader_addon_seller_text"></span>
@@ -42,16 +42,17 @@
                 | <span data-i18n="tag">Tag</span> <span class="dgs_search_pageheader_addon_tag_text"></span>
             </span>
         </h1>
-        <div style="position:absolute;top:9px;right:9px;display:none;" id="dgs_search_top">
+        <div class="text-right col-xs-12 col-sm-5" id="dgs_search_top">
             <button id="dgs_clear_results" type="button" class="btn btn-default" data-i18n="clear_results">Clear Results</button>
         </div>
+        <div class="clearfix"></div>
     </section>
 
     <section class="content">
         <div  id="dgs_search_center" class="row">
             <div class="row">
                 <div class="col-lg-3 col-xs-6">
-                    <div class="small-box bg-aqua">
+                    <div class="small-box">
                         <div class="inner">
                             <h3><span id="dgs_user_purchase_count" class="loading_dots"><span>.</span><span>.</span><span>.</span></span></h3>
                             <p><span data-i18n="purchased_products">Purchased Products</span></p>
@@ -61,7 +62,7 @@
                     </div>
                 </div>
                 <div class="col-lg-3 col-xs-6">
-                    <div class="small-box bg-green">
+                    <div class="small-box">
                         <div class="inner">
                             <h3><span id="dgs_product_count" class="loading_dots"><span>.</span><span>.</span><span>.</span></span></h3>
                             <p><span data-i18n="products_available">Products available</span></p>
@@ -71,7 +72,7 @@
                     </div>
                 </div>
                 <div class="col-lg-3 col-xs-6">
-                    <div class="small-box bg-yellow">
+                    <div class="small-box">
                         <div class="inner">
                             <h3><span id="dgs_total_purchase_count" class="loading_dots"><span>.</span><span>.</span><span>.</span></span></h3>
                             <p data-i18n="total_purchases">Total Purchases</p>
@@ -81,7 +82,7 @@
                     </div>
                 </div>
                 <div class="col-lg-3 col-xs-6">
-                    <div class="small-box bg-yellow">
+                    <div class="small-box">
                         <div class="inner">
                             <h3><span id="dgs_tag_count" class="loading_dots"><span>.</span><span>.</span><span>.</span></span></h3>
                             <p data-i18n="total_tags">Total Tags</p>
@@ -94,7 +95,7 @@
 
             <div class="row" style="text-align:center">
                 <div class="col-xs-12 col-sm-6">
-                    <div style=";padding:12px;background-color:#fff;border:1px solid #f2f2f2;">
+                    <div style="padding:12px;background-color:#fff;border:1px solid #f2f2f2;">
                         <p style="text-align:center;font-size:16px;" data-i18n="dgs_search_description">Enter the seller's Account ID below to view their store.</p>
                         <form action="#" method="get" class="dgs_search sidebar-form" style="width:300px;margin:0 auto;" autocomplete="off">
                             <div class="input-group">
@@ -130,7 +131,7 @@
             </div>
         </div>
 
-        <div id="dgs_search_results" class="data-container data-loading" style="display:none">
+        <div id="dgs_search_results" class="data-container data-loading table-responsive" style="display:none">
             <div id="dgs_search_contents" class="dgs_page_contents">
 
             </div>
@@ -141,12 +142,12 @@
     </section>
 
     <section id="dgs_listings" class="content">
-        <div class="col-xs-6">
+        <div class="col-xs-12 col-sm-6">
             <div class="box box-primary">
                 <p class = "box-title" style="text-align:center;font-size:16px;" data-i18n="recent_listings">Recent Listings</p>
                 <div class="box-body no-padding" id="recent_listings">
                     <script type="text/x-handlebars-template">
-                        <div class="data-container {{when isLoading 'data-loading' isEmpty 'data-empty'}}">
+                        <div class="data-container {{when isLoading 'data-loading' isEmpty 'data-empty'}} table-responsive">
                             <table class="table table-striped" id="recent_listings_table">
                                 <thead>
                                 <tr>
@@ -181,12 +182,12 @@
             </div>
             <div class="box-footer"><button class="btn btn-primary goto-page" data-page="recent_listings"><i class="fa fa-caret-right"></i> <span data-i18n="view_more">View More</span></button></div>
         </div>
-        <div class="col-xs-6">
+        <div class="col-xs-12 col-sm-6">
             <div class="box box-primary">
                 <p class = "box-title" style="text-align:center;font-size:16px;" data-i18n="recent_purchases">Recent Purchases</p>
                 <div class="box-body no-padding" id="recent_purchases">
                     <script type="text/x-handlebars-template">
-                        <div class="data-container {{when isLoading 'data-loading' isEmpty 'data-empty'}}">
+                        <div class="data-container {{when isLoading 'data-loading' isEmpty 'data-empty'}} table-responsive">
                             <table class="table table-striped" id="recent_purchases_table">
                                 <thead>
                                 <tr>
@@ -230,7 +231,7 @@
     </section>
 
     <section class="content">
-        <div class="data-container data-loading">
+        <div class="data-container data-loading table-responsive">
             <div id="purchased_dgs_contents" class="dgs_page_contents">
 
             </div>
@@ -243,14 +244,15 @@
 
 <div id="my_dgs_listings_page" class="paginated page">
     <section class="content-header">
-        <h1 data-i18n="my_products_for_sale">My Products For Sale</h1>
-        <div style="position:absolute;top:9px;right:9px;">
+        <h1 data-i18n="my_products_for_sale" class="col-xs-6">My Products For Sale</h1>
+        <div class="text-right col-xs-6">
             <button id="add_dgs_listing_button" type="button" class="btn btn-default" data-toggle="modal" data-target="#dgs_listing_modal" data-i18n="list_product_for_sale">List Product For Sale</button>
         </div>
+        <div class="clearfix"></div>
     </section>
 
     <section class="content">
-        <div class="data-container data-loading">
+        <div class="data-container data-loading table-responsive">
             <table class="table table-striped" id="my_dgs_listings_table">
                 <thead>
                 <tr>
@@ -282,7 +284,7 @@
     </section>
 
     <section class="content">
-        <div class="data-container data-loading">
+        <div class="data-container data-loading table-responsive">
             <div id="pending_orders_dgs_contents" class="dgs_page_contents">
 
             </div>
@@ -299,7 +301,7 @@
     </section>
 
     <section class="content">
-        <div class="data-container data-loading">
+        <div class="data-container data-loading table-responsive">
             <div id="completed_orders_dgs_contents" class="dgs_page_contents">
 
             </div>
@@ -315,7 +317,7 @@
             <h3 class="box-title" data-i18n="recent_purchases">Recent Purchases</h3>
             <div class="box-body no-padding" id="recent_purchases_full">
                 <script type="text/x-handlebars-template">
-                    <div class="data-container {{when isLoading 'data-loading' isEmpty 'data-empty'}}">
+                    <div class="data-container {{when isLoading 'data-loading' isEmpty 'data-empty'}} table-responsive">
                         <table class="table table-striped" id="recent_purchases_full_table">
                             <thead>
                             <tr>
@@ -357,7 +359,7 @@
             <h3 class="box-title" data-i18n="recent_listings">Recent Listings</h3>
             <div class="box-body no-padding" id="recent_listings_full">
                 <script type="text/x-handlebars-template">
-                    <div class="data-container {{when isLoading 'data-loading' isEmpty 'data-empty'}}">
+                    <div class="data-container {{when isLoading 'data-loading' isEmpty 'data-empty'}} table-responsive">
                         <table class="table table-striped" id="recent_listings_full_table">
                             <thead>
                             <tr>

@@ -1,6 +1,6 @@
 /*
  * Copyright © 2013-2016 The Nxt Core Developers.
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -36,14 +36,14 @@ public final class GetSharedKey extends APIServlet.APIRequestHandler {
     @Override
     protected JSONStreamAware processRequest(HttpServletRequest req) throws NxtException {
 
-        String secretPhrase = ParameterParser.getSecretPhrase(req, true);
+        byte[] privateKey = ParameterParser.getPrivateKey(req, true);
         byte[] nonce = ParameterParser.getBytes(req, "nonce", true);
         long accountId = ParameterParser.getAccountId(req, "account", true);
         byte[] publicKey = Account.getPublicKey(accountId);
         if (publicKey == null) {
             return JSONResponses.INCORRECT_ACCOUNT;
         }
-        byte[] sharedKey = Crypto.getSharedKey(Crypto.getPrivateKey(secretPhrase), publicKey, nonce);
+        byte[] sharedKey = Crypto.getSharedKey(privateKey, publicKey, nonce);
         JSONObject response = new JSONObject();
         response.put("sharedKey", Convert.toHexString(sharedKey));
         return response;

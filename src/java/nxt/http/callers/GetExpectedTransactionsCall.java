@@ -8,6 +8,10 @@ public class GetExpectedTransactionsCall extends APICall.Builder<GetExpectedTran
         super(ApiSpec.getExpectedTransactions);
     }
 
+    public static GetExpectedTransactionsCall create() {
+        return new GetExpectedTransactionsCall();
+    }
+
     public static GetExpectedTransactionsCall create(int chain) {
         return new GetExpectedTransactionsCall().param("chain", chain);
     }

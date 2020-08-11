@@ -1,6 +1,6 @@
 /*
  * Copyright © 2013-2016 The Nxt Core Developers.
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -32,9 +32,9 @@ public interface ChildTransaction extends Transaction {
 
         ChildTransaction build() throws NxtException.NotValidException;
 
-        ChildTransaction build(String secretPhrase) throws NxtException.NotValidException;
+        ChildTransaction build(byte[] privateKey) throws NxtException.NotValidException;
 
-        ChildTransaction build(String secretPhrase, boolean isVoucher) throws NxtException.NotValidException;
+        ChildTransaction build(byte[] privateKey, boolean isVoucher) throws NxtException.NotValidException;
 
     }
 

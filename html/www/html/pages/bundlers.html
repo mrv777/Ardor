@@ -1,6 +1,6 @@
 <!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   ~ Copyright © 2013-2016 The Nxt Core Developers.                            ~
-  ~ Copyright © 2016-2019 Jelurida IP B.V.                                    ~
+  ~ Copyright © 2016-2020 Jelurida IP B.V.                                    ~
   ~                                                                           ~
   ~ See the LICENSE.txt file at the top-level directory of this distribution  ~
   ~ for licensing information.                                                ~
@@ -34,11 +34,11 @@
             {{#if errorMessage}}
                 <div class="alert alert-danger" role="alert">
                     {{{ errorMessage }}}
-                    <a href="#" onclick="NRS.goToPage('settings'); return false;"><i class="far fa-cog"></i></a>
+                    <a href="#" data-toggle="modal" data-target="#device_settings_modal"><i class="far fa-cog fa-lg"></i></a>
                 </div>
             {{/if}}
 
-            <div class="data-container {{when isLoading 'data-loading' isEmpty 'data-empty'}}">
+            <div class="data-container {{when isLoading 'data-loading' isEmpty 'data-empty'}} table-responsive">
                 <table class="table table-striped">
                     <thead>
                     <tr>
@@ -46,6 +46,7 @@
                         <th>{{i18n "chain"}}</th>
                         <th>{{i18n "fee_total"}}</th>
                         <th>{{i18n "fee_paid"}}</th>
+                        <th>{{i18n "confirmed_fee_paid"}}</th>
                         <th>{{i18n "fee_limit"}}</th>
                         <th>{{i18n "min_rate"}}</th>
                         <th>{{i18n "bundling_rules_column"}}</th>
@@ -59,6 +60,7 @@
                                 <td>{{{chainFormatted}}}</td>
                                 <td>{{{totalFeesLimitFQT}}}</td>
                                 <td>{{{currentTotalFeesFQT}}}</td>
+                                <td>{{{confirmedTotalFeesFQT }}}</td>
                                 <td>{{{currentFeeLimitFQT}}}</td>
                                 <td>{{{minRateNQTPerFXT}}}</td>
                                 <td>{{{rulesFormatted}}}</td>

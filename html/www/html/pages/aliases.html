@@ -1,6 +1,6 @@
 <!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   ~ Copyright © 2013-2016 The Nxt Core Developers.                            ~
-  ~ Copyright © 2016-2019 Jelurida IP B.V.                                    ~
+  ~ Copyright © 2016-2020 Jelurida IP B.V.                                    ~
   ~                                                                           ~
   ~ See the LICENSE.txt file at the top-level directory of this distribution  ~
   ~ for licensing information.                                                ~
@@ -16,21 +16,26 @@
 
 <div id="aliases_page" class="paginated page">
     <section class="content-header">
-        <h1 data-i18n="aliases">Aliases</h1> <span id="alias_count_heading">(<span data-i18n="total">Total</span>: <span id="alias_count" class="loading_dots"><span>.</span><span>.</span><span>.</span></span>)</span>
-        <div style="position:absolute;top:9px;right:9px;">
-            <form action="#" method="get" class="sidebar-form" id="alias_search" style="width:180px;margin:0;display:inline-block;vertical-align:middle;" autocomplete="off">
+        <div class="title-wrapper col-xs-12 col-sm-4">
+            <h1 data-i18n="aliases" style="display: inline-block; vertical-align: middle;">Aliases</h1> <span id="alias_count_heading">(<span data-i18n="total">Total</span>: <span id="alias_count" class="loading_dots"><span>.</span><span>.</span><span>.</span></span>)</span>
+        </div>
+        <div class="col-xs-12 col-sm-4">         
+            <button type="button" class="btn btn-default" data-toggle="modal" data-target="#register_alias_modal" data-i18n="register_alias">Register Alias</button>
+        </div>
+        <div class="col-xs-12 col-sm-4">
+            <form action="#" method="get" class="sidebar-form" id="alias_search" autocomplete="off">
                 <div class="input-group">
                     <input type="text" name="q" class="form-control" placeholder="Search Aliases..." data-i18n="[placeholder]search_aliases">
                     <span class="input-group-btn">
                         <button type="submit" name="search" class="btn btn-flat"><i class="far fa-search"></i></button>
                     </span>
                 </div>
-            </form>             
-            <button type="button" class="btn btn-default" data-toggle="modal" data-target="#register_alias_modal" style="display:inline-block;vertical-align:middle;" data-i18n="register_alias">Register Alias</button>
+            </form>    
         </div>
+        <div class="clearfix"></div>
     </section>
     <section class="content">                 
-        <div class="data-container data-loading">
+        <div class="data-container data-loading table-responsive">
             <table class="table table-striped" id="aliases_table">
                 <thead>
                 <tr>

@@ -1,6 +1,6 @@
 /*
  * Copyright © 2013-2016 The Nxt Core Developers.
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2018 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -18,11 +18,13 @@ package nxt.util;
 
 import nxt.Tester;
 import nxt.addons.JO;
-import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.junit.Assert;
 
 import java.util.List;
+
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 
 public class JSONAssert {
     private final JSONObject obj;
@@ -36,21 +38,27 @@ public class JSONAssert {
     }
 
     public JSONAssert subObj(String key) {
-        Object o = obj.get(key);
-        Assert.assertNotNull("Missing " + key, o);
-        if (o instanceof JSONObject) {
-            return new JSONAssert((JSONObject) o);
-        }
-        throw new AssertionError("Type of " + key + " is not object");
+        return new JSONAssert(object(key, JSONObject.class));
+    }
+
+    public long unsignedLong(String key) {
+        return Long.parseUnsignedLong(str(key));
     }
 
     public String str(String key) {
-        Object o = obj.get(key);
-        Assert.assertNotNull(String.format("No key '%s' in object '%s'", key, obj), o);
-        if (o instanceof String) {
-            return (String) o;
+        return object(key, String.class);
+    }
+
+    public Boolean bool(String key) {
+        return object(key, Boolean.class);
+    }
+
+    public <T> T object(String key, Class<T> clazz) {
+        Object o = getObject(key);
+        if (clazz.isInstance(o)) {
+            return clazz.cast(o);
         }
-        throw new AssertionError(String.format("Type of '%s' is not String, but '%s' and value is '%s'", key, o.getClass(), o));
+        throw new AssertionError("Type of " + key + " is not " + clazz.getName() + ", but " + o.getClass());
     }
 
     public String fullHash() {
@@ -62,24 +70,44 @@ public class JSONAssert {
     }
 
     public long integer(String key) {
-        Object o = obj.get(key);
-        Assert.assertNotNull(o);
-        if (o instanceof Long) {
-            return (Long) o;
+        return object(key, Long.class);
+    }
+
+    public long amount(String key) {
+        try {
+            return Long.parseLong(str(key));
+        } catch (AssertionError e) {
+            throw new AssertionError("Type of " + key + " is not string. Amounts must be longs printed as strings");
         }
-        throw new AssertionError("Type of " + key + " is not int");
     }
 
     public <T> List<T> array(String key, Class<T> elementClass) {
-        Object o = obj.get(key);
-        Assert.assertNotNull(o);
-        if (o instanceof JSONArray) {
-            return (List<T>) o;
-        }
-        throw new AssertionError("Type of " + key + " is not array");
+        return (List<T>) object(key, List.class);
+    }
+
+    public List<JSONObject> array(String key) {
+        return array(key, JSONObject.class);
     }
 
     public JSONObject getJson() {
         return obj;
+    }
+
+    private Object getObject(String key) {
+        Object o = obj.get(key);
+        Assert.assertNotNull("Missing " + key + " in " + obj.toJSONString(), o);
+        return o;
+    }
+
+    public JSONAssert assertSuccess() {
+        assertNull(obj.get("errorDescription"));
+        assertNull(obj.get("errorCode"));
+        return this;
+    }
+
+    public JSONAssert assertError() {
+        assertNotNull(obj.get("errorDescription"));
+        assertNotNull(obj.get("errorCode"));
+        return this;
     }
 }

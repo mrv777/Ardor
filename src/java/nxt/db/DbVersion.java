@@ -1,6 +1,6 @@
 /*
  * Copyright © 2013-2016 The Nxt Core Developers.
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -28,8 +28,14 @@ public abstract class DbVersion {
 
     protected final BasicDb db;
     protected final String schema;
+    private final String versionTableName;
 
     protected DbVersion(BasicDb db, String schema) {
+        this(db, schema, "version");
+    }
+
+    protected DbVersion(BasicDb db, String schema, String versionTableName) {
+        this.versionTableName = versionTableName;
         SecurityManager sm = System.getSecurityManager();
         if (sm != null) {
             sm.checkPermission(new BlockchainPermission("db"));
@@ -61,20 +67,20 @@ public abstract class DbVersion {
             stmt = con.createStatement();
             int nextUpdate = 1;
             try {
-                ResultSet rs = stmt.executeQuery("SELECT next_update FROM " + schema + ".version");
+                ResultSet rs = stmt.executeQuery("SELECT next_update FROM " + schema + "." + versionTableName);
                 if (! rs.next()) {
-                    throw new RuntimeException("Invalid version table");
+                    throw new RuntimeException("Invalid version table"); // ?
                 }
                 nextUpdate = rs.getInt("next_update");
                 if (! rs.isLast()) {
-                    throw new RuntimeException("Invalid version table");
+                    throw new RuntimeException("Invalid version table"); // ?
                 }
                 rs.close();
                 Logger.logMessage("Database update may take a while if needed, current db version " + (nextUpdate - 1) + "...");
             } catch (SQLException e) {
                 Logger.logMessage("Initializing an empty database");
-                stmt.executeUpdate("CREATE TABLE version (next_update INT NOT NULL)");
-                stmt.executeUpdate("INSERT INTO version VALUES (1)");
+                stmt.executeUpdate("CREATE TABLE " + versionTableName + " (next_update INT NOT NULL)");
+                stmt.executeUpdate("INSERT INTO " + versionTableName + " VALUES (1)");
                 con.commit();
             }
             update(nextUpdate);
@@ -97,7 +103,7 @@ public abstract class DbVersion {
                     Logger.logDebugMessage("Will apply sql:\n" + sql);
                     stmt.executeUpdate(sql);
                 }
-                stmt.executeUpdate("UPDATE version SET next_update = next_update + 1");
+                stmt.executeUpdate("UPDATE " + versionTableName +" SET next_update = next_update + 1");
                 con.commit();
             } catch (Exception e) {
                 DbUtils.rollback(con);

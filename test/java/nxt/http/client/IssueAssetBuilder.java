@@ -1,5 +1,5 @@
 /*
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -24,13 +24,14 @@ public class IssueAssetBuilder {
 
     public static final int ASSET_QNT = 10000000;
     public static final int ASSET_DECIMALS = 4;
+    public static final long ASSET_ISSUE_FEE_NQT = 1000 * ChildChain.IGNIS.ONE_COIN;
 
     private final String secretPhrase;
     private final String name;
     private String description = "asset testing";
-    private int quantityQNT = ASSET_QNT;
+    private long quantityQNT = ASSET_QNT;
     private int decimals = ASSET_DECIMALS;
-    private long feeNQT = 1000 * ChildChain.IGNIS.ONE_COIN;
+    private long feeNQT = ASSET_ISSUE_FEE_NQT;
     private int deadline = 1440;
 
     public IssueAssetBuilder(Tester creator, String name) {
@@ -47,7 +48,7 @@ public class IssueAssetBuilder {
     }
 
     private APICall build() {
-        return new APICall.Builder("issueAsset")
+        return new APICall.Builder<>("issueAsset")
                 .param("secretPhrase", secretPhrase)
                 .param("name", name)
                 .param("description", description)
@@ -63,7 +64,7 @@ public class IssueAssetBuilder {
         return this;
     }
 
-    public IssueAssetBuilder setQuantityQNT(int quantityQNT) {
+    public IssueAssetBuilder setQuantityQNT(long quantityQNT) {
         this.quantityQNT = quantityQNT;
         return this;
     }

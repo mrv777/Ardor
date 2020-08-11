@@ -1,6 +1,6 @@
 /*
  * Copyright © 2013-2016 The Nxt Core Developers.
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -16,7 +16,9 @@
 
 package nxt.addons;
 
+import nxt.crypto.Crypto;
 import nxt.http.callers.StartStandbyShufflerCall;
+import nxt.util.Convert;
 import nxt.util.Logger;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
@@ -51,20 +53,29 @@ public final class StartStandbyShuffling extends StartAuto {
     }
 
     private static JO startStandbyShuffler(JO standbyShufflerJSON) {
-        String secretPhrase = standbyShufflerJSON.getString("secretPhrase");
-        if (secretPhrase == null) {
-            throw new RuntimeException("StandbyShuffler secretPhrase not defined");
+        String privateKey = standbyShufflerJSON.getString("privateKey");
+        if (privateKey == null) {
+            String secretPhrase = standbyShufflerJSON.getString("secretPhrase");
+            if (secretPhrase == null) {
+                throw new IllegalArgumentException("Missing StandbyShuffler privateKey and secretPhrase");
+            }
+            privateKey = Convert.toHexString(Crypto.getPrivateKey(secretPhrase));
         }
 
-        return StartStandbyShufflerCall.create(standbyShufflerJSON.getInt("chain"))
-                .secretPhrase(secretPhrase)
+        StartStandbyShufflerCall call = StartStandbyShufflerCall.create(standbyShufflerJSON.getInt("chain"))
+                .privateKey(privateKey)
                 .holdingType(standbyShufflerJSON.getByte("holdingType"))
                 .holding(standbyShufflerJSON.getString("holding"))
                 .minAmount(standbyShufflerJSON.getString("minAmount"))
                 .maxAmount(standbyShufflerJSON.getString("maxAmount"))
                 .minParticipants(standbyShufflerJSON.getInt("minParticipants"))
-                .feeRateNQTPerFXT(standbyShufflerJSON.getLong("feeRateNQTPerFXT"))
-                .param("recipientPublicKeys", standbyShufflerJSON.getArray("recipientPublicKeys").values())
-                .call();
+                .feeRateNQTPerFXT(standbyShufflerJSON.getLong("feeRateNQTPerFXT"));
+        if (standbyShufflerJSON.isExist("serializedMasterPublicKey")) {
+            call.serializedMasterPublicKey(standbyShufflerJSON.getString("serializedMasterPublicKey"));
+            call.startFromChildIndex(standbyShufflerJSON.getInt("startFromChildIndex"));
+        } else {
+            call.param("recipientPublicKeys", standbyShufflerJSON.getArray("recipientPublicKeys").values());
+        }
+        return call.call();
     }
 }

@@ -1,6 +1,6 @@
 /*
  * Copyright © 2013-2016 The Nxt Core Developers.
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -175,6 +175,13 @@ public interface Peer {
     void connectPeer();
 
     /**
+     * Check if the connection handshake is in progress
+     *
+     * @return                          TRUE if the handshake is in progress
+     */
+    boolean isHandshakePending();
+
+    /**
      * Disconnect the peer
      */
     void disconnectPeer();
@@ -255,4 +262,9 @@ public interface Peer {
      * @return                          Response message or null if there is no response
      */
     NetworkMessage sendRequest(NetworkMessage message);
+
+    /**
+     * Wait for the initial exchange of GetInfo messages to complete
+     */
+    void waitHandshake();
 }

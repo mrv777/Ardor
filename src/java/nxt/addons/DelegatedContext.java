@@ -1,5 +1,5 @@
 /*
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -25,6 +25,9 @@ public class DelegatedContext extends AbstractContractContext {
 
     public DelegatedContext(AbstractContractContext context, String contractName, JO setupParameters) {
         super(context.getConfig(), contractName);
+        if (setupParameters == null) {
+            setupParameters = new JO();
+        }
         setContractSetupParameters(setupParameters);
         this.context = context;
     }

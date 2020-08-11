@@ -1,6 +1,6 @@
 /*
  * Copyright © 2013-2016 The Nxt Core Developers.
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -16,7 +16,9 @@
 
 package nxt.addons;
 
+import nxt.crypto.Crypto;
 import nxt.http.callers.StartFundingMonitorCall;
+import nxt.util.Convert;
 import nxt.util.Logger;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
@@ -55,9 +57,13 @@ public final class StartFundingMonitors extends StartAuto {
     }
 
     private static JO startFundingMonitor(JO monitorJSON) {
-        String secretPhrase = monitorJSON.getString("secretPhrase");
-        if (secretPhrase == null) {
-            throw new RuntimeException("Monitor secretPhrase not defined");
+        String privateKey = monitorJSON.getString("privateKey");
+        if (privateKey == null) {
+            String secretPhrase = monitorJSON.getString("secretPhrase");
+            if (secretPhrase == null) {
+                throw new RuntimeException("Missing monitor privateKey and secretPhrase");
+            }
+            privateKey = Convert.toHexString(Crypto.getPrivateKey(secretPhrase));
         }
         return StartFundingMonitorCall.create(monitorJSON.getInt("chain"))
                 .holdingType(monitorJSON.getByte("holdingType"))
@@ -67,7 +73,7 @@ public final class StartFundingMonitors extends StartAuto {
                 .threshold(monitorJSON.getString("threshold"))
                 .interval(monitorJSON.getString("interval"))
                 .feeRateNQTPerFXT(monitorJSON.getLong("feeRateNQTPerFXT"))
-                .secretPhrase(secretPhrase)
+                .privateKey(privateKey)
                 .call();
     }
 }

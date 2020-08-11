@@ -1,6 +1,6 @@
 /*
  * Copyright © 2013-2016 The Nxt Core Developers.
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -17,16 +17,19 @@
 package nxt;
 
 import nxt.addons.AddonsSuite;
+import nxt.blockchain.ChildChainTest;
 import nxt.blockchain.GeneratorTest;
 import nxt.crypto.CryptoSuite;
-import nxt.http.PaymentAndMessagesSuite;
+import nxt.http.HttpApiSuite;
 import nxt.http.SecretSharingApiTest;
 import nxt.http.accountControl.AccountControlSuite;
+import nxt.http.accountControl.PermissionPolicyChangeTest;
 import nxt.http.accountproperties.AccountPropertiesSuite;
 import nxt.http.alias.CreateAliasTest;
 import nxt.http.assetexchange.AssetExchangeSuite;
 import nxt.http.bundling.BundlingSuite;
 import nxt.http.coinexchange.CoinExchangeSuite;
+import nxt.http.configuration.ConfigurationSuite;
 import nxt.http.lightcontracts.ContractReferenceTest;
 import nxt.http.monetarysystem.CurrencySuite;
 import nxt.http.shuffling.ShufflingSuite;
@@ -40,7 +43,7 @@ import org.junit.runners.Suite;
         TokenTest.class,
         GeneratorTest.class,
         CurrencySuite.class,
-        PaymentAndMessagesSuite.class,
+        HttpApiSuite.class,
         VotingSuite.class,
         TwoPhasedSuite.class,
         ShufflingSuite.class,
@@ -55,6 +58,9 @@ import org.junit.runners.Suite;
         AddonsSuite.class,
         SecretSharingApiTest.class,
         CryptoSuite.class,
+        ChildChainTest.class,
+        PermissionPolicyChangeTest.class,
+        ConfigurationSuite.class
 })
 public class TestDbSuite extends SafeShutdownSuite {
 }

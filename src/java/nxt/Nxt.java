@@ -1,6 +1,6 @@
 /*
  * Copyright © 2013-2016 The Nxt Core Developers.
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -62,7 +62,7 @@ import java.util.Properties;
 
 public final class Nxt {
 
-    public static final String VERSION = "2.2.6";
+    public static final String VERSION = "2.3.2";
     public static final String APPLICATION = "Ardor";
 
     private static volatile Time time = new Time.EpochTime();
@@ -78,9 +78,14 @@ public final class Nxt {
     private static Setup setup = Setup.NOT_INITIALIZED;
 
     private static final Properties defaultProperties = new Properties();
+
     static {
         redirectSystemStreams("out");
         redirectSystemStreams("err");
+        Thread.setDefaultUncaughtExceptionHandler((t, e) -> {
+            System.err.printf("Thread %s did not catch: ", t.getName());
+            e.printStackTrace();
+        });
         System.out.println("Initializing Nxt server version " + Nxt.VERSION);
         printCommandLineArguments();
         String installerConfiguredMode = getInstallerConfiguredRuntimeMode();
@@ -152,7 +157,7 @@ public final class Nxt {
         loadProperties(properties, NXT_PROPERTIES, false);
     }
 
-    public static void loadProperties(Properties properties, String propertiesFile, boolean isDefault) {
+    public static String loadProperties(Properties properties, String propertiesFile, boolean isDefault) {
         SecurityManager sm = System.getSecurityManager();
         if (sm != null) {
             sm.checkPermission(new BlockchainPermission("properties"));
@@ -164,6 +169,7 @@ public final class Nxt {
                 System.out.printf("Loading %s from %s\n", propertiesFile, configFile);
                 try (InputStream fis = new FileInputStream(configFile)) {
                     properties.load(fis);
+                    return configFile;
                 } catch (IOException e) {
                     throw new IllegalArgumentException(String.format("Error loading %s from %s", propertiesFile, configFile));
                 }
@@ -176,19 +182,19 @@ public final class Nxt {
                         System.out.printf("Loading %s from classpath\n", propertiesFile);
                         properties.load(is);
                         if (isDefault) {
-                            return;
+                            return null;
                         }
                     }
                     // load non-default properties files from the user folder
                     if (dirProvider == null || !dirProvider.isLoadPropertyFileFromUserDir()) {
-                        return;
+                        return null;
                     }
                     String homeDir = dirProvider.getUserHomeDir();
                     if (!Files.isReadable(Paths.get(homeDir))) {
                         System.out.printf("Creating dir %s\n", homeDir);
                         try {
                             Files.createDirectory(Paths.get(homeDir));
-                        } catch(Exception e) {
+                        } catch (Exception e) {
                             if (!(e instanceof NoSuchFileException)) {
                                 throw e;
                             }
@@ -211,11 +217,12 @@ public final class Nxt {
                         Files.createFile(propPath);
                         Files.write(propPath, Convert.toBytes("# use this file for workstation specific " + propertiesFile));
                     }
+                    return propPath.toString();
                 } catch (IOException e) {
                     throw new IllegalArgumentException("Error loading " + propertiesFile, e);
                 }
             }
-        } catch(IllegalArgumentException e) {
+        } catch (IllegalArgumentException e) {
             e.printStackTrace(); // make sure we log this exception
             throw e;
         }
@@ -266,13 +273,19 @@ public final class Nxt {
         return getStringProperty(name, defaultValue, doNotLog, null);
     }
 
+    public static <T extends Enum<T>> T getEnumProperty(Class<T> clazz, String propertyName, T defaultValue) {
+        String defaultStringValue = defaultValue != null ? defaultValue.name() : null;
+        String stringProperty = getStringProperty(propertyName, defaultStringValue, false, null);
+        return Enum.valueOf(clazz, stringProperty);
+    }
+
     public static String getStringProperty(String name, String defaultValue, boolean doNotLog, String encoding) {
         SecurityManager sm = System.getSecurityManager();
         if (sm != null) {
             sm.checkPermission(new BlockchainPermission("properties"));
         }
         String value = properties.getProperty(name);
-        if (value != null && ! "".equals(value)) {
+        if (value != null && !"".equals(value)) {
             Logger.logMessage(name + " = \"" + (doNotLog ? "{not logged}" : value) + "\"");
         } else {
             Logger.logMessage(name + " not defined");
@@ -359,7 +372,7 @@ public final class Nxt {
     public static int getEpochTime() {
         return time.getTime();
     }
-    
+
     public static void setTime(Time time) {
         Nxt.time = time;
     }
@@ -433,9 +446,7 @@ public final class Nxt {
             long currentTime = System.currentTimeMillis();
             Logger.logMessage("Initialization took " + (currentTime - startTime) / 1000 + " seconds");
             Logger.logMessage("Ardor server " + VERSION + " started successfully.");
-            Logger.logMessage("Copyright © 2013-2016 The Nxt Core Developers.");
-            Logger.logMessage("Copyright © 2016-2019 Jelurida IP B.V.");
-            Logger.logMessage("Distributed under the Jelurida Public License version 1.2 for the Ardor Public Blockchain Platform, with ABSOLUTELY NO WARRANTY.");
+            runtimeMode.getCopyrightMessage().forEach(Logger::logMessage);
             if (API.getWelcomePageUri() != null) {
                 Logger.logMessage("Client UI is at " + API.getWelcomePageUri());
             }

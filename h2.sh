@@ -6,4 +6,12 @@ else
     JAVA=java
 fi
 
-${JAVA} -cp lib/h2*.jar org.h2.tools.Shell -url jdbc:h2:./nxt_db/nxt -user sa -password sa
+DB_DIR=nxt_db
+if [ "$1" != "" ];
+then
+	DB_DIR="$1"
+fi
+
+echo "Connecting to ${DB_DIR}"
+
+${JAVA} -cp lib/h2*.jar org.h2.tools.Shell -url jdbc:h2:./${DB_DIR}/nxt -user sa -password sa

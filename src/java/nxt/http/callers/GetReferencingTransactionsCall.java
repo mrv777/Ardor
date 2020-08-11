@@ -8,6 +8,10 @@ public class GetReferencingTransactionsCall extends APICall.Builder<GetReferenci
         super(ApiSpec.getReferencingTransactions);
     }
 
+    public static GetReferencingTransactionsCall create() {
+        return new GetReferencingTransactionsCall();
+    }
+
     public static GetReferencingTransactionsCall create(int chain) {
         return new GetReferencingTransactionsCall().param("chain", chain);
     }

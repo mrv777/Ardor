@@ -1,6 +1,6 @@
 /*
  * Copyright © 2013-2016 The Nxt Core Developers.
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -55,9 +55,9 @@ public final class Shuffler {
     private static final Map<Integer, Set<String>> expirations = new HashMap<>();
     private static final Listeners<Shuffler,Event> listeners = new Listeners<>();
 
-    public static Shuffler addOrGetShuffler(ChildChain childChain, String secretPhrase, byte[] recipientPublicKey,
-                byte[] shufflingFullHash, long feeRateNQTPerFXT) throws ShufflerException {
-        long accountId = Account.getId(Crypto.getPublicKey(secretPhrase));
+    public static Shuffler addOrGetShuffler(ChildChain childChain, byte[] privateKey, byte[] recipientPublicKey,
+                                            byte[] shufflingFullHash, long feeRateNQTPerFXT) throws ShufflerException {
+        long accountId = Account.getId(Crypto.getPublicKey(privateKey));
         BlockchainImpl.getInstance().writeLock();
         try {
             String hash = Convert.toHexString(shufflingFullHash);
@@ -84,7 +84,7 @@ public final class Shuffler {
                 if (account != null && account.getControls().contains(Account.ControlType.PHASING_ONLY)) {
                     throw new ControlledAccountException("Cannot run a shuffler for an account under phasing only control");
                 }
-                shuffler = new Shuffler(childChain, secretPhrase, recipientPublicKey, shufflingFullHash, feeRateNQTPerFXT);
+                shuffler = new Shuffler(childChain, privateKey, recipientPublicKey, shufflingFullHash, feeRateNQTPerFXT);
                 if (shuffling != null) {
                     shuffler.init(shuffling);
                     clearExpiration(shuffling);
@@ -329,18 +329,17 @@ public final class Shuffler {
 
     private final ChildChain childChain;
     private final long accountId;
-    private final String secretPhrase;
+    private final byte[] privateKey;
     private final byte[] recipientPublicKey;
     private final byte[] shufflingFullHash;
     private final long feeRateNQTPerFXT;
     private volatile Transaction failedTransaction;
     private volatile NxtException.NotCurrentlyValidException failureCause;
 
-    private Shuffler(ChildChain childChain, String secretPhrase, byte[] recipientPublicKey,
-                byte[] shufflingFullHash, long feeRateNQTPerFXT) {
+    private Shuffler(ChildChain childChain, byte[] privateKey, byte[] recipientPublicKey, byte[] shufflingFullHash, long feeRateNQTPerFXT) {
         this.childChain = childChain;
-        this.secretPhrase = secretPhrase;
-        this.accountId = Account.getId(Crypto.getPublicKey(secretPhrase));
+        this.privateKey = privateKey;
+        this.accountId = Account.getId(Crypto.getPublicKey(privateKey));
         this.recipientPublicKey = recipientPublicKey;
         this.shufflingFullHash = shufflingFullHash;
         this.feeRateNQTPerFXT = feeRateNQTPerFXT;
@@ -464,7 +463,7 @@ public final class Shuffler {
 
     private void submitProcess(ShufflingHome.Shuffling shuffling) {
         Logger.logDebugMessage("Account %s processing shuffling %s", Long.toUnsignedString(accountId), Long.toUnsignedString(shuffling.getId()));
-        ShufflingAttachment attachment = shuffling.process(accountId, secretPhrase, recipientPublicKey);
+        ShufflingAttachment attachment = shuffling.process(accountId, privateKey, recipientPublicKey);
         submitTransaction(attachment);
     }
 
@@ -476,7 +475,7 @@ public final class Shuffler {
 
     private void submitCancel(ShufflingHome.Shuffling shuffling) {
         Logger.logDebugMessage("Account %s cancelling shuffling %s", Long.toUnsignedString(accountId), Long.toUnsignedString(shuffling.getId()));
-        ShufflingCancellationAttachment attachment = shuffling.revealKeySeeds(secretPhrase, shuffling.getAssigneeAccountId(), shuffling.getStateHash());
+        ShufflingCancellationAttachment attachment = shuffling.revealKeySeeds(privateKey, shuffling.getAssigneeAccountId(), shuffling.getStateHash());
         submitTransaction(attachment);
     }
 
@@ -495,10 +494,10 @@ public final class Shuffler {
             }
         }
         try {
-            ChildTransaction.Builder builder = childChain.newTransactionBuilder(Crypto.getPublicKey(secretPhrase), 0, -1, (short) 15, attachment);
+            ChildTransaction.Builder builder = childChain.newTransactionBuilder(Crypto.getPublicKey(privateKey), 0, -1, (short) 15, attachment);
             builder.feeRateNQTPerFXT(feeRateNQTPerFXT);
             builder.timestamp(Nxt.getBlockchain().getLastBlockTimestamp());
-            Transaction transaction = builder.build(secretPhrase);
+            Transaction transaction = builder.build(privateKey);
             failedTransaction = null;
             failureCause = null;
             if (transaction.getFee() > childChain.getBalanceHome().getBalance(this.accountId).getUnconfirmedBalance()) {

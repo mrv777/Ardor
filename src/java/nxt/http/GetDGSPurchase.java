@@ -1,6 +1,6 @@
 /*
  * Copyright © 2013-2016 The Nxt Core Developers.
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -45,11 +45,11 @@ public final class GetDGSPurchase extends APIServlet.APIRequestHandler {
         JSONObject response = JSONData.purchase(purchase);
 
         byte[] sharedKey = ParameterParser.getBytes(req, "sharedKey", false);
-        String secretPhrase = ParameterParser.getSecretPhrase(req, false);
-        if (sharedKey.length != 0 && secretPhrase != null) {
+        byte[] privateKey = ParameterParser.getPrivateKey(req, false);
+        if (sharedKey.length != 0 && privateKey != null) {
             return JSONResponses.either("secretPhrase", "sharedKey");
         }
-        if (sharedKey.length == 0 && secretPhrase == null) {
+        if (sharedKey.length == 0 && privateKey == null) {
             return response;
         }
         if (purchase.getEncryptedGoods() != null) {
@@ -57,13 +57,13 @@ public final class GetDGSPurchase extends APIServlet.APIRequestHandler {
             try {
                 byte[] decrypted = Convert.EMPTY_BYTE;
                 if (data.length != 0) {
-                    if (secretPhrase != null) {
-                        byte[] readerPublicKey = Crypto.getPublicKey(secretPhrase);
+                    if (privateKey != null) {
+                        byte[] readerPublicKey = Crypto.getPublicKey(privateKey);
                         byte[] sellerPublicKey = Account.getPublicKey(purchase.getSellerId());
                         byte[] buyerPublicKey = Account.getPublicKey(purchase.getBuyerId());
                         byte[] publicKey = Arrays.equals(sellerPublicKey, readerPublicKey) ? buyerPublicKey : sellerPublicKey;
                         if (publicKey != null) {
-                            decrypted = Account.decryptFrom(publicKey, purchase.getEncryptedGoods(), secretPhrase, true);
+                            decrypted = Account.decryptFrom(privateKey, publicKey, purchase.getEncryptedGoods(),  true);
                         }
                     } else {
                         decrypted = Crypto.aesDecrypt(purchase.getEncryptedGoods().getData(), sharedKey);

@@ -8,6 +8,10 @@ public class SimulateCoinExchangeCall extends APICall.Builder<SimulateCoinExchan
         super(ApiSpec.simulateCoinExchange);
     }
 
+    public static SimulateCoinExchangeCall create() {
+        return new SimulateCoinExchangeCall();
+    }
+
     public static SimulateCoinExchangeCall create(int chain) {
         return new SimulateCoinExchangeCall().param("chain", chain);
     }

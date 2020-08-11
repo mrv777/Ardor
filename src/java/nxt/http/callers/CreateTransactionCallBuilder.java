@@ -36,6 +36,10 @@ public class CreateTransactionCallBuilder<T extends APICall.Builder> extends API
         return param("compressMessageToEncryptToSelf", compressMessageToEncryptToSelf);
     }
 
+    public T transactionPriority(String transactionPriority) {
+        return param("transactionPriority", transactionPriority);
+    }
+
     public T publicKey(String publicKey) {
         return param("publicKey", publicKey);
     }
@@ -84,6 +88,10 @@ public class CreateTransactionCallBuilder<T extends APICall.Builder> extends API
         return param("encryptedMessageData", encryptedMessageData);
     }
 
+    public T encryptedMessageFile(byte[] b) {
+        return parts("encryptedMessageFile", b);
+    }
+
     public T phasingRecipientPropertySetter(String phasingRecipientPropertySetter) {
         return param("phasingRecipientPropertySetter", phasingRecipientPropertySetter);
     }
@@ -98,6 +106,10 @@ public class CreateTransactionCallBuilder<T extends APICall.Builder> extends API
 
     public T messageToEncrypt(String messageToEncrypt) {
         return param("messageToEncrypt", messageToEncrypt);
+    }
+
+    public T messageToEncryptFile(byte[] b) {
+        return parts("messageToEncryptFile", b);
     }
 
     public T messageIsText(boolean messageIsText) {
@@ -160,12 +172,20 @@ public class CreateTransactionCallBuilder<T extends APICall.Builder> extends API
         return param("message", message);
     }
 
+    public T messageFile(byte[] b) {
+        return parts("messageFile", b);
+    }
+
     public T encryptToSelfMessageData(String encryptToSelfMessageData) {
         return param("encryptToSelfMessageData", encryptToSelfMessageData);
     }
 
     public T encryptToSelfMessageData(byte[] encryptToSelfMessageData) {
         return param("encryptToSelfMessageData", encryptToSelfMessageData);
+    }
+
+    public T encryptToSelfMessageFile(byte[] b) {
+        return parts("encryptToSelfMessageFile", b);
     }
 
     public T phasingRecipientPropertyValue(String phasingRecipientPropertyValue) {

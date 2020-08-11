@@ -8,6 +8,10 @@ public class GetExpectedOrderCancellationsCall extends APICall.Builder<GetExpect
         super(ApiSpec.getExpectedOrderCancellations);
     }
 
+    public static GetExpectedOrderCancellationsCall create() {
+        return new GetExpectedOrderCancellationsCall();
+    }
+
     public static GetExpectedOrderCancellationsCall create(int chain) {
         return new GetExpectedOrderCancellationsCall().param("chain", chain);
     }

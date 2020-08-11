@@ -8,6 +8,10 @@ public class GetDGSGoodCall extends APICall.Builder<GetDGSGoodCall> {
         super(ApiSpec.getDGSGood);
     }
 
+    public static GetDGSGoodCall create() {
+        return new GetDGSGoodCall();
+    }
+
     public static GetDGSGoodCall create(int chain) {
         return new GetDGSGoodCall().param("chain", chain);
     }

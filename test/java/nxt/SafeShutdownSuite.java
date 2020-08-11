@@ -1,6 +1,6 @@
 /*
  * Copyright © 2013-2016 The Nxt Core Developers.
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -18,6 +18,7 @@ package nxt;
 
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
+import org.junit.ClassRule;
 
 import java.security.AccessController;
 import java.security.PrivilegedAction;
@@ -26,6 +27,9 @@ import java.security.PrivilegedAction;
  * Suite that shuts down Nxt after the last test only. Can be
  */
 public class SafeShutdownSuite {
+    @ClassRule
+    public static final DoPrivilegedTestRule DO_PRIVILEGED_TEST_RULE = new DoPrivilegedTestRule();
+
     private static int embeddingsCount = 0;
     @BeforeClass
     public static void safeSuiteInit() {

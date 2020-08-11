@@ -1,5 +1,5 @@
 /*
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -36,9 +36,6 @@ import javax.servlet.http.HttpServletRequest;
 import java.io.StringReader;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
-
-import static nxt.addons.ContractRunner.INVOCATION_TYPE.REQUEST;
-import static nxt.addons.ContractRunner.INVOCATION_TYPE.VOUCHER;
 
 class ContractRunnerAPIs {
 
@@ -109,17 +106,7 @@ class ContractRunnerAPIs {
                 return runnerNotInitializedResponse(config.getStatus()).toJSONObject();
             }
             String contractName = req.getParameter("contractName");
-            ContractReference contractReference = ContractReference.getContractReference(config.getAccountId(), contractName);
-            if (contractReference == null) {
-                return contractRunner.generateErrorResponse(1002, "Contract %s not found", contractName).toJSONObject();
-            }
-            ContractAndSetupParameters contract = ContractLoader.loadContractAndSetupParameters(contractReference);
-            RequestContext context = new RequestContext(req, config, contractName);
-            JO jo = contractRunner.process(contract, context, REQUEST);
-            if (jo == null) {
-                return contractRunner.generateErrorResponse(1002, "Contract %s class %s returned no response", contractName, contract.getClass().getCanonicalName()).toJSONObject();
-            }
-            return jo.toJSONObject();
+            return contractRunner.processRequest(req, contractName).toJSONObject();
         }
 
         @Override
@@ -150,18 +137,7 @@ class ContractRunnerAPIs {
             byte[] data = fileData.getData();
             String contractName = req.getParameter("contractName");
             JSONObject voucher = ParameterParser.parseVoucher(data);
-            ContractAndSetupParameters contractAndSetupParameters = contractRunner.getContract(contractName);
-            Contract contract = contractAndSetupParameters.getContract();
-            VoucherContext context = new VoucherContext(new JO(voucher), config, contractName);
-            JO jo = contractRunner.process(contractAndSetupParameters, context, VOUCHER);
-            if (jo == null) {
-                return contractRunner.generateErrorResponse(1003, "Contract %s with class %s invoked by account %s returned no response",
-                        contractName, contract.getClass().getCanonicalName(), config.getAccountRs()).toJSONObject();
-            }
-            if (jo.isExist("transactions")) {
-                jo.put("submitContractTransactionsResponse", contractRunner.submitContractTransactions(contract, jo.getJoList("transactions")));
-            }
-            return jo.toJSONObject();
+            return contractRunner.processVoucher(new JO(voucher), contractName).toJSONObject();
         }
 
         @Override
@@ -173,8 +149,8 @@ class ContractRunnerAPIs {
     public static class GetSupportedContractsAPI extends APIServlet.APIRequestHandler {
         private final ContractRunner contractRunner;
 
-        GetSupportedContractsAPI(ContractRunner contractRunner, APITag[] apiTags) {
-            super(apiTags);
+        GetSupportedContractsAPI(ContractRunner contractRunner, APITag[] apiTags, String... origParameters) {
+            super(apiTags, origParameters);
             this.contractRunner = contractRunner;
         }
 
@@ -188,11 +164,12 @@ class ContractRunnerAPIs {
             response.put("status", config.getStatus());
             response.put("contractRunnerAccount", config.getAccount());
             response.put("contractRunnerAccountRS", config.getAccountRs());
-            response.put("hasSecretPhrase", config.getSecretPhrase() != null);
+            response.put("hasPrivateKey", config.getPrivateKey() != null);
             response.put("isValidator", config.isValidator());
-            response.put("hasValidatorSecretPhrase", config.getValidatorSecretPhrase() != null);
+            response.put("hasValidatorPrivateKey", config.getValidatorPrivateKey() != null);
             response.put("hasRandomSeed", !Arrays.equals(config.getRunnerSeed(), config.getPublicKey()));
             response.put("autoFeeRate", config.isAutoFeeRate());
+            response.put("autoFeeRatePriority", config.getAutoFeeRatePriority());
             response.put("minBundlerBalanceFXT", Long.toUnsignedString(config.getMinBundlerBalanceFXT()));
             response.put("minBundlerFeeLimitFQT", Long.toUnsignedString(config.getMinBundlerFeeLimitFQT()));
             int chainId = 1;
@@ -213,6 +190,11 @@ class ContractRunnerAPIs {
                 contractJson.put("name", name);
                 ContractAndSetupParameters contractAndSetupParameters = contractRunner.getContract(name);
                 contractJson.put("setupParams", contractAndSetupParameters.getParams().toJSONObject());
+                if (API.checkPassword(req)) {
+                    JO params = config.getParams();
+                    JO runnerParams = params != null ? params.getJo(name) : null;
+                    contractJson.put("runnerParams", runnerParams != null ? runnerParams : new JSONObject());
+                }
                 ContractReference contractReference = contractRunner.getSupportedContractReference(name);
                 contractJson.put("contractReference", JSONData.contractReference(contractReference, false));
                 contractJson.put("contract", JSONData.contract(contractAndSetupParameters.getContract()));
@@ -228,6 +210,11 @@ class ContractRunnerAPIs {
         @Override
         protected boolean isChainSpecific() {
             return false;
+        }
+
+        @Override
+        protected boolean requireFullClient() {
+            return true;
         }
     }
 

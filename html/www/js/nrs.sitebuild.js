@@ -1,6 +1,6 @@
 /******************************************************************************
  * Copyright © 2013-2016 The Nxt Core Developers.                             *
- * Copyright © 2016-2019 Jelurida IP B.V.                                     *
+ * Copyright © 2016-2020 Jelurida IP B.V.                                     *
  *                                                                            *
  * See the LICENSE.txt file at the top-level directory of this distribution   *
  * for licensing information.                                                 *
@@ -18,59 +18,49 @@
  * @depends {3rdparty/jquery-2.1.0.js}
  * @depends {3rdparty/i18next.js}
  */
-
-
-
 var NRS = (function(NRS, $) {
 
     var _modalUIElements = null;
+    const loadPromises = [];
+    const promises = [];
+
+    function fetchResource(url) {
+        return fetch(url).then((response) => {
+                if (!response.ok) {
+                    throw new Error(`Network response was not OK: ${url}`);
+                }
+                return response.text();
+            }).then(textHTML => $(textHTML));
+    }
 
     NRS.loadLockscreenHTML = function(path) {
         if (!NRS.getUrlParameter("account") && !NRS.getUrlParameter("lifetime_modal")) {
-            jQuery.ajaxSetup({async: false});
-            $.get(path, '', function (data) {
-                $("body").prepend(data);
-            });
-            jQuery.ajaxSetup({async: true});
+            loadPromises.push(fetchResource(path).then(data => $("#testnet_warning").after(data)));
         }
     };
 
     NRS.loadHeaderHTML = function(path) {
-    	jQuery.ajaxSetup({ async: false });
-    	$.get(path, '', function (data) { $("body").prepend(data); });
-    	jQuery.ajaxSetup({ async: true });
+    	loadPromises.push(fetchResource(path).then(data => $("#testnet_warning").after(data)));
     };
 
     NRS.loadSidebarHTML = function(path) {
-    	jQuery.ajaxSetup({ async: false });
-    	$.get(path, '', function (data) { $("#sidebar").append(data); });
-    	jQuery.ajaxSetup({ async: true });
+    	loadPromises.push(fetchResource(path).then(data => $("#sidebar").append(data)));
     };
 
     NRS.loadSidebarContextHTML = function(path) {
-    	jQuery.ajaxSetup({ async: false });
-    	$.get(path, '', function (data) { $("body").append(data); });
-    	jQuery.ajaxSetup({ async: true });
+    	loadPromises.push(fetchResource(path).then(data => $("body").append(data)));
     };
 
     NRS.loadPageHTML = function(path) {
-    	jQuery.ajaxSetup({ async: false });
-        NRS.asyncLoadPageHTML(path);
-    	jQuery.ajaxSetup({ async: true });
+        loadPromises.push(NRS.asyncLoadPageHTML(path));
     };
 
     NRS.asyncLoadPageHTML = function(path) {
-    	$.get(path, '', function (data) { $("#content").append(data); });
+    	return fetchResource(path).then(data => $("#content").append(data));
     };
 
     NRS.loadModalHTML = function(path) {
-    	jQuery.ajaxSetup({ async: false });
-    	$.get(path, '', function (data) { $("body").append(data); });
-    	jQuery.ajaxSetup({ async: true });
-    };
-
-    NRS.loadPageHTMLTemplates = function(options) {
-        //Not used stub, for future use
+    	loadPromises.push(fetchResource(path).then(data => $("body").append(data)));
     };
 
     function _replaceModalHTMLTemplateDiv(data, templateName) {
@@ -84,9 +74,10 @@ var NRS = (function(NRS, $) {
     }
 
     NRS.loadModalHTMLTemplates = function() {
-        jQuery.ajaxSetup({ async: false });
+        let loadAllHTML = NRS.whenWithProgress(loadPromises, NRS.updateLoadingProgress);
         
-        $.get("html/modals/templates.html", '', function (data) {
+        // this function requires the HTML to be already loaded so it acts as a barrier to join all promises
+        function replaceModalTemplates(data) {
             _replaceModalHTMLTemplateDiv(data, 'recipient_modal_template');
             _replaceModalHTMLTemplateDiv(data, 'add_message_modal_template');
             _replaceModalHTMLTemplateDiv(data, 'fee_calculation_modal_template');
@@ -97,18 +88,39 @@ var NRS = (function(NRS, $) {
             _replaceModalHTMLTemplateDiv(data, 'advanced_rt_hash_template');
             _replaceModalHTMLTemplateDiv(data, 'advanced_broadcast_template');
             _replaceModalHTMLTemplateDiv(data, 'advanced_note_to_self_template');
-        });
-
-        jQuery.ajaxSetup({ async: true });
+        }
+        promises.push(fetchResource("html/modals/templates.html").then(data => {
+            return loadAllHTML.then(() => replaceModalTemplates(data));
+        }));
     };
 
     NRS.preloadModalUIElements = function() {
-        jQuery.ajaxSetup({ async: false });
-        $.get("html/modals/ui_elements.html", '', function (data) {
-            _modalUIElements = data;
-        });
-        jQuery.ajaxSetup({ async: true });
+        promises.push(fetchResource("html/modals/ui_elements.html").then((data) => {
+            _modalUIElements = data
+        }));
     };
+
+    NRS.whenWithProgress = function(arrayOfPromises, progressCallback) {
+        var cntr = 0;
+        for (var i = 0; i < arrayOfPromises.length; i++) {
+            arrayOfPromises[i].then(() => {
+                progressCallback(++cntr, arrayOfPromises.length);
+            });
+        }
+        return Promise.all(arrayOfPromises);
+     }
+
+    NRS.updateLoadingProgress = function(done, total) {
+        const progress = $('#progress');
+        const progressStatic = $('#progress-static-img');
+        const progressPercent = (done / total) * 100;
+        progress.css('width', progressPercent + '%');
+        progressStatic.css('filter', 'grayscale(' + Math.floor(100 - progressPercent) + '%)');
+    }
+
+    NRS.onSiteBuildDone = function() {
+        return Promise.all(promises);
+    }
 
     NRS.initModalUIElement = function($modal, selector, elementName, context) {
         var html = $(_modalUIElements).filter('div#' + elementName).html();
@@ -129,6 +141,15 @@ var NRS = (function(NRS, $) {
        return $elems;
     };
 
+    NRS.overrideCopyrightNotice = function(path) {
+        promises.push(fetch(path).then(async response => {
+            if (response.ok) {
+                const data = await response.text();
+                await Promise.all(loadPromises);
+                return $("#copyright_notice").html(data);
+            }
+        }));
+    }
 
     function _appendToSidebar(menuHTML, id, desiredPosition) {
         if ($('#' + id).length == 0) {

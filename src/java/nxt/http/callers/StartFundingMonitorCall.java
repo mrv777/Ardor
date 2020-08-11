@@ -8,6 +8,10 @@ public class StartFundingMonitorCall extends APICall.Builder<StartFundingMonitor
         super(ApiSpec.startFundingMonitor);
     }
 
+    public static StartFundingMonitorCall create() {
+        return new StartFundingMonitorCall();
+    }
+
     public static StartFundingMonitorCall create(int chain) {
         return new StartFundingMonitorCall().param("chain", chain);
     }

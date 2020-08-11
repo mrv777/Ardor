@@ -1,6 +1,6 @@
 /*
  * Copyright © 2013-2016 The Nxt Core Developers.
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -35,6 +35,7 @@ public final class ThreadPool {
     private static List<Runnable> beforeStartJobs = new ArrayList<>();
     private static List<Runnable> lastBeforeStartJobs = new ArrayList<>();
     private static List<Runnable> afterStartJobs = new ArrayList<>();
+    private static List<Runnable> lastAfterStartJobs = new ArrayList<>();
 
     public static synchronized void runBeforeStart(Runnable runnable, boolean runLast) {
         SecurityManager sm = System.getSecurityManager();
@@ -51,12 +52,20 @@ public final class ThreadPool {
         }
     }
 
-    public static synchronized void runAfterStart(Runnable runnable) {
+    public static void runAfterStart(Runnable runnable) {
+        runAfterStart(runnable, false);
+    }
+
+    public static synchronized void runAfterStart(Runnable runnable, boolean runLast) {
         SecurityManager sm = System.getSecurityManager();
         if (sm != null) {
             sm.checkPermission(new BlockchainPermission("threadPool"));
         }
-        afterStartJobs.add(runnable);
+        if (runLast) {
+            lastAfterStartJobs.add(runnable);
+        } else {
+            afterStartJobs.add(runnable);
+        }
     }
 
     public static synchronized void scheduleThread(String name, Runnable runnable, int delay) {
@@ -105,10 +114,12 @@ public final class ThreadPool {
         }
         backgroundJobs = null;
 
-        Logger.logDebugMessage("Starting " + afterStartJobs.size() + " delayed tasks");
+        Logger.logDebugMessage("Starting " + (afterStartJobs.size() + lastAfterStartJobs.size()) + " delayed tasks");
         Thread thread = new Thread(() -> {
             runAll(afterStartJobs);
             afterStartJobs = null;
+            runAll(lastAfterStartJobs);
+            lastAfterStartJobs = null;
         });
         thread.setDaemon(true);
         thread.start();

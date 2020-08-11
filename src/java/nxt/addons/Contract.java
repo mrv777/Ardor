@@ -1,5 +1,5 @@
 /*
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -32,4 +32,24 @@ public interface Contract<InvocationData, ReturnedData> {
     default String minProductVersion() {
         return "0.0.0";
     }
+
+    /**
+     * Contract initialization.
+     * <p>
+     * Invoked once after loading the contract class, before any other callback.
+     * Use this callback to initialize long running services required by the contract.
+     *
+     * @param context the contract context
+     */
+    default void init(InitializationContext context) {}
+
+    /**
+     * Contract shutdown
+     * <p>
+     * Invoked once before destroying the contract class, after any other callback.
+     * Use this callback to clean up long running services.
+     *
+     * @param context the contract context
+     */
+    default void shutdown(ShutdownContext context) {}
 }

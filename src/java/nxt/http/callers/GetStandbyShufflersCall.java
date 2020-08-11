@@ -8,6 +8,10 @@ public class GetStandbyShufflersCall extends APICall.Builder<GetStandbyShufflers
         super(ApiSpec.getStandbyShufflers);
     }
 
+    public static GetStandbyShufflersCall create() {
+        return new GetStandbyShufflersCall();
+    }
+
     public static GetStandbyShufflersCall create(int chain) {
         return new GetStandbyShufflersCall().param("chain", chain);
     }

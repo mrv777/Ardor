@@ -1,5 +1,5 @@
 /*
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -18,7 +18,7 @@ package com.jelurida.ardor.contracts;
 import nxt.Nxt;
 import nxt.addons.AbstractContract;
 import nxt.addons.BlockContext;
-import nxt.addons.ContractLoader;
+import nxt.addons.CloudDataClassLoader;
 import nxt.addons.JO;
 import nxt.blockchain.Bundler;
 import nxt.blockchain.Generator;
@@ -33,6 +33,7 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.security.Security;
 import java.util.Arrays;
+import java.util.Collections;
 
 /**
  * Contract for testing purposes which attempts actions not allowed by the security policy and verifies that they indeed
@@ -61,7 +62,7 @@ public class ForbiddenActions extends AbstractContract {
         });
         attemptAction(context, "Execute os command", () -> Runtime.getRuntime().exec("cmd.exe"));
         attemptAction(context, "Open server socket", () -> new ServerSocket(12345));
-        attemptAction(context, "Create class loader", ContractLoader.CloudDataClassLoader::new);
+        attemptAction(context, "Create class loader", () -> new CloudDataClassLoader(Collections.emptyMap(), null, null));
         attemptAction(context, "Management functions", () -> ManagementFactory.getRuntimeMXBean().getSystemProperties());
         attemptAction(context, "Replace Security Manager", () -> System.setSecurityManager(new SecurityManager()));
         attemptAction(context, "Add security provider", () -> Security.addProvider(new BlockchainSecurityProvider()));
@@ -74,12 +75,12 @@ public class ForbiddenActions extends AbstractContract {
         attemptAction(context, "Get blockchain processor", Nxt::getBlockchainProcessor);
         attemptAction(context, "Get transaction processor", Nxt::getTransactionProcessor);
         attemptAction(context, "New transaction builder", () -> Nxt.newTransactionBuilder((byte[])null));
-        attemptAction(context, "Database access", () -> Db.db.getConnection("PUBLIC"));
+        attemptAction(context, "Database access", () -> Db.db.getConnection("PUBLIC").close());
         attemptAction(context, "Nxt properties", () -> Nxt.getStringProperty("sensitive info"));
-        attemptAction(context, "Forging", () -> Generator.stopForging("..."));
+        attemptAction(context, "Forging", () -> Generator.stopForging("...".getBytes()));
         attemptAction(context, "Bundling", Bundler::stopAllBundlers);
-        attemptAction(context, "ContractRunner passphrase", () -> context.getConfig().getSecretPhrase());
-        attemptAction(context, "ContractRunner validator passphrase", () -> context.getConfig().getValidatorSecretPhrase());
+        attemptAction(context, "ContractRunner private key", () -> context.getConfig().getPrivateKey());
+        attemptAction(context, "ContractRunner validator private key", () -> context.getConfig().getValidatorPrivateKey());
         attemptAction(context, "System exit", () -> System.exit(-1));
         return context.getResponse();
     }
@@ -94,11 +95,10 @@ public class ForbiddenActions extends AbstractContract {
         } catch (Exception e) {
             if (e instanceof SecurityException || e.getCause() instanceof SecurityException) {
                 response.put("status", BLOCKED);
-                report(context, response);
             } else {
                 response.put("status", WORKED);
-                report(context, response);
             }
+            report(context, response);
         }
     }
 

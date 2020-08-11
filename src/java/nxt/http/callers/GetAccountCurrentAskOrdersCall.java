@@ -8,6 +8,10 @@ public class GetAccountCurrentAskOrdersCall extends APICall.Builder<GetAccountCu
         super(ApiSpec.getAccountCurrentAskOrders);
     }
 
+    public static GetAccountCurrentAskOrdersCall create() {
+        return new GetAccountCurrentAskOrdersCall();
+    }
+
     public static GetAccountCurrentAskOrdersCall create(int chain) {
         return new GetAccountCurrentAskOrdersCall().param("chain", chain);
     }

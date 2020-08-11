@@ -9,7 +9,7 @@ package nxt.crypto;
  *
  * Based on work by Daniel J Bernstein, http://cr.yp.to/ecdh.html
  */
-final class Curve25519 {
+public final class Curve25519 {
 
     /* key size */
     public static final int KEY_SIZE = 32;
@@ -44,7 +44,7 @@ final class Curve25519 {
             (byte)0,   (byte)0,   (byte)0,   (byte)16
     };
 
-    /********* KEY AGREEMENT *********/
+    /* ******** KEY AGREEMENT ******** */
 
     /* Private key clamping
      *   k [out] your private key for key agreement
@@ -78,7 +78,7 @@ final class Curve25519 {
         core(Z, null, k, P);
     }
 
-    /********* DIGITAL SIGNATURES *********/
+    /* ******** DIGITAL SIGNATURES ******** */
 
     /* deterministic EC-KCDSA
      *

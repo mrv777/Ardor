@@ -8,6 +8,10 @@ public class StopBundlerCall extends APICall.Builder<StopBundlerCall> {
         super(ApiSpec.stopBundler);
     }
 
+    public static StopBundlerCall create() {
+        return new StopBundlerCall();
+    }
+
     public static StopBundlerCall create(int chain) {
         return new StopBundlerCall().param("chain", chain);
     }

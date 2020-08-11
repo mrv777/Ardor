@@ -1,6 +1,6 @@
 /*
  * Copyright © 2013-2016 The Nxt Core Developers.
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -162,8 +162,8 @@ final class PeerImpl implements Peer {
     /** Connect in progress */
     private volatile boolean connectPending = false;
 
-    /** Handshake in progress */
-    private volatile boolean handshakePending = false;
+    /** Latch for waiting for the handshake. Not null if handshake is in progress */
+    private volatile CountDownLatch handshakeLatch;
 
     /**
      * Construct a PeerImpl
@@ -898,7 +898,7 @@ final class PeerImpl implements Peer {
         try {
             if (state != State.CONNECTED && keyEvent != null) {
                 isInbound = true;
-                handshakePending = true;
+                startHandshake();
                 setState(State.CONNECTED);
                 keyEvent.update(SelectionKey.OP_READ, 0);
                 Logger.logInfoMessage("Connection from " + host + " accepted");
@@ -909,6 +909,7 @@ final class PeerImpl implements Peer {
             connectLock.unlock();
         }
     }
+
 
     /**
      * Connect the peer
@@ -960,7 +961,7 @@ final class PeerImpl implements Peer {
                 connectCondition.signalAll();
             }
             if (success && channel != null) {
-                handshakePending = true;
+                startHandshake();
                 lastUpdated = Nxt.getEpochTime();
                 setState(State.CONNECTED);
                 Logger.logInfoMessage("Connection to " + host + " completed");
@@ -978,8 +979,20 @@ final class PeerImpl implements Peer {
      *
      * @return                          TRUE if the handshake is in progress
      */
-    boolean isHandshakePending() {
-        return handshakePending;
+    public boolean isHandshakePending() {
+        return handshakeLatch != null;
+    }
+
+    private void startHandshake() {
+        handshakeLatch = new CountDownLatch(1);
+    }
+
+    private void endHandshake() {
+        CountDownLatch latch = handshakeLatch;
+        if (latch != null) {
+            latch.countDown();
+        }
+        handshakeLatch = null;
     }
 
     /**
@@ -989,7 +1002,7 @@ final class PeerImpl implements Peer {
      */
     synchronized void handshakeComplete() {
         Logger.logDebugMessage("Handshake complete with " + getHost());
-        handshakePending = false;
+        endHandshake();
         while (!pendingInputQueue.isEmpty()) {
             MessageHandler.processMessage(this, pendingInputQueue.poll());
         }
@@ -1005,13 +1018,25 @@ final class PeerImpl implements Peer {
         }
     }
 
+    @Override
+    public void waitHandshake() {
+        try {
+            CountDownLatch latch = handshakeLatch;
+            if (latch != null) {
+                latch.await(NetworkHandler.peerReadTimeout * 2, TimeUnit.SECONDS);
+            }
+        } catch (InterruptedException e) {
+            Logger.logDebugMessage("Handshake with " + host + " interrupted");
+        }
+    }
+
     /**
      * Queue input messages until the handshake is complete
      *
      * @param   buffer              Message buffer
      */
     synchronized void queueInputMessage(ByteBuffer buffer) {
-        if (handshakePending) {
+        if (isHandshakePending()) {
             pendingInputQueue.offer(buffer);
         } else {
             MessageHandler.processMessage(this, buffer);
@@ -1059,7 +1084,7 @@ final class PeerImpl implements Peer {
             }
             responseMap.clear();
             isInbound = false;
-            handshakePending = false;
+            endHandshake();
             handshakeMessage = null;
             downloadedVolume = 0;
             uploadedVolume = 0;
@@ -1107,7 +1132,7 @@ final class PeerImpl implements Peer {
         } else if (handshakeMessage != null) {
             message = handshakeMessage;
             handshakeMessage = null;
-        } else if (handshakePending) {
+        } else if (isHandshakePending()) {
             message = null;
         } else {
             message = outputQueue.poll();
@@ -1130,13 +1155,13 @@ final class PeerImpl implements Peer {
         boolean disconnect = false;
         synchronized(this) {
             if (state == State.CONNECTED && !disconnectPending) {
-                if (handshakePending && message instanceof NetworkMessage.GetInfoMessage) {
+                if (isHandshakePending() && message instanceof NetworkMessage.GetInfoMessage) {
                     handshakeMessage = NetworkHandler.getMessageBytes(this, message);
                     sendMessage = true;
                 } else if (outputQueue.size() >= NetworkHandler.MAX_PENDING_MESSAGES) {
                     Logger.logErrorMessage("Too many pending messages for " + host);
                     disconnect = true;
-                } else if (handshakePending) {
+                } else if (isHandshakePending()) {
                     pendingOutputQueue.offer(message);
                 } else {
                     serializeMessage = true;

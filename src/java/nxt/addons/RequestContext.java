@@ -1,5 +1,5 @@
 /*
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -157,5 +157,14 @@ public class RequestContext extends AbstractContractContext {
     @Override
     protected String getReferencedTransaction() {
         return null;
+    }
+
+    @Override
+    public void setResponse(JO response) {
+        this.response = response;
+    }
+
+    public boolean canSetResponse() {
+        return true;
     }
 }

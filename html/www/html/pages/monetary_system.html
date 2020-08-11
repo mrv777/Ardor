@@ -1,6 +1,6 @@
 <!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   ~ Copyright © 2013-2016 The Nxt Core Developers.                            ~
-  ~ Copyright © 2016-2019 Jelurida IP B.V.                                    ~
+  ~ Copyright © 2016-2020 Jelurida IP B.V.                                    ~
   ~                                                                           ~
   ~ See the LICENSE.txt file at the top-level directory of this distribution  ~
   ~ for licensing information.                                                ~
@@ -16,19 +16,9 @@
 
 <div id="currencies_page" class="paginated page">
     <section class="content-header">
-        <h1 data-i18n="currencies">Currencies</h1>
-        <div style="position:absolute;top:9px;left:190px;">
-            <form class="sidebar-form" id="currencies_search" style="width:200px;margin:0;display:inline-block;vertical-align:middle;" autocomplete="off">
-                <div class="input-group">
-                    <input type="text" name="searchquery" class="form-control" placeholder="Search Currencies..." data-i18n="[placeholder]search_currency">
-                    <span class="input-group-btn">
-                        <button name="searchcurrencies" class="btn btn-flat"><i class="far fa-search"></i></button>
-                    </span>
-                </div>
-            </form>             
-        </div>
-        <div style="position:absolute;top:9px;right:9px;">
-            <div class="btn-group" data-toggle="buttons" id="currencies_page_type">
+        <h1 data-i18n="currencies" class="col-xs-12 col-sm-4">Currencies</h1>
+        <div class="col-xs-12 col-sm-4">
+            <div class="btn-group " style="display: flex;" data-toggle="buttons" id="currencies_page_type">
                 <label class="btn btn-default active" data-type="all">
                     <input type="radio" name="currencies_page_type"> <span data-i18n="all_currencies">All Currencies</span>
                 </label>
@@ -37,9 +27,20 @@
                 </label>
             </div>
         </div>
+        <div class="col-xs-12 col-sm-4">
+            <form class="sidebar-form" id="currencies_search" autocomplete="off">
+                <div class="input-group">
+                    <input type="text" name="searchquery" class="form-control" placeholder="Search Currencies..." data-i18n="[placeholder]search_currency">
+                    <span class="input-group-btn">
+                        <button name="searchcurrencies" class="btn btn-flat"><i class="far fa-search"></i></button>
+                    </span>
+                </div>
+            </form>
+        </div>
+        <div class="clearfix"></div>
     </section>
     <section class="content">
-        <div class="data-container data-loading">
+        <div class="data-container data-loading table-responsive">
             <table class="table table-striped" id="currencies_table">
                 <thead>
                 <tr>
@@ -111,7 +112,7 @@
                         </div>
                 
                         <form role="form" class="form-horizontal" style="padding: 10px;;max-width:350px;margin-left:auto;margin-right:auto;" autocomplete="off">
-                            <div style="margin-left:-20px">
+                            <div>
                                 <div class="form-group">
                                     <label for="buy_currency_units" class="col-sm-3 control-label" data-i18n="units">Units</label>
                                     <div class="col-sm-9">
@@ -162,7 +163,7 @@
                 <div class="box box-primary">
                     <div class="box-header"><h3 class="box-title" id="sell_currency_offers"></h3></div>
                     <div class="box-body no-padding">
-                        <div class="data-container data-loading" data-no-padding="true">
+                        <div class="data-container data-loading table-responsive" data-no-padding="true">
                             <table class="table table-striped" id="ms_open_sell_orders_table">
                                 <thead>
                                 <tr>
@@ -197,7 +198,7 @@
                         </div>
                 
                         <form role="form" class="form-horizontal" style="padding: 10px;;max-width:350px;margin-left:auto;margin-right:auto;" autocomplete="off">
-                            <div style="margin-left:-20px">
+                            <div>
                                 <div class="form-group">
                                     <label for="sell_currency_units" class="col-sm-3 control-label" data-i18n="units">Units</label>
                                     <div class="col-sm-9">
@@ -248,7 +249,7 @@
                 <div class="box box-primary">
                     <div class="box-header"><h3 class="box-title" id="buy_currency_offers"></h3></div>
                     <div class="box-body no-padding">
-                        <div class="data-container data-loading" data-no-padding="true">
+                        <div class="data-container data-loading table-responsive" data-no-padding="true">
                             <table class="table table-striped" id="ms_open_buy_orders_table">
                                 <thead>
                                 <tr>
@@ -278,7 +279,7 @@
                         <div style="position:absolute;top:9px;right:9px;"></div>
                     </div>
                     <div class="box-body no-padding">
-                        <div class="data-container data-loading" data-no-padding="true">
+                        <div class="data-container data-loading table-responsive" data-no-padding="true">
                             <table class="table table-striped" id="ms_exchange_requests_table">
                                 <thead>
                                 <tr>
@@ -303,20 +304,20 @@
             <div class="col-md-6">
                 <div class="box box-primary">
                     <div class="box-header">
-                        <h3 class="box-title" data-i18n="executed_exchanges">Executed Exchanges</h3>
-                        <div style="position:absolute;top:9px;right:9px;">
-                        <div class="btn-group" data-toggle="buttons" id="ms_exchange_history_type">
-                            <label class="btn btn-default active" data-type="all">
-                                <input type="radio" name="ms_exchange_history_type"> <span data-i18n="all_exchanges">All Exchanges</span>
-                            </label>
-                            <label class="btn btn-default" data-type="my_exchanges">
-                                <input type="radio" name="ms_exchange_history_type"> <span data-i18n="my_exchanges">My Exchanges</span>
-                            </label>
+                        <h3 class="box-title col-xs-12 col-sm-5" data-i18n="executed_exchanges">Executed Exchanges</h3>
+                        <div class="header-button-container col-xs-12 col-sm-7">
+                            <div class="btn-group" data-toggle="buttons" id="ms_exchange_history_type">
+                                <label class="btn btn-default active" data-type="all">
+                                    <input type="radio" name="ms_exchange_history_type"> <span data-i18n="all_exchanges">All Exchanges</span>
+                                </label>
+                                <label class="btn btn-default" data-type="my_exchanges">
+                                    <input type="radio" name="ms_exchange_history_type"> <span data-i18n="my_exchanges">My Exchanges</span>
+                                </label>
+                            </div>
                         </div>
                     </div>
-                    </div>
                     <div class="box-body no-padding">
-                        <div class="data-container data-loading" data-no-padding="true">
+                        <div class="data-container data-loading table-responsive" data-no-padding="true">
                             <table class="table table-striped" id="ms_exchanges_history_table">
                                 <thead>
                                 <tr>
@@ -345,7 +346,7 @@
 <div id="exchange_history_page" class="paginated page">
     <section class="content-header"><h1 data-i18n="my_exchange_history">My Exchange History</h1></section>
     <section class="content">
-        <div class="data-container data-loading">
+        <div class="data-container data-loading table-responsive">
             <table class="table table-striped" id="exchange_history_table">
                 <thead>
                 <tr>
@@ -381,7 +382,7 @@
             <select id="approve_currency_select" class="form-control" style="max-width:250px;"></select>
         </div>
         <div class="panel panel-default">
-        <div class="data-container data-loading panel-body">
+        <div class="data-container data-loading panel-body table-responsive">
             <table class="table table-striped" id="approval_requests_currency_table">
                 <thead>
                 <tr>
@@ -413,7 +414,7 @@
 <div id="currency_transfer_history_page" class="paginated page">
     <section class="content-header"><h1 data-i18n="transfer_history">Transfer History</h1></section>
     <section class="content">
-        <div class="data-container data-loading">
+        <div class="data-container data-loading table-responsive">
             <table class="table table-striped" id="currency_transfer_history_table">
                 <thead>
                 <tr>

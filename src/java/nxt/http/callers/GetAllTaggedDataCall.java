@@ -8,6 +8,10 @@ public class GetAllTaggedDataCall extends APICall.Builder<GetAllTaggedDataCall> 
         super(ApiSpec.getAllTaggedData);
     }
 
+    public static GetAllTaggedDataCall create() {
+        return new GetAllTaggedDataCall();
+    }
+
     public static GetAllTaggedDataCall create(int chain) {
         return new GetAllTaggedDataCall().param("chain", chain);
     }

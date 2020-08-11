@@ -8,6 +8,10 @@ public class GetAssetPhasedTransactionsCall extends APICall.Builder<GetAssetPhas
         super(ApiSpec.getAssetPhasedTransactions);
     }
 
+    public static GetAssetPhasedTransactionsCall create() {
+        return new GetAssetPhasedTransactionsCall();
+    }
+
     public static GetAssetPhasedTransactionsCall create(int chain) {
         return new GetAssetPhasedTransactionsCall().param("chain", chain);
     }

@@ -1,5 +1,5 @@
 /*
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -22,10 +22,11 @@ import nxt.blockchain.Chain;
 import nxt.blockchain.ChildChain;
 import nxt.crypto.Crypto;
 import nxt.crypto.EncryptedData;
-import nxt.peer.Peers;
+import nxt.peer.FeeRateCalculator;
 import nxt.util.Convert;
 import nxt.util.Logger;
 
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -35,19 +36,20 @@ class ActiveContractRunnerConfig implements ContractRunnerConfig {
 
     private final ContractProvider contractProvider;
 
-    private String secretPhrase;
+    private byte[] privateKey;
     private byte[] publicKey;
     private String publicKeyHexString;
     private long accountId;
     private String account;
     private String accountRs;
     private boolean autoFeeRate;
+    private FeeRateCalculator.TransactionPriority autoFeeRatePriority;
     private long minBundlerBalanceFXT;
     private long minBundlerFeeLimitFQT;
     private Map<Integer, Long> feeRatePerChain;
     private JO params;
     private boolean isValidator;
-    private String validatorSecretPhrase;
+    private byte[] validatorPrivateKey;
     private int catchUpInterval;
     private int maxSubmittedTransactionsPerInvocation;
     private byte[] runnerSeed;
@@ -67,11 +69,19 @@ class ActiveContractRunnerConfig implements ContractRunnerConfig {
     }
 
     private void initAccount(JO config) {
-        secretPhrase = getProperty(config, "secretPhrase");
-        if (Convert.emptyToNull(secretPhrase) == null) {
+        String privateKeyStr = getProperty(config, "privateKey");
+        if (privateKeyStr != null) {
+            privateKey = Convert.parseHexString(privateKeyStr);
+        } else {
+            String secretPhrase = Convert.emptyToNull(getProperty(config, "secretPhrase"));
+            if (secretPhrase != null) {
+                privateKey = Crypto.getPrivateKey(secretPhrase);
+            }
+        }
+        if (privateKey == null) {
             String accountRS = getProperty(config, "accountRS");
             if (accountRS == null) {
-                throw new IllegalArgumentException(ERROR_PREFIX + "secretPhrase or accountRS must be defined");
+                throw new IllegalArgumentException(ERROR_PREFIX + "secretPhrase or privateKey or accountRS must be defined");
             }
             accountId = Convert.parseAccountId(accountRS);
             publicKey = Account.getPublicKey(accountId);
@@ -79,7 +89,7 @@ class ActiveContractRunnerConfig implements ContractRunnerConfig {
                 throw new IllegalArgumentException(String.format(ERROR_PREFIX + "account %s does not have a public key", accountRS));
             }
         } else {
-            publicKey = Crypto.getPublicKey(secretPhrase);
+            publicKey = Crypto.getPublicKey(privateKey);
             accountId = Account.getId(publicKey);
         }
         publicKeyHexString = Convert.toHexString(publicKey);
@@ -89,6 +99,17 @@ class ActiveContractRunnerConfig implements ContractRunnerConfig {
 
     private void initFee(JO config) {
         autoFeeRate = Boolean.parseBoolean(getProperty(config, "autoFeeRate"));
+
+        String autoFeeRatePriorityConfig = Convert.nullToEmpty(getProperty(config, "autoFeeRatePriority"));
+        try {
+            autoFeeRatePriority = FeeRateCalculator.TransactionPriority.NORMAL;
+            if (!autoFeeRatePriorityConfig.isEmpty()) {
+                autoFeeRatePriority = FeeRateCalculator.TransactionPriority.valueOf(autoFeeRatePriorityConfig.toUpperCase());
+            }
+        } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException(ERROR_PREFIX + "wrong value for autoFeeRatePriority: " + autoFeeRatePriorityConfig, e);
+        }
+
         minBundlerBalanceFXT = getLongProperty(config, "minBundlerBalanceFXT", 0, Constants.MAX_BALANCE_FXT, Constants.minBundlerBalanceFXT);
         minBundlerFeeLimitFQT = getLongProperty(config, "minBundlerFeeLimitFQT", 0, Constants.MAX_BALANCE_FXT * Constants.ONE_FXT, Constants.minBundlerFeeLimitFXT * Constants.ONE_FXT);
         feeRatePerChain = new HashMap<>();
@@ -100,7 +121,7 @@ class ActiveContractRunnerConfig implements ContractRunnerConfig {
             long fee = Long.parseLong(stringProperty);
             feeRatePerChain.put(chain.getId(), fee);
         }
-        if (secretPhrase != null && !autoFeeRate && feeRatePerChain.size() == 0) {
+        if (privateKey != null && !autoFeeRate && feeRatePerChain.size() == 0) {
             throw new IllegalArgumentException(ERROR_PREFIX + "feeRateNQTPerFXT not specified for any chain and autoFeeRate isn't enabled");
         }
     }
@@ -117,18 +138,27 @@ class ActiveContractRunnerConfig implements ContractRunnerConfig {
     private void initValidation(JO config) {
         isValidator = Boolean.parseBoolean(getProperty(config, "validator"));
         if (isValidator) {
-            String temp = getProperty(config, "validatorSecretPhrase");
-            if (temp != null && validatorSecretPhrase != null) {
-                throw new IllegalArgumentException(ERROR_PREFIX + "cannot switch validator secret phrase during runtime");
+            byte[] oldValidatorPrivateKey = validatorPrivateKey;
+            String validatorPrivateKeyStr = getProperty(config, "validatorPrivateKey");
+            if (validatorPrivateKeyStr != null) {
+                validatorPrivateKey = Convert.parseHexString(validatorPrivateKeyStr);
+            } else {
+                String validatorSecretPhrase = Convert.emptyToNull(getProperty(config, "validatorSecretPhrase"));
+                if (validatorSecretPhrase != null) {
+                    validatorPrivateKey = Crypto.getPrivateKey(validatorSecretPhrase);
+                }
             }
-            validatorSecretPhrase = getProperty(config, "validatorSecretPhrase");
-            if (validatorSecretPhrase == null) {
-                Logger.logWarningMessage("Contract runner validatorSecretPhrase not specified, contract won't be able to approve other contract transactions");
-            } else if (Convert.emptyToNull(secretPhrase) != null) {
-                throw new IllegalArgumentException(ERROR_PREFIX + "do not specify both secretPhrase and validatorSecretPhrase");
+
+            if (oldValidatorPrivateKey != null && validatorPrivateKey != null && !Arrays.equals(oldValidatorPrivateKey, validatorPrivateKey)) {
+                throw new IllegalArgumentException(ERROR_PREFIX + "cannot switch validator private key during runtime");
+            }
+            if (validatorPrivateKey == null) {
+                Logger.logWarningMessage("Contract runner validatorPrivateKey not specified, contract won't be able to approve other contract transactions");
+            } else if (privateKey != null) {
+                throw new IllegalArgumentException(ERROR_PREFIX + "do not specify both secretPhrase/privateKey and validatorSecretPhrase/validatorPrivateKey");
             }
         } else {
-            validatorSecretPhrase = null;
+            validatorPrivateKey = null;
         }
     }
 
@@ -154,7 +184,7 @@ class ActiveContractRunnerConfig implements ContractRunnerConfig {
         if (config.isExist(key)) {
             return config.getString(key);
         } else {
-            return Nxt.getStringProperty(ContractRunner.CONFIG_PROPERTY_PREFIX + key, null, key.toLowerCase().endsWith("secretphrase"));
+            return Nxt.getStringProperty(ContractRunner.CONFIG_PROPERTY_PREFIX + key, null, key.toLowerCase().endsWith("secretphrase") || key.toLowerCase().endsWith("privatekey"));
         }
     }
 
@@ -172,21 +202,21 @@ class ActiveContractRunnerConfig implements ContractRunnerConfig {
     }
 
     @Override
-    public String getSecretPhrase() {
+    public byte[] getPrivateKey() {
         SecurityManager sm = System.getSecurityManager();
         if (sm != null) {
             sm.checkPermission(new ContractRunnerPermission("config"));
         }
-        return secretPhrase;
+        return privateKey;
     }
 
     @Override
-    public String getValidatorSecretPhrase() {
+    public byte[] getValidatorPrivateKey() {
         SecurityManager sm = System.getSecurityManager();
         if (sm != null) {
             sm.checkPermission(new ContractRunnerPermission("config"));
         }
-        return validatorSecretPhrase;
+        return validatorPrivateKey;
     }
 
     @Override
@@ -220,6 +250,11 @@ class ActiveContractRunnerConfig implements ContractRunnerConfig {
     }
 
     @Override
+    public FeeRateCalculator.TransactionPriority getAutoFeeRatePriority() {
+        return autoFeeRatePriority;
+    }
+
+    @Override
     public long getMinBundlerBalanceFXT() {
         return minBundlerBalanceFXT;
     }
@@ -241,7 +276,12 @@ class ActiveContractRunnerConfig implements ContractRunnerConfig {
     public long getCurrentFeeRateNQTPerFXT(int chainId) {
         long feeRatio = -1;
         if (autoFeeRate) {
-            feeRatio = Peers.getBestBundlerRate(Chain.getChain(chainId), minBundlerBalanceFXT, minBundlerFeeLimitFQT, Peers.getBestBundlerRateWhitelist());
+            FeeRateCalculator feeRateCalculator = FeeRateCalculator.create()
+                    .setMinBalance(minBundlerBalanceFXT)
+                    .setMinFeeLimit(minBundlerFeeLimitFQT)
+                    .setPriority(autoFeeRatePriority)
+                    .build();
+            feeRatio = feeRateCalculator.getBestRate(Chain.getChain(chainId));
         }
         if (feeRatio == -1) {
             feeRatio = getFeeRateNQTPerFXT(chainId);
@@ -288,7 +328,7 @@ class ActiveContractRunnerConfig implements ContractRunnerConfig {
      */
     @Override
     public EncryptedData encryptTo(byte[] publicKey, byte[] data, boolean compress) {
-        return Account.encryptTo(publicKey, data, secretPhrase, compress);
+        return Account.encryptTo(privateKey, publicKey, data, compress);
     }
 
     /**
@@ -300,17 +340,17 @@ class ActiveContractRunnerConfig implements ContractRunnerConfig {
      */
     @Override
     public byte[] decryptFrom(byte[] publicKey, EncryptedData encryptedData, boolean uncompress) {
-        return Account.decryptFrom(publicKey, encryptedData, secretPhrase, uncompress);
+        return Account.decryptFrom(privateKey, publicKey, encryptedData, uncompress);
     }
 
     @Override
     public String getStatus() {
-        if (secretPhrase != null && !isValidator) {
+        if (privateKey != null && !isValidator) {
             return "Running";
-        } else if(validatorSecretPhrase != null && isValidator) {
+        } else if(validatorPrivateKey != null && isValidator) {
             return "Validating";
         } else {
-            return "Passphrase Not Specified";
+            return "Secret Not Specified";
         }
     }
 }

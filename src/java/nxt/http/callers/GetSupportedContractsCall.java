@@ -19,4 +19,8 @@ public class GetSupportedContractsCall extends APICall.Builder<GetSupportedContr
     public GetSupportedContractsCall requireBlock(String requireBlock) {
         return param("requireBlock", requireBlock);
     }
+
+    public GetSupportedContractsCall adminPassword(String adminPassword) {
+        return param("adminPassword", adminPassword);
+    }
 }

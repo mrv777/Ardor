@@ -8,6 +8,10 @@ public class GetShufflingCall extends APICall.Builder<GetShufflingCall> {
         super(ApiSpec.getShuffling);
     }
 
+    public static GetShufflingCall create() {
+        return new GetShufflingCall();
+    }
+
     public static GetShufflingCall create(int chain) {
         return new GetShufflingCall().param("chain", chain);
     }

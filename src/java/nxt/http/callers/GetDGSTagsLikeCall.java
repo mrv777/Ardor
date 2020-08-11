@@ -8,6 +8,10 @@ public class GetDGSTagsLikeCall extends APICall.Builder<GetDGSTagsLikeCall> {
         super(ApiSpec.getDGSTagsLike);
     }
 
+    public static GetDGSTagsLikeCall create() {
+        return new GetDGSTagsLikeCall();
+    }
+
     public static GetDGSTagsLikeCall create(int chain) {
         return new GetDGSTagsLikeCall().param("chain", chain);
     }

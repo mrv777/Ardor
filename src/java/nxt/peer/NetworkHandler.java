@@ -1,6 +1,6 @@
 /*
  * Copyright © 2013-2016 The Nxt Core Developers.
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -83,7 +83,7 @@ public final class NetworkHandler implements Runnable {
     static final int DEFAULT_PEER_PORT = (Constants.isPermissioned ? 27873 : 27874);
 
     /** Testnet peer port */
-    static final int TESTNET_PEER_PORT = (Constants.isPermissioned ? 26873 : Constants.isAutomatedTest ? 26872 : 26874);
+    public static final int TESTNET_PEER_PORT = (Constants.isPermissioned ? 26873 : Constants.isAutomatedTest ? 26872 : 26874);
 
     /** Maximum number of pending messages for a single peer */
     static final int MAX_PENDING_MESSAGES = 25;
@@ -117,7 +117,7 @@ public final class NetworkHandler implements Runnable {
     static final int peerConnectTimeout = Nxt.getIntProperty("nxt.peerConnectTimeout", 10);
 
     /** Peer read timeout (seconds) */
-    static final int peerReadTimeout = Nxt.getIntProperty("nxt.peerReadTimeout", 10);
+    public static final int peerReadTimeout = Nxt.getIntProperty("nxt.peerReadTimeout", 10);
 
     /** Listen address */
     private static final String listenAddress = Nxt.getStringProperty("nxt.peerServerHost", "0.0.0.0");
@@ -286,7 +286,7 @@ public final class NetworkHandler implements Runnable {
             getInfoMessage = new NetworkMessage.GetInfoMessage(Nxt.APPLICATION, Nxt.VERSION, platform,
                     shareAddress, announcedAddress, API.getOpenAPIPort(), API.getOpenAPISSLPort(), services,
                     disabledAPIs, API.apiServerIdleTimeout,
-                    (Constants.isPermissioned ? Crypto.getPublicKey(Peers.peerSecretPhrase) : null));
+                    (Constants.isPermissioned ? Crypto.getPublicKey(Crypto.getPrivateKey(Peers.peerSecretPhrase)) : null));
             try {
                 //
                 // Create the selector for listening for network events
@@ -303,6 +303,7 @@ public final class NetworkHandler implements Runnable {
                 networkShutdown = true;
                 throw new RuntimeException("Unable to create network listener", exc);
             }
+
             //
             // Start the network handler after server initialization has completed
             //

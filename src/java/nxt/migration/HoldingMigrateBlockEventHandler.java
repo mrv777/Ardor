@@ -1,6 +1,6 @@
 /*
  * Copyright © 2013-2016 The Nxt Core Developers.
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -21,7 +21,7 @@ import nxt.blockchain.Block;
 import nxt.blockchain.ChildChain;
 import nxt.blockchain.Genesis;
 import nxt.db.DbIterator;
-import nxt.db.TransactionalDb;
+import nxt.dbschema.Db;
 import nxt.freeze.FreezeMonitor;
 import nxt.util.Listener;
 import nxt.util.Logger;
@@ -39,7 +39,7 @@ public class HoldingMigrateBlockEventHandler implements Listener<Block> {
     public void notify(Block block) {
         try (DbIterator<HoldingMigration> targets = HoldingMigration.getMigrations(block.getHeight())) {
             for (HoldingMigration target : targets) {
-                TransactionalDb.runInDbTransaction(() -> handle(target));
+                Db.db.runInDbTransaction(() -> handle(target));
             }
         }
     }

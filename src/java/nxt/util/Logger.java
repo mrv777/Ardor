@@ -1,6 +1,6 @@
 /*
  * Copyright © 2013-2016 The Nxt Core Developers.
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -206,19 +206,17 @@ public final class Logger {
     }
 
     public static void logShutdownMessage(String message) {
-        if (LogManager.getLogManager() instanceof NxtLogManager) {
-            logMessage(message);
-        } else {
+        logMessage(message);
+        if (!(LogManager.getLogManager() instanceof NxtLogManager)) {
             System.out.println(message);
         }
     }
 
     public static void logShutdownMessage(String message, Exception e) {
-        if (LogManager.getLogManager() instanceof NxtLogManager) {
-            logMessage(message, e);
-        } else {
+        logMessage(message, e);
+        if (!(LogManager.getLogManager() instanceof NxtLogManager)) {
             System.out.println(message);
-            System.out.println(e.toString());
+            e.printStackTrace();
         }
     }
 

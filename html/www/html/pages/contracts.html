@@ -1,6 +1,6 @@
 <!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   ~ Copyright © 2013-2016 The Nxt Core Developers.                            ~
-  ~ Copyright © 2016-2019 Jelurida IP B.V.                                    ~
+  ~ Copyright © 2016-2020 Jelurida IP B.V.                                    ~
   ~                                                                           ~
   ~ See the LICENSE.txt file at the top-level directory of this distribution  ~
   ~ for licensing information.                                                ~
@@ -17,10 +17,11 @@
 <div id="contracts_page" class="paginated page">
     <script type="text/x-handlebars-template">
         <section class="content-header">
-            <h1>{{i18n "contract_runner"}}</h1>
-            <div style="position:absolute;top:9px;right:9px;">
+            <h1 class="col-xs-5">{{i18n "contract_runner"}}</h1>
+            <div class="col-xs-7 text-right">
                 <button type="button" class="btn btn-sm btn-default" data-toggle="modal" data-target="#config_contract_runner_modal">{{i18n "config_contract_runner"}}</button>
             </div>
+            <div class="clearfix"></div>
         </section>
 
         <section class="content">
@@ -30,7 +31,7 @@
             {{#if infoMessage}}
             <div class="alert alert-info" role="alert">{{ infoMessage }}</div>
             {{/if}}
-            <div class="data-container {{when isLoading 'data-loading' isEmpty 'data-empty'}}">
+            <div class="data-container {{when isLoading 'data-loading'}} table-responsive">
                 <div  style="display:{{contracts_header_visibility}}">
                     <h2>{{i18n "runner_status"}}</h2>
                     <table class="table">
@@ -42,19 +43,19 @@
                             <td style="font-weight: bold"><span>{{i18n "account"}}</span>:</td><td><span>{{{ contractRunnerAccountFormatted }}}</span></td>
                         </tr>
                         <tr>
-                            <td style="font-weight: bold"><span>{{i18n "has_secret_phrase"}}</span>:</td><td><span>{{ hasSecretPhrase }}</span></td>
+                            <td style="font-weight: bold"><span>{{i18n "has_private_key"}}</span>:</td><td><span>{{ hasPrivateKey }}</span></td>
                         </tr>
                         <tr>
                             <td style="font-weight: bold"><span>{{i18n "is_validator"}}</span>:</td><td><span>{{ isValidator }}</span></td>
                         </tr>
                         <tr>
-                            <td style="font-weight: bold"><span>{{i18n "has_validator_secret_phrase"}}</span>:</td><td><span>{{ hasValidatorSecretPhrase }}</span></td>
+                            <td style="font-weight: bold"><span>{{i18n "has_validator_private_key"}}</span>:</td><td><span>{{ hasValidatorPrivateKey }}</span></td>
                         </tr>
                         <tr>
                             <td style="font-weight: bold"><span>{{i18n "has_random_seed"}}</span>:</td><td><span>{{ hasRandomSeed }}</span></td>
                         </tr>
                         <tr>
-                            <td style="font-weight: bold"><span>{{i18n "auto_fee_rate"}}</span>:</td><td><span>{{ autoFeeRate }}</span></td>
+                            <td style="font-weight: bold"><span>{{i18n "auto_fee_rate"}}</span>:</td><td><span>{{ autoFeeRateFormatted }}</span></td>
                         </tr>
                         </tbody>
                     </table>

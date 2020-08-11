@@ -1,6 +1,6 @@
 <!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   ~ Copyright © 2013-2016 The Nxt Core Developers.                            ~
-  ~ Copyright © 2016-2019 Jelurida IP B.V.                                    ~
+  ~ Copyright © 2016-2020 Jelurida IP B.V.                                    ~
   ~                                                                           ~
   ~ See the LICENSE.txt file at the top-level directory of this distribution  ~
   ~ for licensing information.                                                ~
@@ -16,14 +16,15 @@
 
 <div id="dashboard_page" class="page" style="display:block">
     <section class="content-header">
-        <span style="float:right; font-size:115%;">
+        <h1 data-i18n="dashboard" class="col-xs-6">Dashboard</h1>
+        <span style="font-size:115%; white-space: nowrap" class="text-right col-xs-6">
             <span id="nrs_version_info" data-i18n="nrs_version">NRS Version</span>:
             <a href="#" class="small-box-footer" data-toggle="modal" data-target="#nrs_modal">
                 <span id="nrs_version" class="loading_dots"><span>.</span><span>.</span><span>.</span></span>
             </a>
             <span class="label label-danger" id="nrs_update" style="display:none;"></span>
         </span>
-        <h1 data-i18n="dashboard">Dashboard</h1>
+        <div class="clearfix"></div>
     </section>
 
     <section class="content">
@@ -33,7 +34,7 @@
 
         <div class="dashboard_first_row row">
             <div class="dashboard_first_row_tile_1 col-lg-3 col-xs-6">
-                <div class="small-box bg-aqua">
+                <div class="small-box">
                     <div class="inner">
                         <h3><span id="account_balance" class="loading_dots"><span>.</span><span>.</span><span>.</span></span></h3>
                         <p><span data-i18n="account_balance">Account Balance</span> <span class="label" id="account_leasing" style="display:none;background-color:#1990B1"></span></p>
@@ -43,7 +44,7 @@
                 </div>
             </div>
             <div id="dashboard_assets_val_div" class="dashboard_first_row_tile_2 optional_dashboard_tile col-lg-3 col-xs-6">
-                <div class="small-box bg-green">
+                <div class="small-box">
                     <div class="inner">
                         <h3><span id="account_assets_balance" class="loading_dots"><span>.</span><span>.</span><span>.</span></span></h3>
                         <p style="display:inline-block" data-i18n="assets_value">Assets value</p> <p style="display:inline-block">(<span id="account_nr_assets" class="loading_dots"></span></p> <p style="display:inline-block"><span data-i18n="assets_owned">Assets Owned</span>)</p>
@@ -53,7 +54,7 @@
                 </div>
             </div>
             <div id="dashboard_currencies_val_div" class="dashboard_first_row_tile_3 optional_dashboard_tile col-lg-3 col-xs-6">
-                <div class="small-box bg-yellow">
+                <div class="small-box">
                     <div class="inner">
                         <h3><span id="account_currencies_balance" class="loading_dots"><span>.</span><span>.</span><span>.</span></span></h3>
                         <p style="display:inline-block" data-i18n="currencies_value">Currencies value</p> <p style="display:inline-block">(<span id="account_nr_currencies" class="loading_dots"></span></p> <p style="display:inline-block"><span data-i18n="currencies_owned">Currencies Owned</span>)</p>
@@ -63,7 +64,7 @@
                 </div>
             </div>
             <div id="dashboard_purchased_products_div" class="dashboard_first_row_tile_4 optional_dashboard_tile col-lg-3 col-xs-6">
-                <div class="small-box bg-yellow">
+                <div class="small-box">
                     <div class="inner">
                         <h3><span id="account_purchase_count" class="loading_dots"><span>.</span><span>.</span><span>.</span></span></h3>
                         <p data-i18n="purchased_products">Purchased Products</p>
@@ -75,7 +76,7 @@
         </div>
         <div class="dashboard_second_row row">
             <div id="dashboard_pending_products_div" class="dashboard_second_row_tile_1 optional_dashboard_tile col-lg-3 col-xs-6">
-                <div class="small-box bg-yellow">
+                <div class="small-box">
                     <div class="inner">
                         <h3>
                             <span id="account_pending_sale_count" class="loading_dots"><span>.</span><span>.</span><span>.</span></span>
@@ -89,7 +90,7 @@
                 </div>
             </div>
             <div id="dashboard_messages_div" class="dashboard_second_row_tile_2 optional_dashboard_tile col-lg-3 col-xs-6">
-                <div class="small-box bg-yellow">
+                <div class="small-box">
                     <div class="inner">
                         <h3><span id="account_message_count" class="loading_dots"><span>.</span><span>.</span><span>.</span></span></h3>
                         <p data-i18n="message_count">Messages</p>
@@ -99,7 +100,7 @@
                 </div>
             </div>
             <div id="dashboard_aliases_div" class="dashboard_second_row_tile_3 optional_dashboard_tile col-lg-3 col-xs-6">
-                <div class="small-box bg-yellow">
+                <div class="small-box">
                     <div class="inner">
                         <h3><span id="account_alias_count" class="loading_dots"><span>.</span><span>.</span><span>.</span></span></h3>
                         <p data-i18n="aliases">Aliases</p>
@@ -109,7 +110,7 @@
                 </div>
             </div>
             <div id="dashboard_blocks_div" class="dashboard_second_row_tile_4 block_info_dashboard_tile col-lg-3 col-xs-6">
-                <div class="small-box bg-red">
+                <div class="small-box">
                     <div class="inner">
                         <h3><span id="nrs_current_block_time" class="loading_dots"><span>.</span><span>.</span><span>.</span></span></h3>
                         <p><span id="nrs_block" data-i18n="last_updated">Last Updated</span> (<span data-i18n="block">Block</span>: <span class="nrs_current_block loading_dots"><span>.</span><span>.</span><span>.</span></span>)</p>
@@ -124,7 +125,7 @@
                 <div class="box box-primary">
                     <div class="box-header"><h3 class="box-title" data-i18n="recent_transactions">Recent Transactions</h3></div>
                     <div class="box-body no-padding">
-                        <div class="data-container data-loading" data-no-padding="true" data-extra="#dashboard_transactions_footer">
+                        <div class="data-container data-loading table-responsive" data-no-padding="true" data-extra="#dashboard_transactions_footer">
                             <table class="table table-striped" id="dashboard_table">
                                 <thead>
                                 <tr>

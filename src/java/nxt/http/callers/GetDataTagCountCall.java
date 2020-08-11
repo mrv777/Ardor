@@ -8,6 +8,10 @@ public class GetDataTagCountCall extends APICall.Builder<GetDataTagCountCall> {
         super(ApiSpec.getDataTagCount);
     }
 
+    public static GetDataTagCountCall create() {
+        return new GetDataTagCountCall();
+    }
+
     public static GetDataTagCountCall create(int chain) {
         return new GetDataTagCountCall().param("chain", chain);
     }

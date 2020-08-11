@@ -1,6 +1,6 @@
 /******************************************************************************
  * Copyright © 2013-2016 The Nxt Core Developers.                             *
- * Copyright © 2016-2019 Jelurida IP B.V.                                     *
+ * Copyright © 2016-2020 Jelurida IP B.V.                                     *
  *                                                                            *
  * See the LICENSE.txt file at the top-level directory of this distribution   *
  * for licensing information.                                                 *
@@ -25,7 +25,6 @@
  * @depends {3rdparty/growl.js}
  * @depends {crypto/curve25519.js}
  * @depends {crypto/curve25519_.js}
- * @depends {crypto/passphrasegenerator.js}
  * @depends {crypto/sha256worker.js}
  * @depends {crypto/3rdparty/cryptojs/aes.js}
  * @depends {crypto/3rdparty/cryptojs/sha256.js}
@@ -37,12 +36,47 @@
 var NRS = (function(NRS, $, undefined) {
 	"use strict";
 
+	NRS.bip32Account = undefined;
+
+	NRS.BIP32_PROVIDER = {
+		SOFTWARE: "Software",
+		LEDGER_HARDWARE: "Ledger Hardware"
+	};
+
+	NRS.createBip32Account = function(provider, privateKey, publicKey, account, path, isRegistered) {
+		return new Bip32Account(provider, privateKey, publicKey, account, path, isRegistered);
+	};
+
+	function Bip32Account(provider, privateKey, publicKey, account, path, isRegistered) {
+		this.provider = provider;
+		this.privateKey = privateKey;
+		this.publicKey = publicKey;
+		this.account = account;
+		this.path = path;
+		this.isRegistered = isRegistered;
+
+		return {
+			getProvider: () => provider,
+			getPrivateKey: () => privateKey,
+			getPublicKey: () => publicKey,
+			getAccount: () => account,
+			getPath: () => path,
+			isRegistered: () => isRegistered,
+			toString: () => {
+				return `provider: ${provider}, privateKey: ${(privateKey !== undefined)}, publicKey: ${publicKey}, account: ${account}, path: ${path}, isPublicKeyRegistered: ${isRegistered}`;
+			},
+			toJsonString: () => {
+				return JSON.stringify({ provider: provider, privateKey: privateKey, publicKey: publicKey, account: account, path: path, isRegistered: isRegistered });
+			}
+		}
+	}
+
 	NRS.state = {};
 	NRS.blocks = [];
 	NRS.account = "";
 	NRS.accountRS = "";
 	NRS.publicKey = "";
-	NRS.accountInfo = {};
+    NRS.accountInfo = {};
 
 	NRS.database = null;
 	NRS.databaseSupport = false;
@@ -56,10 +90,9 @@ var NRS = (function(NRS, $, undefined) {
 	NRS.peerConnect = false;
 
 	NRS.settings = {};
-	NRS.mobileSettings = {
+	NRS.deviceSettings = {
 	    is_check_remember_me: false,
-		is_store_remembered_passphrase: (window["cordova"] !== undefined), // too early to use feature detection
-	    is_simulate_app: false,
+		is_store_remembered_passphrase: false,
         is_testnet: false,
         remote_node_address: "",
         remote_node_port: 27876,
@@ -67,7 +100,9 @@ var NRS = (function(NRS, $, undefined) {
         validators_count: 3,
         bootstrap_nodes_count: 5,
 		chain: "2",
-		camera_id: 0
+		camera_id: 0,
+		account_prefix: "ARDOR",
+		admin_password: "",
     };
 	NRS.contacts = {};
 
@@ -101,35 +136,44 @@ var NRS = (function(NRS, $, undefined) {
 
 	NRS.lastProxyBlock = 0;
 	NRS.lastProxyBlockHeight = 0;
-    NRS.spinner = null;
+	NRS.spinner = null;
 
+	var accountPermissionsDeferred = null;
     var stateInterval;
 	var stateIntervalSeconds = 30;
 	var isScanning = false;
 
-	NRS.loadMobileSettings = function () {
+	NRS.loadDeviceSettings = function () {
 		if (!window["localStorage"]) {
 			return;
 		}
-		var mobileSettings = NRS.getJSONItem("mobile_settings");
-		if (mobileSettings) {
-            for (var setting in mobileSettings) {
-                if (!mobileSettings.hasOwnProperty(setting)) {
+		let deviceSettings = NRS.getJSONItem("device_settings");
+		if (deviceSettings) {
+            for (var setting in deviceSettings) {
+                if (!deviceSettings.hasOwnProperty(setting)) {
                     continue;
                 }
-                NRS.mobileSettings[setting] = mobileSettings[setting];
+				NRS.deviceSettings[setting] = deviceSettings[setting];
             }
 		}
-        for (setting in NRS.mobileSettings) {
-            if (!NRS.mobileSettings.hasOwnProperty(setting)) {
+        for (setting in NRS.deviceSettings) {
+            if (!NRS.deviceSettings.hasOwnProperty(setting)) {
                 continue;
             }
-            NRS.logConsole("NRS.mobileSettings." + setting + " = " + NRS.mobileSettings[setting]);
+            NRS.logConsole("NRS.deviceSettings." + setting + " = " + NRS.deviceSettings[setting]);
         }
 	};
 
+	NRS.getAccountPermissionsPromise = function() {
+		if (accountPermissionsDeferred !== null) {
+			return accountPermissionsDeferred.promise();
+		} else {
+			throw new Error("Account permissions not yet initialized");
+		}
+	};
+
 	function initSpinner() {
-        var opts = {
+        let opts = {
             lines: 13 // The number of lines to draw
             , length: 10 // The length of each line
             , width: 4 // The line thickness
@@ -156,7 +200,9 @@ var NRS = (function(NRS, $, undefined) {
     }
 
     NRS.init = function() {
-        i18next.use(i18nextXHRBackend)
+		console.log("Loading wallet resources");
+		i18next
+			.use(i18nextXHRBackend)
             .use(i18nextLocalStorageCache)
             .use(i18nextBrowserLanguageDetector)
             .use(i18nextSprintfPostProcessor)
@@ -169,65 +215,43 @@ var NRS = (function(NRS, $, undefined) {
                 compatibilityAPI: 'v1',
                 debug: true
             }, function() {
+				console.log("Loading wallet settings");
                 NRS.initSettings();
                 jqueryI18next.init(i18next, $, {
                     handleName: "i18n"
                 });
                 initSpinner();
-                NRS.spinner.spin($("#center")[0]);
-                NRS.loadMobileSettings();
-                if (NRS.isMobileApp()) {
-                    $('body').css('overflow-x', 'auto');
-                    initMobile();
-                } else {
-                    initImpl();
-                }
+                NRS.spinner.spin($(".spinner_container")[0]);
+                NRS.loadDeviceSettings();
+                initImpl();
+
                 $("[data-i18n]").i18n();
                 NRS.initClipboard();
                 hljs.initHighlightingOnLoad();
+				NRS.setupNavigation();
             });
     };
 
-    function initMobile() {
-        var promise = new Promise(function(resolve, reject) {
-            NRS.initRemoteNodesMgr(NRS.mobileSettings.is_testnet, resolve, reject);
-        });
-        promise.then(function() {
-            NRS.remoteNodesMgr.findMoreNodes(true);
-            initImpl();
-        }).catch(function() {
-            var msg = $.t("cannot_find_remote_nodes");
-            console.log(msg);
-            $.growl(msg);
-			var loadConstantsPromise = new Promise(function(resolve) {
-				console.log("load server constants");
-				NRS.loadServerConstants(resolve);
-			});
-			loadConstantsPromise.then(function() {
-				var mobileSettingsModal = $("#mobile_settings_modal");
-				mobileSettingsModal.find("input[name=is_offline]").val("true");
-				mobileSettingsModal.modal("show");
-			});
-        })
-    }
-
     function initImpl() {
+		console.log("Loading server constants");
 		var loadConstantsPromise = new Promise(function(resolve) {
-			console.log("load server constants");
 			NRS.loadServerConstants(resolve);
 		});
 		loadConstantsPromise.then(function() {
             NRS.createChainSelect();
+			console.log("Loading wallet state");
             var getStatePromise = new Promise(function(resolve) {
-				console.log("calling getState");
+				console.log("Calling getState");
 				NRS.sendRequest("getState", {
 					"includeCounts": "false"
-				}, function (response) {
+				}, async function (response) {
 					console.log("getState response received");
 					var isTestnet = false;
 					var isOffline = false;
                     var customLoginWarning;
 					var peerPort = 0;
+					var apiProxyPeer = null;
+					var apiProxyState = "disabled";
 					for (var key in response) {
 						if (!response.hasOwnProperty(key)) {
 							continue;
@@ -253,7 +277,25 @@ var NRS = (function(NRS, $, undefined) {
 						if (key == "version") {
 							NRS.appVersion = response[key];
 						}
+						if (key == "apiProxyPeer") {
+						    apiProxyPeer = response[key];
+						}
+						if (key == "apiProxyState") {
+						    apiProxyState = response[key];
+						}
 					}
+
+                    if (apiProxyState === "bootstrapping") {
+                        //wait for the bootstrap to complete
+						let $loadingWheel = $("#loading_wheel");
+						$loadingWheel.show();
+						let response = await NRS.sendRequestAndWait("bootstrapAPIProxy", {});
+						apiProxyState = "enabled";
+						if (response["success"]) {
+							apiProxyPeer = response["apiProxyPeer"];
+							$loadingWheel.hide();
+						}
+                    }
 
 					if (!isTestnet) {
 						$(".testnet_only").hide();
@@ -265,6 +307,20 @@ var NRS = (function(NRS, $, undefined) {
 						testnetWarningDiv.text(warningText);
 						$(".testnet_only, #testnet_login, #testnet_warning").show();
 					}
+
+					if (apiProxyState === "enabled" && apiProxyPeer == null) {
+                        $("#proxy_connection_error").show();
+                        $("#proxy_connection_error button").on("click", function(e) {
+                            $("#proxy_connection_error button").prop("disabled", true);
+                            NRS.sendRequest("bootstrapAPIProxy", {}, function(response) {
+                                $("#proxy_connection_error button").prop("disabled", false);
+                                if (response["success"]) {
+                                    $("#proxy_connection_error").hide();
+                                }
+                            });
+                        });
+					}
+
                     var customLoginWarningDiv = $(".custom_login_warning");
                     if (customLoginWarning) {
                         customLoginWarningDiv.text(customLoginWarning);
@@ -273,9 +329,7 @@ var NRS = (function(NRS, $, undefined) {
 						customLoginWarningDiv.hide();
 					}
 
-					if (NRS.isInitializePlugins()) {
-						NRS.initializePlugins();
-					}
+					NRS.initializePlugins();
 					NRS.printEnvInfo();
 					NRS.spinner.stop();
 					console.log("getState response processed");
@@ -310,8 +364,8 @@ var NRS = (function(NRS, $, undefined) {
 					NRS.createLegacyDatabase();
 				}
 
-				if (NRS.mobileSettings.is_check_remember_me) {
-					$("#remember_me").prop("checked", true);
+				if (NRS.deviceSettings.is_check_remember_me) {
+					$("#login_panel").find("#remember_me, #bookmark_account").prop("checked", true);
 				}
 				NRS.getSettings(false);
 
@@ -327,15 +381,11 @@ var NRS = (function(NRS, $, undefined) {
 					"trigger": "hover"
 				});
 
-				var savedPassphrase = NRS.getStrItem("savedPassphrase");
-				if (!savedPassphrase) {
-					NRS.showLockscreen();
-				}
+				NRS.showLockScreen();
 				NRS.setStateInterval(30);
 
 				setInterval(NRS.checkAliasVersions, 1000 * 60 * 60);
 
-				NRS.allowLoginViaEnter();
 				NRS.automaticallyCheckRecipient();
 
 				$("#dashboard_table, #transactions_table").on("mouseenter", "td.confirmations", function () {
@@ -346,11 +396,7 @@ var NRS = (function(NRS, $, undefined) {
 				});
                 $(".coin-symbol-separator").html(" " + $.t("per") + " ");
 
-				_fix();
-
 				$(window).on("resize", function () {
-					_fix();
-
 					if (NRS.currentPage == "asset_exchange") {
 						NRS.positionAssetSidebar();
 					} else if (NRS.currentPage == "coin_exchange") {
@@ -364,20 +410,19 @@ var NRS = (function(NRS, $, undefined) {
 
 				$("#dgs_search_account_center").mask(NRS.getAccountMask("*"));
 				console.log("done initialization");
-                if (NRS.getUrlParameter("account")) {
-                    var chainId = 1;
-                    var chain = NRS.getUrlParameter("chain");
-                    if (chain) {
-                        chainId = NRS.findChainByName(chain);
-                    }
-                    if (chainId !== false) {
-                        NRS.login(false, NRS.getUrlParameter("account"), null, { chain: chainId });
-                    } else {
-                    	$.growl($.t("undefined_chain", { chain: chain }));
+				if (NRS.getUrlParameter("account")) {
+					let chain = NRS.getUrlParameter("chain");
+					let chainId;
+					if (chain) {
+						chainId = NRS.findChainByName(chain);
+					} else {
+						chainId = "1";
 					}
-				} else if (savedPassphrase) {
-					$("#remember_me").prop("checked", true);
-					NRS.login(true, savedPassphrase, null, { isSavedPassphrase: true });
+					if (chainId !== false) {
+						NRS.loginWithOptions({ isPassphraseLogin: false, id: NRS.getUrlParameter("account"), chain: chainId });
+					} else {
+						$.growl($.t("undefined_chain", { chain: chain }));
+					}
 				}
 			});
 		});
@@ -404,18 +449,6 @@ var NRS = (function(NRS, $, undefined) {
         });
     };
 
-	function _fix() {
-		var height = $(window).height() - $("body > .header").height();
-		var content = $(".wrapper").height();
-
-		$(".content.content-stretch:visible").width($(".page:visible").width());
-		if (content > height) {
-			$(".left-side, html, body").css("min-height", content + "px");
-		} else {
-			$(".left-side, html, body").css("min-height", height + "px");
-		}
-	}
-
 	NRS.setStateInterval = function(seconds) {
 		if (!NRS.isPollGetState()) {
 			return;
@@ -427,7 +460,7 @@ var NRS = (function(NRS, $, undefined) {
 			clearInterval(stateInterval);
 		}
 		stateIntervalSeconds = seconds;
-		stateInterval = setInterval(function() {
+		stateInterval = setInterval(async function() {
 			NRS.getState(null);
 			NRS.updateForgingStatus();
 		}, 1000 * seconds);
@@ -455,6 +488,7 @@ var NRS = (function(NRS, $, undefined) {
 		if (firstTime) {
 			$("#nrs_version").html(NRS.state.version).removeClass("loading_dots");
 			NRS.getBlock(lastBlock, NRS.handleInitialBlocks);
+			NRS.updateTimeToNextBlock();
 		} else if (NRS.state.isScanning) {
 			//do nothing but reset NRS.state so that when isScanning is done, everything is reset.
 			isScanning = true;
@@ -477,12 +511,14 @@ var NRS = (function(NRS, $, undefined) {
 			if (NRS.account) {
 				NRS.getNewTransactions();
 				NRS.updateApprovalRequests();
+				NRS.updateTimeToNextBlock();
 			}
 		} else {
 			if (NRS.account) {
 				NRS.loadUnconfirmedTransactions(function(unconfirmedTransactions) {
 					NRS.handleIncomingTransactions(unconfirmedTransactions, false);
 				});
+				NRS.updateTimeToNextBlock();
 			}
 		}
 		if (NRS.account && !_firstTimeAfterLoginRun) {
@@ -509,157 +545,149 @@ var NRS = (function(NRS, $, undefined) {
         NRS.logConsole(msg);
     };
 
-    NRS.getState = function(callback, msg) {
+    NRS.getState = async function(callback, msg) {
 		if (msg) {
 			NRS.logConsole("getState event " + msg);
 		}
-		NRS.sendRequest("getBlockchainStatus", {}, function(response) {
-			if (response.errorCode) {
-                NRS.connectionError(response.errorDescription, response.errorCode);
+		let response = await NRS.sendRequestAndWait("getBlockchainStatus", {});
+		if (response.errorCode) {
+			NRS.connectionError(response.errorDescription, response.errorCode);
+		} else {
+			if (response.apiProxy) {
+				//set the state here or else NRS.sendRequest doesn't work properly
+				NRS.state = response;
+				let proxyBlocksResponse = await NRS.sendRequestAndWait("getBlocks", {
+					"firstIndex": 0, "lastIndex": 0
+				});
+				if (proxyBlocksResponse.errorCode) {
+					NRS.connectionError(proxyBlocksResponse.errorDescription, proxyBlocksResponse.errorCode);
+				} else {
+					_prevLastProxyBlock = NRS.lastProxyBlock;
+					var prevHeight = NRS.lastProxyBlockHeight;
+					NRS.lastProxyBlock = proxyBlocksResponse.blocks[0].block;
+					NRS.lastProxyBlockHeight = proxyBlocksResponse.blocks[0].height;
+					NRS.lastBlockHeight = NRS.lastProxyBlockHeight;
+					NRS.incoming.updateDashboardBlocks(NRS.lastProxyBlockHeight - prevHeight);
+					NRS.updateDashboardLastBlock(proxyBlocksResponse.blocks[0]);
+					NRS.handleBlockchainStatus(response, callback);
+					NRS.updateDashboardMessage();
+				}
+				NRS.updateConfirmationsIndicator();
 			} else {
-				var clientOptionsLink = $("#header_client_options_link");
-                if (NRS.isMobileApp()) {
-                    clientOptionsLink.html($.t("mobile_client"));
-                }
-				if (response.apiProxy) {
-                    if (!NRS.isMobileApp()) {
-                        if (response.isLightClient) {
-                            clientOptionsLink.html($.t("light_client"));
-                        } else {
-                            clientOptionsLink.html($.t("roaming_client"));
-                        }
-                    }
-					NRS.sendRequest("getBlocks", {
-						"firstIndex": 0, "lastIndex": 0
-					}, function(proxyBlocksResponse) {
-						if (proxyBlocksResponse.errorCode) {
-                            NRS.connectionError(proxyBlocksResponse.errorDescription, proxyBlocksResponse.errorCode);
-						} else {
-							_prevLastProxyBlock = NRS.lastProxyBlock;
-							var prevHeight = NRS.lastProxyBlockHeight;
-							NRS.lastProxyBlock = proxyBlocksResponse.blocks[0].block;
-							NRS.lastProxyBlockHeight = proxyBlocksResponse.blocks[0].height;
-							NRS.lastBlockHeight = NRS.lastProxyBlockHeight;
-							NRS.incoming.updateDashboardBlocks(NRS.lastProxyBlockHeight - prevHeight);
-							NRS.updateDashboardLastBlock(proxyBlocksResponse.blocks[0]);
-							NRS.handleBlockchainStatus(response, callback);
-                            NRS.updateDashboardMessage();
-						}
-					}, { isAsync: false });
-					if (!NRS.isMobileApp()) {
-						console.log("look for remote confirmation nodes");
-						NRS.initRemoteNodesMgr(NRS.isTestnet);
+				NRS.handleBlockchainStatus(response, callback);
+			}
+			var clientOptions = $(".client_options");
+			if (NRS.isShowClientOptionsLink()) {
+				clientOptions.show();
+			} else {
+				clientOptions.hide();
+			}
+			if (NRS.isShowRemoteWarning()) {
+				$(".passphrase_warning").show();
+			}
+		}
+		/* Checks if the client is connected to active peers */
+		NRS.checkConnected();
+		//only done so that download progress meter updates correctly based on lastFeederHeight
+		if (NRS.downloadingBlockchain) {
+			NRS.updateBlockchainDownloadProgress();
+		}
+	};
+
+	NRS.setupNavigation = function() {
+		$("#logo, .sidebar-menu").on("click", "a", function(e, data) {
+			if ($(this).hasClass("ignore")) {
+				$(this).removeClass("ignore");
+				return;
+			}
+
+			e.preventDefault();
+
+			if ($(this).data("toggle") == "modal") {
+				return;
+			}
+
+			var page = $(this).data("page");
+
+			if (page == NRS.currentPage) {
+				if (data && data.callback) {
+					data.callback();
+				}
+				return;
+			}
+
+			$(".page").hide();
+
+			$(document.documentElement).scrollTop(0);
+
+			$("#" + page + "_page").show();
+
+			$(".content-header h1").find(".loading_dots").remove();
+
+			var $newActiveA;
+			if ($(this).attr("id") && $(this).attr("id") == "logo") {
+				$newActiveA = $("#dashboard_link").find("a");
+			} else {
+				$newActiveA = $(this);
+			}
+			var $newActivePageLi = $newActiveA.closest("li.treeview");
+
+			$("ul.sidebar-menu > li.active").each(function(key, elem) {
+				if ($newActivePageLi.attr("id") != $(elem).attr("id")) {
+					$(elem).children("a").first().addClass("ignore").click();
+				}
+			});
+
+			$("ul.sidebar-menu > li.sm_simple").removeClass("active");
+			if ($newActiveA.parent("li").hasClass("sm_simple")) {
+				$newActiveA.parent("li").addClass("active");
+			}
+
+			$("ul.sidebar-menu li.sm_treeview_submenu").removeClass("active");
+			if($(this).parent("li").hasClass("sm_treeview_submenu")) {
+				$(this).closest("li").addClass("active");
+			}
+
+			if ($(window).width() <= 600) { // collapse the sidebar on very narrow screens when clicked list item
+				NRS.collapseSideBar();
+			}
+
+			if (NRS.currentPage != "messages") {
+				$("#inline_message_password").val("");
+			}
+
+			//NRS.previousPage = NRS.currentPage;
+			NRS.currentPage = page;
+			NRS.currentSubPage = "";
+			NRS.pageNumber = 1;
+			NRS.showPageNumbers = false;
+
+			if (NRS.pages[page]) {
+				NRS.pageLoading();
+				NRS.resetNotificationState(page);
+				var callback;
+				if (data) {
+					if (data.callback) {
+						callback = data.callback;
+					} else {
+						callback = data;
 					}
 				} else {
-					NRS.handleBlockchainStatus(response, callback);
+					callback = undefined;
 				}
-                var clientOptions = $(".client_options");
-                if (NRS.isShowClientOptionsLink()) {
-                    clientOptions.show();
-                } else {
-                    clientOptions.hide();
-                }
-				if (NRS.isShowRemoteWarning()) {
-					$(".remote_warning").show();
+				var subpage;
+				if (data && data.subpage) {
+					subpage = data.subpage;
+				} else {
+					subpage = undefined;
 				}
-			}
-			/* Checks if the client is connected to active peers */
-			NRS.checkConnected();
-			//only done so that download progress meter updates correctly based on lastFeederHeight
-			if (NRS.downloadingBlockchain) {
-				NRS.updateBlockchainDownloadProgress();
+				NRS.pages[page](callback, subpage);
 			}
 		});
 	};
 
-	$("#logo, .sidebar-menu").on("click", "a", function(e, data) {
-		if ($(this).hasClass("ignore")) {
-			$(this).removeClass("ignore");
-			return;
-		}
-
+	$("body").on("click", ".goto-page", function (e) {
 		e.preventDefault();
-
-		if ($(this).data("toggle") == "modal") {
-			return;
-		}
-
-		var page = $(this).data("page");
-
-		if (page == NRS.currentPage) {
-			if (data && data.callback) {
-				data.callback();
-			}
-			return;
-		}
-
-		$(".page").hide();
-
-		$(document.documentElement).scrollTop(0);
-
-		$("#" + page + "_page").show();
-
-		$(".content-header h1").find(".loading_dots").remove();
-
-        var $newActiveA;
-        if ($(this).attr("id") && $(this).attr("id") == "logo") {
-            $newActiveA = $("#dashboard_link").find("a");
-		} else {
-			$newActiveA = $(this);
-		}
-		var $newActivePageLi = $newActiveA.closest("li.treeview");
-
-		$("ul.sidebar-menu > li.active").each(function(key, elem) {
-			if ($newActivePageLi.attr("id") != $(elem).attr("id")) {
-				$(elem).children("a").first().addClass("ignore").click();
-			}
-		});
-
-		$("ul.sidebar-menu > li.sm_simple").removeClass("active");
-		if ($newActiveA.parent("li").hasClass("sm_simple")) {
-			$newActiveA.parent("li").addClass("active");
-		}
-
-		$("ul.sidebar-menu li.sm_treeview_submenu").removeClass("active");
-		if($(this).parent("li").hasClass("sm_treeview_submenu")) {
-			$(this).closest("li").addClass("active");
-		}
-
-		if (NRS.currentPage != "messages") {
-			$("#inline_message_password").val("");
-		}
-
-		//NRS.previousPage = NRS.currentPage;
-		NRS.currentPage = page;
-		NRS.currentSubPage = "";
-		NRS.pageNumber = 1;
-		NRS.showPageNumbers = false;
-
-		if (NRS.pages[page]) {
-			NRS.pageLoading();
-			NRS.resetNotificationState(page);
-            var callback;
-            if (data) {
-				if (data.callback) {
-					callback = data.callback;
-				} else {
-					callback = data;
-				}
-			} else {
-				callback = undefined;
-			}
-            var subpage;
-            if (data && data.subpage) {
-                subpage = data.subpage;
-			} else {
-				subpage = undefined;
-			}
-			NRS.pages[page](callback, subpage);
-		}
-	});
-
-	$("button.goto-page, a.goto-page").click(function(event) {
-		event.preventDefault();
 		NRS.goToPage($(this).data("page"), undefined, $(this).data("subpage"));
 	});
 
@@ -795,11 +823,11 @@ var NRS = (function(NRS, $, undefined) {
 
 	function initUserDB() {
 		var deferrs = [];
-		
+
 		deferrs.push(NRS.storageSelect("data", [{
 			"id": "asset_exchange_version"
 		}], function(error, result) {
-			
+
 			if (!result || !result.length) {
 				NRS.storageDelete("assets", [], function(error) {
 					if (!error) {
@@ -910,14 +938,14 @@ var NRS = (function(NRS, $, undefined) {
 					$('body').append(a);
 					a.click();
 				}
-				if (parameterName == "lifetime_modal" && typeof androidModalInterface !== 'undefined') {
+				if (parameterName == "lifetime_modal" && NRS.isAndroidWebView()) {
 					var requestType = modal.find('input[name="request_type"]').val();
 					var isSuccessfull = false;
 					NRS["forms"][requestType + "Complete"] = function() {
 						isSuccessfull = true;
 					};
 					modal.on("hidden.bs.modal", function () {
-						androidModalInterface.closeActivity(isSuccessfull);
+						androidWebViewInterface.closeActivity(isSuccessfull);
 					});
 				}
 			} else {
@@ -927,6 +955,23 @@ var NRS = (function(NRS, $, undefined) {
 				});
 			}
 		}
+	};
+
+	let confirmModalCallback = null;
+
+	$(document).on('click', '#generic_confirm_modal_btn', e => {
+		e.preventDefault();
+		confirmModalCallback();
+		$('#generic_confirm_modal').modal('hide');
+	});
+
+	NRS.showConfirmModal = function(title, text, confirmButtonText, confirmCallback) {
+		const $modal = $('#generic_confirm_modal');
+		$modal.find('.modal-title').text(title);
+		$modal.find('.modal-body').html(text);
+		$('#generic_confirm_modal_btn').text(confirmButtonText);
+		confirmModalCallback = confirmCallback;
+		$modal.modal('show');
 	};
 
 	NRS.initUserDBSuccess = function() {
@@ -1099,7 +1144,7 @@ var NRS = (function(NRS, $, undefined) {
 	}
 
 	NRS.createDatabase = function (dbName) {
-		var dfr = $.Deferred(); 
+		var dfr = $.Deferred();
 		if (!NRS.isIndexedDBSupported()) {
 			NRS.logConsole("IndexedDB not supported by the rendering engine, using localStorage instead");
 			NRS.initLocalStorage().then(function() {
@@ -1163,15 +1208,6 @@ var NRS = (function(NRS, $, undefined) {
 		});
 	};
 
-	NRS.getRequestPath = function (noProxy) {
-		var url = NRS.getRemoteNodeUrl();
-		if (!NRS.state.apiProxy || noProxy) {
-			return url + "/nxt";
-		} else {
-			return url + "/nxt-proxy";
-		}
-	};
-
     NRS.setupChainWarning = function(target, availableOnParentChain) {
 		target.next('.feature-not-available-on-chain').remove();
         if (NRS.isParentChain() == availableOnParentChain) {
@@ -1215,15 +1251,17 @@ var NRS = (function(NRS, $, undefined) {
 	};
 
     NRS.getAccountBalances = function(callback) {
-        // Currently there is no way to get balances for all chains, so we need to specify each chain separately
-        var qs = [];
-        for (var i = 1; i <= Object.keys(NRS.constants.CHAINS).length; i++) {
-            qs.push("chain=" + i);
+        let chains = [];
+        for (let chain in NRS.constants.CHAINS) {
+        	if (!NRS.constants.CHAINS.hasOwnProperty(chain)) {
+        		continue;
+			}
+        	let chainId = NRS.constants.CHAINS[chain];
+            chains.push(chainId);
         }
-        qs.push("account=" + NRS.account);
-        qs = qs.join("&");
         NRS.sendRequest("getBalances", {
-            "querystring": qs
+        	"account": NRS.account,
+            "chain": chains
         }, function (response) {
 			NRS.accountInfo["balances"] = response.balances;
 			if (callback) {
@@ -1244,7 +1282,7 @@ var NRS = (function(NRS, $, undefined) {
         $(".optional_dashboard_tile").show();
         var blockInfoTile = $(".block_info_dashboard_tile").detach();
         blockInfoTile.appendTo($(".dashboard_second_row"));
-    }
+	}
 
     NRS.getAccountInfo = function(firstRun, callback, isAccountSwitch) {
         NRS.sendRequest("getAccount", {
@@ -1261,7 +1299,7 @@ var NRS = (function(NRS, $, undefined) {
 				NRS.isLeased = NRS.isAccountLeased();
                 NRS.updateDashboardLeasingStatus();
 				NRS.updateDashboardMessage();
-                if (NRS.isParentChain() || !NRS.isDisplayOptionalDashboardTiles()) {
+                if (NRS.isParentChain()) {
                 	hideOptionalDashboardTiles();
 				} else {
                 	showOptionalDashboardTiles();
@@ -1288,246 +1326,235 @@ var NRS = (function(NRS, $, undefined) {
                     $("#account_forged_balance").html("0");
 				}
 
-                if (NRS.isDisplayOptionalDashboardTiles()) {
-                    $(".optional_dashboard_tile").show();
-                    for (var j = 1; j <= 8; j++) {
-                        var tileSelector = j <= 4 ? ".dashboard_first_row_tile_" + j : ".dashboard_second_row_tile_" + (j - 4);
-                        var destinationSelector = j <= 4 ? ".dashboard_first_row" : ".dashboard_second_row";
-                        var tile = $(tileSelector);
-                        tile.detach().appendTo(destinationSelector);
+				$(".optional_dashboard_tile").show();
+				for (var j = 1; j <= 8; j++) {
+					var tileSelector = j <= 4 ? ".dashboard_first_row_tile_" + j : ".dashboard_second_row_tile_" + (j - 4);
+					var destinationSelector = j <= 4 ? ".dashboard_first_row" : ".dashboard_second_row";
+					var tile = $(tileSelector);
+					tile.detach().appendTo(destinationSelector);
 
-                        tile.removeClass("col-lg-4 col-lg-6").addClass("col-lg-3 visible-tile");
-                    }
-                    var hasApiAE = NRS.isApiEnabled({ tags: [ NRS.constants.API_TAGS.AE ] });
-                    var hasApiMS = NRS.isApiEnabled({ tags: [ NRS.constants.API_TAGS.MS ] });
-                    var hasApiAliases = NRS.isApiEnabled({ tags: [ NRS.constants.API_TAGS.ALIASES ] });
-                    var hasApiMsg = NRS.isApiEnabled({ apis: [NRS.constants.REQUEST_TYPES.sendMessage] });
-                    var hasApiDGS = NRS.isApiEnabled({ tags: [ NRS.constants.API_TAGS.DGS ] });
-                    var firstRowTiles = 4;
-                    var secondRowTiles = 4;
+					tile.removeClass("col-lg-4 col-lg-6").addClass("col-lg-3 visible-tile");
+				}
+				var hasApiAE = NRS.isApiEnabled({tags: [NRS.constants.API_TAGS.AE]});
+				var hasApiMS = NRS.isApiEnabled({tags: [NRS.constants.API_TAGS.MS]});
+				var hasApiAliases = NRS.isApiEnabled({tags: [NRS.constants.API_TAGS.ALIASES]});
+				var hasApiMsg = NRS.isApiEnabled({apis: [NRS.constants.REQUEST_TYPES.sendMessage]});
+				var hasApiDGS = NRS.isApiEnabled({tags: [NRS.constants.API_TAGS.DGS]});
+				var firstRowTiles = 4;
+				var secondRowTiles = 4;
+				if (hasApiAE) {
+					// only show if happened within last week and not during account switch
+					var showAssetDifference = !isAccountSwitch &&
+						((!NRS.downloadingBlockchain || (NRS.blocks && NRS.blocks[0] && NRS.state && NRS.state.time - NRS.blocks[0].timestamp < 60 * 60 * 24 * 7)));
 
-                    if (hasApiAE) {
-                        // only show if happened within last week and not during account switch
-                        var showAssetDifference = !isAccountSwitch &&
-                            ((!NRS.downloadingBlockchain || (NRS.blocks && NRS.blocks[0] && NRS.state && NRS.state.time - NRS.blocks[0].timestamp < 60 * 60 * 24 * 7)));
+					// When switching account this query returns error
+					if (!isAccountSwitch) {
+						NRS.storageSelect("data", [{
+							"id": "asset_balances"
+						}], function (error, asset_balance) {
+							if (asset_balance && asset_balance.length) {
+								var previous_balances = asset_balance[0].contents;
+								if (!NRS.accountInfo.assetBalances) {
+									NRS.accountInfo.assetBalances = [];
+								}
+								var current_balances = JSON.stringify(NRS.accountInfo.assetBalances);
+								if (previous_balances != current_balances) {
+									if (previous_balances != "undefined" && typeof previous_balances != "undefined") {
+										previous_balances = JSON.parse(previous_balances);
+									} else {
+										previous_balances = [];
+									}
+									NRS.storageUpdate("data", {
+										contents: current_balances
+									}, [{
+										id: "asset_balances"
+									}]);
+									if (showAssetDifference) {
+										NRS.checkAssetDifferences(NRS.accountInfo.assetBalances, previous_balances);
+									}
+								}
+							} else {
+								NRS.storageInsert("data", "id", {
+									id: "asset_balances",
+									contents: JSON.stringify(NRS.accountInfo.assetBalances)
+								});
+							}
+						});
+					}
+					var decimals = NRS.getActiveChainDecimals();
+					var i;
+					if ((firstRun || isAccountSwitch) && response.assetBalances) {
+						var assets = [];
+						var assetBalances = response.assetBalances;
+						var assetBalancesMap = {};
+						for (i = 0; i < assetBalances.length; i++) {
+							if (assetBalances[i].balanceQNT != "0") {
+								assets.push(assetBalances[i].asset);
+								assetBalancesMap[assetBalances[i].asset] = assetBalances[i].balanceQNT;
+							}
+						}
+						NRS.sendRequest("getLastTrades", {
+							"assets": assets,
+							"includeAssetInfo": true
+						}, function (response) {
+							if (response.trades && response.trades.length) {
+								var assetTotal = 0;
+								for (i = 0; i < response.trades.length; i++) {
+									var trade = response.trades[i];
+									var quantity = NRS.convertToQNTf(assetBalancesMap[trade.asset], trade.decimals);
+									assetTotal += quantity * trade.priceNQTPerShare / NRS.getOneCoin(decimals);
+								}
+								$("#account_assets_balance").html(NRS.formatStyledAmount(new Big(assetTotal).toFixed(decimals)));
+								$("#account_nr_assets").html(response.trades.length);
+							} else {
+								$("#account_assets_balance").html(0);
+								$("#account_nr_assets").html(0);
+							}
+						});
+					} else {
+						if (!response.assetBalances) {
+							$("#account_assets_balance").html(0);
+							$("#account_nr_assets").html(0);
+						}
+					}
+				} else {
+					$("#dashboard_assets_val_div").hide().removeClass('visible-tile');
+					firstRowTiles--;
+				}
+				if (hasApiMS) {
+					if (response.accountCurrencies) {
+						var currencies = [];
+						var currencyBalances = response.accountCurrencies;
+						var numberOfCurrencies = currencyBalances.length;
+						$("#account_nr_currencies").html(numberOfCurrencies);
+						var currencyBalancesMap = {};
+						for (i = 0; i < numberOfCurrencies; i++) {
+							if (currencyBalances[i].unitsQNT != "0") {
+								currencies.push(currencyBalances[i].currency);
+								currencyBalancesMap[currencyBalances[i].currency] = currencyBalances[i].unitsQNT;
+							}
+						}
+						NRS.sendRequest("getLastExchanges", {
+							"currencies": currencies,
+							"includeCurrencyInfo": true
+						}, function (response) {
+							if (response.exchanges && response.exchanges.length) {
+								var currencyTotal = 0;
+								for (i = 0; i < response.exchanges.length; i++) {
+									var exchange = response.exchanges[i];
+									var units = NRS.convertToQNTf(currencyBalancesMap[exchange.currency], exchange.decimals);
+									currencyTotal += units * exchange.rateNQTPerUnit / NRS.getOneCoin(decimals);
+								}
+								$("#account_currencies_balance").html(NRS.formatStyledAmount(new Big(currencyTotal).toFixed(decimals)));
+							} else {
+								$("#account_currencies_balance").html(0);
+							}
+						});
+					} else {
+						$("#account_currencies_balance").html(0);
+						$("#account_nr_currencies").html(0);
+					}
+				} else {
+					$("#dashboard_currencies_val_div").hide().removeClass('visible-tile');
+					firstRowTiles--;
+				}
+				if (hasApiMsg) {
+					/* Display message count in top and limit to 100 for now because of possible performance issues*/
+					NRS.sendRequest("getBlockchainTransactions+", {
+						"account": NRS.account,
+						"type": 1,
+						"subtype": 0,
+						"firstIndex": 0,
+						"lastIndex": 99
+					}, function (response) {
+						var accountMessageCount = $("#account_message_count");
+						if (response.transactions && response.transactions.length) {
+							if (response.transactions.length > 99) {
+								accountMessageCount.empty().append("99+");
+							} else {
+								accountMessageCount.empty().append(response.transactions.length);
+							}
+						} else {
+							accountMessageCount.empty().append("0");
+						}
+					});
+				} else {
+					$("#dashboard_messages_div").hide().removeClass('visible-tile');
+					secondRowTiles--;
+				}
+				if (hasApiAliases) {
+					NRS.sendRequest("getAliasCount+", {
+						"account": NRS.account
+					}, function (response) {
+						var accountAliasCount = $("#account_alias_count");
+						if (response.numberOfAliases != null) {
+							accountAliasCount.empty().append(response.numberOfAliases);
+						} else {
+							accountAliasCount.empty().append("0");
+						}
+					});
+				} else {
+					$("#dashboard_aliases_div").hide().removeClass('visible-tile');
+					secondRowTiles--;
+				}
+				if (hasApiDGS) {
+					NRS.sendRequest("getDGSPurchaseCount+", {
+						"buyer": NRS.account
+					}, function (response) {
+						if (response.numberOfPurchases != null) {
+							$("#account_purchase_count").empty().append(response.numberOfPurchases);
+						}
+					});
 
-                        // When switching account this query returns error
-                        if (!isAccountSwitch) {
-                            NRS.storageSelect("data", [{
-                                "id": "asset_balances"
-                            }], function (error, asset_balance) {
-                                if (asset_balance && asset_balance.length) {
-                                    var previous_balances = asset_balance[0].contents;
-                                    if (!NRS.accountInfo.assetBalances) {
-                                        NRS.accountInfo.assetBalances = [];
-                                    }
-                                    var current_balances = JSON.stringify(NRS.accountInfo.assetBalances);
-                                    if (previous_balances != current_balances) {
-                                        if (previous_balances != "undefined" && typeof previous_balances != "undefined") {
-                                            previous_balances = JSON.parse(previous_balances);
-                                        } else {
-                                            previous_balances = [];
-                                        }
-                                        NRS.storageUpdate("data", {
-                                            contents: current_balances
-                                        }, [{
-                                            id: "asset_balances"
-                                        }]);
-                                        if (showAssetDifference) {
-                                            NRS.checkAssetDifferences(NRS.accountInfo.assetBalances, previous_balances);
-                                        }
-                                    }
-                                } else {
-                                    NRS.storageInsert("data", "id", {
-                                        id: "asset_balances",
-                                        contents: JSON.stringify(NRS.accountInfo.assetBalances)
-                                    });
-                                }
-                            });
-                        }
-                        var decimals = NRS.getActiveChainDecimals();
-                        var i;
-                        if ((firstRun || isAccountSwitch) && response.assetBalances) {
-                            var assets = [];
-                            var assetBalances = response.assetBalances;
-                            var assetBalancesMap = {};
-                            for (i = 0; i < assetBalances.length; i++) {
-                                if (assetBalances[i].balanceQNT != "0") {
-                                    assets.push(assetBalances[i].asset);
-                                    assetBalancesMap[assetBalances[i].asset] = assetBalances[i].balanceQNT;
-                                }
-                            }
-                            NRS.sendRequest("getLastTrades", {
-                                "assets": assets,
-                                "includeAssetInfo": true
-                            }, function (response) {
-                                if (response.trades && response.trades.length) {
-                                    var assetTotal = 0;
-                                    for (i = 0; i < response.trades.length; i++) {
-                                        var trade = response.trades[i];
-                                        var quantity = NRS.convertToQNTf(assetBalancesMap[trade.asset], trade.decimals);
-                                        assetTotal += quantity * trade.priceNQTPerShare / NRS.getOneCoin(decimals);
-                                    }
-                                    $("#account_assets_balance").html(NRS.formatStyledAmount(new Big(assetTotal).toFixed(decimals)));
-                                    $("#account_nr_assets").html(response.trades.length);
-                                } else {
-                                    $("#account_assets_balance").html(0);
-                                    $("#account_nr_assets").html(0);
-                                }
-                            });
-                        } else {
-                            if (!response.assetBalances) {
-                                $("#account_assets_balance").html(0);
-                                $("#account_nr_assets").html(0);
-                            }
-                        }
-                    } else {
-                        $("#dashboard_assets_val_div").hide().removeClass('visible-tile');
-                        firstRowTiles--;
-                    }
+					NRS.sendRequest("getDGSPendingPurchases+", {
+						"seller": NRS.account
+					}, function (response) {
+						if (response.purchases && response.purchases.length) {
+							$("#account_pending_sale_count").empty().append(response.purchases.length);
+						} else {
+							$("#account_pending_sale_count").empty().append("0");
+						}
+					});
 
-                    if (hasApiMS) {
-                        if (response.accountCurrencies) {
-                            var currencies = [];
-                            var currencyBalances = response.accountCurrencies;
-                            var numberOfCurrencies = currencyBalances.length;
-                            $("#account_nr_currencies").html(numberOfCurrencies);
-                            var currencyBalancesMap = {};
-                            for (i = 0; i < numberOfCurrencies; i++) {
-                                if (currencyBalances[i].unitsQNT != "0") {
-                                    currencies.push(currencyBalances[i].currency);
-                                    currencyBalancesMap[currencyBalances[i].currency] = currencyBalances[i].unitsQNT;
-                                }
-                            }
-                            NRS.sendRequest("getLastExchanges", {
-                                "currencies": currencies,
-                                "includeCurrencyInfo": true
-                            }, function (response) {
-                                if (response.exchanges && response.exchanges.length) {
-                                    var currencyTotal = 0;
-                                    for (i = 0; i < response.exchanges.length; i++) {
-                                        var exchange = response.exchanges[i];
-                                        var units = NRS.convertToQNTf(currencyBalancesMap[exchange.currency], exchange.decimals);
-                                        currencyTotal += units * exchange.rateNQTPerUnit / NRS.getOneCoin(decimals);
-                                    }
-                                    $("#account_currencies_balance").html(NRS.formatStyledAmount(new Big(currencyTotal).toFixed(decimals)));
-                                } else {
-                                    $("#account_currencies_balance").html(0);
-                                }
-                            });
-                        } else {
-                            $("#account_currencies_balance").html(0);
-                            $("#account_nr_currencies").html(0);
-                        }
-                    } else {
-                        $("#dashboard_currencies_val_div").hide().removeClass('visible-tile');
-                        firstRowTiles--;
-                    }
+					NRS.sendRequest("getDGSPurchaseCount+", {
+						"seller": NRS.account,
+						"completed": true
+					}, function (response) {
+						if (response.numberOfPurchases != null) {
+							$("#account_completed_sale_count").empty().append(response.numberOfPurchases);
+						}
+					});
+				} else {
+					$("#dashboard_purchased_products_div").hide().removeClass('visible-tile');
+					firstRowTiles--;
 
-                    if (hasApiMsg) {
-                        /* Display message count in top and limit to 100 for now because of possible performance issues*/
-                        NRS.sendRequest("getBlockchainTransactions+", {
-                            "account": NRS.account,
-                            "type": 1,
-                            "subtype": 0,
-                            "firstIndex": 0,
-                            "lastIndex": 99
-                        }, function (response) {
-                            var accountMessageCount = $("#account_message_count");
-                            if (response.transactions && response.transactions.length) {
-                                if (response.transactions.length > 99) {
-                                    accountMessageCount.empty().append("99+");
-                                } else {
-                                    accountMessageCount.empty().append(response.transactions.length);
-                                }
-                            } else {
-                                accountMessageCount.empty().append("0");
-                            }
-                        });
-                    } else {
-                        $("#dashboard_messages_div").hide().removeClass('visible-tile');
-                        secondRowTiles--;
-                    }
-
-                    if (hasApiAliases) {
-                        NRS.sendRequest("getAliasCount+", {
-                            "account": NRS.account
-                        }, function (response) {
-                            var accountAliasCount = $("#account_alias_count");
-                            if (response.numberOfAliases != null) {
-                                accountAliasCount.empty().append(response.numberOfAliases);
-                            } else {
-                                accountAliasCount.empty().append("0");
-                            }
-                        });
-                    } else {
-                        $("#dashboard_aliases_div").hide().removeClass('visible-tile');
-                        secondRowTiles--;
-                    }
-
-                    if (hasApiDGS) {
-                        NRS.sendRequest("getDGSPurchaseCount+", {
-                            "buyer": NRS.account
-                        }, function (response) {
-                            if (response.numberOfPurchases != null) {
-                                $("#account_purchase_count").empty().append(response.numberOfPurchases);
-                            }
-                        });
-
-                        NRS.sendRequest("getDGSPendingPurchases+", {
-                            "seller": NRS.account
-                        }, function (response) {
-                            if (response.purchases && response.purchases.length) {
-                                $("#account_pending_sale_count").empty().append(response.purchases.length);
-                            } else {
-                                $("#account_pending_sale_count").empty().append("0");
-                            }
-                        });
-
-                        NRS.sendRequest("getDGSPurchaseCount+", {
-                            "seller": NRS.account,
-                            "completed": true
-                        }, function (response) {
-                            if (response.numberOfPurchases != null) {
-                                $("#account_completed_sale_count").empty().append(response.numberOfPurchases);
-                            }
-                        });
-                    } else {
-                        $("#dashboard_purchased_products_div").hide().removeClass('visible-tile');
-                        firstRowTiles--;
-
-                        $("#dashboard_pending_products_div").hide().removeClass('visible-tile');
-                        secondRowTiles--;
-                    }
-
-                    if (firstRowTiles + secondRowTiles <= 4) {
-                        //make everything on one row
-                        $(".dashboard_second_row > div.visible-tile").detach().appendTo(".dashboard_first_row");
-                        firstRowTiles = firstRowTiles + secondRowTiles;
-                        secondRowTiles = 0;
-                    } else {
-                        if (firstRowTiles - secondRowTiles > 1) {
-                            $(".dashboard_first_row > div.visible-tile").last().detach().appendTo(".dashboard_second_row");
-                            firstRowTiles--;
-                            secondRowTiles++;
-                        } else if (secondRowTiles - firstRowTiles > 1) {
-                            $(".dashboard_second_row > div.visible-tile").first().detach().appendTo(".dashboard_first_row");
-                            firstRowTiles++;
-                            secondRowTiles--;
-                        }
-                    }
-
-                    if (firstRowTiles < 4) {
-                        $(".dashboard_first_row > div.visible-tile").removeClass("col-lg-3")
-                            .addClass("col-lg-" + (firstRowTiles < 3 ? "6" : "4" ));
-                    }
-                    if (secondRowTiles < 4) {
-                        $(".dashboard_second_row > div.visible-tile").removeClass("col-lg-3")
-                            .addClass("col-lg-" + (secondRowTiles < 3 ? "6" : "4"))
-                    }
-                } else {
-                    hideOptionalDashboardTiles();
-                }
+					$("#dashboard_pending_products_div").hide().removeClass('visible-tile');
+					secondRowTiles--;
+				}
+				if (firstRowTiles + secondRowTiles <= 4) {
+					//make everything on one row
+					$(".dashboard_second_row > div.visible-tile").detach().appendTo(".dashboard_first_row");
+					firstRowTiles = firstRowTiles + secondRowTiles;
+					secondRowTiles = 0;
+				} else {
+					if (firstRowTiles - secondRowTiles > 1) {
+						$(".dashboard_first_row > div.visible-tile").last().detach().appendTo(".dashboard_second_row");
+						firstRowTiles--;
+						secondRowTiles++;
+					} else if (secondRowTiles - firstRowTiles > 1) {
+						$(".dashboard_second_row > div.visible-tile").first().detach().appendTo(".dashboard_first_row");
+						firstRowTiles++;
+						secondRowTiles--;
+					}
+				}
+				if (firstRowTiles < 4) {
+					$(".dashboard_first_row > div.visible-tile").removeClass("col-lg-3")
+						.addClass("col-lg-" + (firstRowTiles < 3 ? "6" : "4"));
+				}
+				if (secondRowTiles < 4) {
+					$(".dashboard_second_row > div.visible-tile").removeClass("col-lg-3")
+						.addClass("col-lg-" + (secondRowTiles < 3 ? "6" : "4"))
+				}
 
 				NRS.isLeased = NRS.isAccountLeased();
                 NRS.updateDashboardLeasingStatus();
@@ -1543,6 +1570,27 @@ var NRS = (function(NRS, $, undefined) {
 
 			if (firstRun) {
 				$("#account_balance, #account_balance_sidebar, #account_assets_balance, #account_nr_assets, #account_currencies_balance, #account_nr_currencies, #account_purchase_count, #account_pending_sale_count, #account_completed_sale_count, #account_message_count, #account_alias_count").removeClass("loading_dots");
+			}
+
+			if (firstRun || isAccountSwitch) {
+				$("#sidebar_permissions_control").hide();
+				accountPermissionsDeferred = $.Deferred();
+				if (NRS.isActivePermissionPolicyChildChain()) {
+					$("#user_info_account_permissions").show();
+					NRS.sendRequest("getAccountPermissions", {
+						"account": NRS.account
+					}, function (accountPermissions) {
+						accountPermissionsDeferred.resolve(accountPermissions);
+						const canGrantPermissions = accountPermissions.canGrantPermissions;
+						const shouldHaveAccessToPermissionsControl = !!(canGrantPermissions && canGrantPermissions.length);
+						$("#sidebar_permissions_control").toggle(shouldHaveAccessToPermissionsControl);
+						for (let [subTypeIndex, subType] of Object.entries(NRS.transactionTypes["13"].subTypes)) {
+							subType.receiverPage = shouldHaveAccessToPermissionsControl ? "permissions_control" : "dashboard";
+						}
+					});
+				} else {
+					$("#user_info_account_permissions").hide();
+				}
 			}
 
 			if (callback) {
@@ -1702,7 +1750,7 @@ var NRS = (function(NRS, $, undefined) {
 			$("#account_leasing_status").html(accountLeasingStatus).show();
 		} else {
 			$("#account_leasing_status").hide();
-		}		
+		}
 	};
 
 	NRS.updateDashboardLeasingStatus = function() {
@@ -1745,7 +1793,7 @@ var NRS = (function(NRS, $, undefined) {
 		if (NRS.accountInfo.accountControls && $.inArray('PHASING_ONLY', NRS.accountInfo.accountControls) > -1) {
 			NRS.sendRequest("getPhasingOnlyControl", {
 				"account": NRS.account
-			}, function (response) {
+			}, async function (response) {
 				if (response && response.controlParams.phasingVotingModel >= 0) {
 					$("#setup_mandatory_approval").hide();
 					$("#mandatory_approval_details").show();
@@ -1754,7 +1802,7 @@ var NRS = (function(NRS, $, undefined) {
                     var infoTable = $("#mandatory_approval_info_table");
 					infoTable.find("tbody").empty();
 					var data = {};
-					NRS.getPhasingDetails(data, NRS.accountInfo.phasingOnly.controlParams);
+					await NRS.getPhasingDetails(data, NRS.accountInfo.phasingOnly.controlParams);
 					delete data.full_hash_formatted_html;
 					data.minimum_duration_short = response.minDuration;
 					data.maximum_duration_short = response.maxDuration;
@@ -1775,12 +1823,6 @@ var NRS = (function(NRS, $, undefined) {
 			onNoPhasingOnly();
 		}
 	};
-
-    NRS.hasAccountControl = function (){
-        return NRS.accountInfo.accountControls && $.inArray('PHASING_ONLY', NRS.accountInfo.accountControls) > -1
-                        && NRS.accountInfo.phasingOnly
-                        && NRS.accountInfo.phasingOnly.controlParams.phasingVotingModel >= 0;
-    };
 
 	NRS.checkAssetDifferences = function(current_balances, previous_balances) {
 		var current_balances_ = {};
@@ -1988,16 +2030,11 @@ var NRS = (function(NRS, $, undefined) {
         NRS.logProperty("navigator.userLanguage");
         NRS.logProperty("navigator.cookieEnabled");
         NRS.logProperty("navigator.onLine");
-		if (window["cordova"]) {
-			NRS.logProperty("device.model");
-			NRS.logProperty("device.platform");
-			NRS.logProperty("device.version");
-		}
         NRS.logProperty("NRS.isTestNet");
         NRS.logProperty("NRS.needsAdminPassword");
     };
 
-	$("#id_search").on("submit", function(e) {
+	$(document).on("submit", "#id_search", function(e) {
 		e.preventDefault();
 
 		var id = $.trim($("#id_search").find("input[name=q]").val());
@@ -2123,8 +2160,8 @@ if (isNode) {
 } else {
 	if (!window.isUnitTest) {
         $(document).ready(function() {
-            console.log("document.ready");
-            NRS.init();
+			console.log("document.ready");
+			NRS.onSiteBuildDone().then(NRS.init);
         });
     }
 }

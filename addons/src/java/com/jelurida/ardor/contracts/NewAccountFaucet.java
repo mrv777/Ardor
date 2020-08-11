@@ -1,5 +1,5 @@
 /*
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -16,9 +16,11 @@
 package com.jelurida.ardor.contracts;
 
 import nxt.addons.AbstractContract;
+import nxt.addons.AbstractContractContext;
 import nxt.addons.ContractParametersProvider;
 import nxt.addons.ContractSetupParameter;
 import nxt.addons.JO;
+import nxt.addons.RequestContext;
 import nxt.addons.ValidateChain;
 import nxt.addons.VoucherContext;
 import nxt.http.callers.GetAccountPublicKeyCall;
@@ -62,19 +64,32 @@ public class NewAccountFaucet extends AbstractContract {
             return context.generateErrorResponse(10001, "Voucher sender public key differs from contract public key");
         }
 
+        String recipientPublicKey = context.getVoucher().getString("publicKey");
+        int chain = context.getVoucher().getJo("transactionJSON").getInt("chain");
+        return createTransaction(context, recipientPublicKey, chain);
+    }
+
+    @Override
+    @ValidateChain(accept = {1,2})
+    public JO processRequest(RequestContext context) {
+        // Check that the voucher asks for payment from the faucet account
+        String recipientPublicKey = context.getParameter("recipientPublicKey");
+        int chain = Integer.parseInt(context.getParameter("chain"));
+        return createTransaction(context, recipientPublicKey, chain);
+    }
+
+    private JO createTransaction(AbstractContractContext context, String recipientPublicKey, int chain) {
         // Check that the requesting account is not registered on the blockchain yet
-        String voucherPublicKey = context.getVoucher().getString("publicKey");
-        long voucherAccount = context.publicKeyToAccountId(voucherPublicKey);
-        JO getAccountPublicKey = GetAccountPublicKeyCall.create().account(voucherAccount).call();
+        long recipient = context.publicKeyToAccountId(recipientPublicKey);
+        JO getAccountPublicKey = GetAccountPublicKeyCall.create().account(recipient).call();
         if (getAccountPublicKey.isExist("publicKey")) {
-            return context.generateErrorResponse(10001, String.format("Recipient account %s already has public key", context.rsAccount(voucherAccount)));
+            return context.generateErrorResponse(10001, String.format("Recipient account %s already has public key", context.rsAccount(recipient)));
         }
 
-        Params params = context.getParams(Params.class);
-        int chain = context.getVoucher().getJo("transactionJSON").getInt("chain");
         // Load previous faucet transactions
+        Params params = context.getParams(Params.class);
         int type = chain == 1 ? -2 : 0;
-        List<TransactionResponse> transactionList = GetExecutedTransactionsCall.create(chain).sender(context.getConfig().getAccountRs()).
+        List<TransactionResponse> transactionList = GetExecutedTransactionsCall.create(chain).sender(context.getAccountRs()).
                 type(type).subtype(0).getTransactions();
         int height = context.getBlockchainHeight();
         long thresholdBlocks = params.thresholdBlocks();
@@ -90,9 +105,9 @@ public class NewAccountFaucet extends AbstractContract {
         long faucetAmountNQT = params.faucetAmountNQT(oneCoin);
 
         // Calculate transaction fee and submit the payment transaction
-        SendMoneyCall sendMoneyCall = SendMoneyCall.create(chain).recipient(voucherTransaction.getRecipient()).amountNQT(faucetAmountNQT);
+        SendMoneyCall sendMoneyCall = SendMoneyCall.create(chain).recipient(recipient).amountNQT(faucetAmountNQT);
         if (chain > 1) {
-            sendMoneyCall = sendMoneyCall.recipientPublicKey(voucherPublicKey);
+            sendMoneyCall = sendMoneyCall.recipientPublicKey(recipientPublicKey);
         }
         return context.createTransaction(sendMoneyCall, false);
     }

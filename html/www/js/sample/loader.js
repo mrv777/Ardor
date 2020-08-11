@@ -1,5 +1,5 @@
 /******************************************************************************
- * Copyright © 2016-2019 Jelurida IP B.V.                                     *
+ * Copyright © 2016-2020 Jelurida IP B.V.                                     *
  *                                                                            *
  * See the LICENSE.txt file at the top-level directory of this distribution   *
  * for licensing information.                                                 *
@@ -20,20 +20,12 @@ try {
 }
 
 try {
-    loader = require("ardor-blockchain"); // when using the NPM module
+    loader = require("ardor"); // when using the NPM module
 } catch(e) {
     console.log("Development mode");
 }
 
 loader.config = require("./config.json");
-var config = loader.config;
-
-loader.init({
-    url: config.url,
-    secretPhrase: config.secretPhrase,
-    isTestNet: config.isTestNet,
-    chain: config.chain,
-    adminPassword: config.adminPassword
-});
+loader.init(loader.config);
 
 module.exports = loader;

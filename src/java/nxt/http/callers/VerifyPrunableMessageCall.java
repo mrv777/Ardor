@@ -8,6 +8,10 @@ public class VerifyPrunableMessageCall extends APICall.Builder<VerifyPrunableMes
         super(ApiSpec.verifyPrunableMessage);
     }
 
+    public static VerifyPrunableMessageCall create() {
+        return new VerifyPrunableMessageCall();
+    }
+
     public static VerifyPrunableMessageCall create(int chain) {
         return new VerifyPrunableMessageCall().param("chain", chain);
     }

@@ -1,6 +1,6 @@
 /*
  * Copyright © 2013-2016 The Nxt Core Developers.
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -28,6 +28,7 @@ import javafx.stage.FileChooser;
 import javafx.stage.Screen;
 import javafx.stage.Stage;
 import javafx.stage.StageStyle;
+import netscape.javascript.JSException;
 import netscape.javascript.JSObject;
 import nxt.Nxt;
 import nxt.blockchain.Block;
@@ -59,6 +60,8 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.security.AccessController;
+import java.security.PrivilegedAction;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -71,11 +74,12 @@ import java.util.stream.Collectors;
 
 public class DesktopApplication extends Application {
 
-    private static final Set DOWNLOAD_REQUEST_TYPES = new HashSet<>(Arrays.asList("downloadTaggedData", "downloadPrunableMessage"));
+    private static final Set<String> DOWNLOAD_REQUEST_TYPES = new HashSet<>(Arrays.asList("downloadTaggedData", "downloadPrunableMessage"));
     private static final boolean ENABLE_JAVASCRIPT_DEBUGGER = false;
     private static volatile boolean isLaunched;
     private static volatile Stage stage;
     private static volatile WebEngine webEngine;
+    private volatile WebView invisible;
     private JSObject nrs;
     private volatile long updateTime;
     private JavaScriptBridge javaScriptBridge;
@@ -142,64 +146,74 @@ public class DesktopApplication extends Application {
     public void start(Stage stage) {
         Thread.currentThread().setName("jfx");
         logJavaFxProperties();
+        String url = getUrl();
         DesktopApplication.stage = stage;
         Rectangle2D primaryScreenBounds = Screen.getPrimary().getVisualBounds();
         WebView browser = new WebView();
-        WebView invisible = new WebView();
+        invisible = new WebView();
 
         int height = (int) Math.min(primaryScreenBounds.getMaxY() - 100, 1000);
         int width = (int) Math.min(primaryScreenBounds.getMaxX() - 100, 1618);
         browser.setMinHeight(height);
         browser.setMinWidth(width);
         webEngine = browser.getEngine();
+        Logger.logInfoMessage("JavaFX webview user agent: " + webEngine.getUserAgent());
         webEngine.setUserDataDirectory(Nxt.getConfDir());
 
         Worker<Void> loadWorker = webEngine.getLoadWorker();
-        loadWorker.stateProperty().addListener(
-                (ov, oldState, newState) -> {
-                    Logger.logDebugMessage("loadWorker old state " + oldState + " new state " + newState);
-                    if (newState != Worker.State.SUCCEEDED) {
-                        Logger.logDebugMessage("loadWorker state change ignored");
-                        return;
-                    }
-                    JSObject window = (JSObject)webEngine.executeScript("window");
-                    javaScriptBridge = new JavaScriptBridge(this); // Must be a member variable to prevent gc
-                    window.setMember("java", javaScriptBridge);
-                    Locale locale = Locale.getDefault();
-                    String language = locale.getLanguage().toLowerCase() + "-" + locale.getCountry().toUpperCase();
-                    window.setMember("javaFxLanguage", language);
-                    webEngine.executeScript("console.log = function(msg) { java.log(msg); };");
-                    stage.setTitle("Ardor Desktop - " + webEngine.getLocation());
-                    nrs = (JSObject) webEngine.executeScript("NRS");
-                    updateClientState("Desktop Wallet started");
-                    BlockchainProcessor blockchainProcessor = Nxt.getBlockchainProcessor();
-                    blockchainProcessor.addListener(this::updateClientState, BlockchainProcessor.Event.BLOCK_PUSHED);
-                    Nxt.getTransactionProcessor().addListener(transaction ->
-                            updateClientState(TransactionProcessor.Event.ADDED_UNCONFIRMED_TRANSACTIONS, transaction), TransactionProcessor.Event.ADDED_UNCONFIRMED_TRANSACTIONS);
-                    Nxt.getTransactionProcessor().addListener(transaction ->
-                            updateClientState(TransactionProcessor.Event.REMOVED_UNCONFIRMED_TRANSACTIONS, transaction), TransactionProcessor.Event.REMOVED_UNCONFIRMED_TRANSACTIONS);
+        loadWorker.stateProperty().addListener((ov, oldState, newState) -> AccessController.doPrivileged((PrivilegedAction<Object>) () -> {
+            Logger.logDebugMessage("loadWorker old state " + oldState + " new state " + newState);
+            if (newState == Worker.State.FAILED) {
+                Logger.logInfoMessage("Desktop wallet failed to start", loadWorker.getException());
+                return null;
+            }
+            if (newState != Worker.State.SUCCEEDED) {
+                Logger.logDebugMessage("loadWorker state change ignored");
+                return null;
+            }
+            JSObject window = (JSObject) webEngine.executeScript("window");
+            javaScriptBridge = new JavaScriptBridge(DesktopApplication.this); // Must be a member variable to prevent gc
+            window.setMember("console", javaScriptBridge); // "console" object is now known to JavaScript
+            window.setMember("java", javaScriptBridge);
+            Locale locale = Locale.getDefault();
+            String language = locale.getLanguage().toLowerCase() + "-" + locale.getCountry().toUpperCase();
+            window.setMember("javaFxLanguage", language);
+            stage.setTitle("Ardor Desktop - " + webEngine.getLocation());
+            nrs = (JSObject) webEngine.executeScript("NRS");
+            updateClientState("Desktop Wallet started");
+            BlockchainProcessor blockchainProcessor = Nxt.getBlockchainProcessor();
+            blockchainProcessor.addListener(DesktopApplication.this::updateClientState, BlockchainProcessor.Event.BLOCK_PUSHED);
+            Nxt.getTransactionProcessor().addListener(transaction ->
+                    updateClientState(TransactionProcessor.Event.ADDED_UNCONFIRMED_TRANSACTIONS, transaction), TransactionProcessor.Event.ADDED_UNCONFIRMED_TRANSACTIONS);
+            Nxt.getTransactionProcessor().addListener(transaction ->
+                    updateClientState(TransactionProcessor.Event.REMOVED_UNCONFIRMED_TRANSACTIONS, transaction), TransactionProcessor.Event.REMOVED_UNCONFIRMED_TRANSACTIONS);
 
-                    if (ENABLE_JAVASCRIPT_DEBUGGER) {
-                        try {
-                            // Add the javafx_webview_debugger and websocket-* test libs to the classpath
-                            // For more details, check https://github.com/mohamnag/javafx_webview_debugger
-                            Class<?> aClass = Class.forName("com.mohamnag.fxwebview_debugger.DevToolsDebuggerServer");
-                            Class webEngineClazz = WebEngine.class;
-                            Field debuggerField = webEngineClazz.getDeclaredField("debugger");
-                            debuggerField.setAccessible(true);
-                            Object debugger = debuggerField.get(webEngine);
-                            //noinspection JavaReflectionMemberAccess
-                            Method startDebugServer = aClass.getMethod("startDebugServer", debugger.getClass(), int.class);
-                            startDebugServer.invoke(null, debugger, 51742);
-                        } catch (NoSuchFieldException | ClassNotFoundException | NoSuchMethodException | IllegalAccessException | InvocationTargetException e) {
-                            Logger.logInfoMessage("Cannot start JavaFx debugger", e);
-                        }
-                    }
-               });
+            if (ENABLE_JAVASCRIPT_DEBUGGER) {
+                try {
+                    // Add the javafx_webview_debugger and websocket-* test libs to the classpath
+                    // For more details, check https://github.com/mohamnag/javafx_webview_debugger
+                    Class<?> aClass = Class.forName("com.mohamnag.fxwebview_debugger.DevToolsDebuggerServer");
+                    Class<?> webEngineClazz = WebEngine.class;
+                    Field debuggerField = webEngineClazz.getDeclaredField("debugger");
+                    debuggerField.setAccessible(true);
+                    Object debugger = debuggerField.get(webEngine);
+                    //noinspection JavaReflectionMemberAccess
+                    Method startDebugServer = aClass.getMethod("startDebugServer", debugger.getClass(), int.class);
+                    startDebugServer.invoke(null, debugger, 51742);
+                } catch (NoSuchFieldException | ClassNotFoundException | NoSuchMethodException | IllegalAccessException | InvocationTargetException e) {
+                    Logger.logInfoMessage("Cannot start JavaFx debugger", e);
+                }
+            }
+            return null;
+        }));
 
         // Invoked by the webEngine popup handler
         // The invisible webView does not show the link, instead it opens a browser window
-        invisible.getEngine().locationProperty().addListener((observable, oldValue, newValue) -> popupHandlerURLChange(newValue));
+        invisible.getEngine().locationProperty().addListener((observable, oldValue, newValue) -> {
+            if (Convert.emptyToNull(oldValue) == null) {
+                popupHandlerURLChange(newValue);
+            }
+        });
 
         // Invoked when changing the document.location property, when issuing a download request
         webEngine.locationProperty().addListener((observable, oldValue, newValue) -> webViewURLChange(newValue));
@@ -211,7 +225,7 @@ public class DesktopApplication extends Application {
                 return invisible.getEngine();
             });
 
-        webEngine.load(getUrl());
+        webEngine.load(url);
 
         Scene scene = new Scene(browser);
         String address = API.getServerRootUri().toString();
@@ -224,25 +238,28 @@ public class DesktopApplication extends Application {
     }
 
     private void updateClientState(Block block) {
-        if (Nxt.getBlockchainProcessor().isDownloading()) {
-            if (System.currentTimeMillis() - updateTime < 10000L) {
-                return;
-            }
-        }
         String msg = BlockchainProcessor.Event.BLOCK_PUSHED.toString() + " id " + block.getStringId() + " height " + block.getHeight();
         updateClientState(msg);
     }
 
     private void updateClientState(TransactionProcessor.Event transactionEvent, List<? extends Transaction> transactions) {
-        if (System.currentTimeMillis() - updateTime > 3000L) {
-            String msg = transactionEvent.toString() + " ids " + transactions.stream().map(Transaction::getStringId).collect(Collectors.joining(","));
-            updateClientState(msg);
-        }
+        String msg = transactionEvent.toString() + " ids " + transactions.stream().map(Transaction::getStringId).collect(Collectors.joining(","));
+        updateClientState(msg);
     }
 
     private void updateClientState(String msg) {
+        long interval = Nxt.getBlockchainProcessor().isDownloading() ? 30000L : 3000L;
+        if (System.currentTimeMillis() - updateTime < interval) {
+            return;
+        }
         updateTime = System.currentTimeMillis();
-        Platform.runLater(() -> webEngine.executeScript("NRS.getState(null, '" + msg + "')"));
+        Platform.runLater(() -> {
+            try {
+                webEngine.executeScript("NRS.getState(null, '" + msg + "')");
+            } catch (JSException e) {
+                Logger.logInfoMessage("getState not ready yet: " + e.getMessage());
+            }
+        });
     }
 
     private static String getUrl() {
@@ -261,6 +278,10 @@ public class DesktopApplication extends Application {
     @SuppressWarnings("WeakerAccess")
     public void popupHandlerURLChange(String newValue) {
         Logger.logInfoMessage("popup request for " + newValue);
+        if (Convert.emptyToNull(newValue) == null) {
+            return;
+        }
+        invisible.getEngine().loadContent("");
         Platform.runLater(() -> {
             try {
                 Desktop.getDesktop().browse(new URI(newValue));
@@ -303,7 +324,7 @@ public class DesktopApplication extends Application {
         String chainName = params.get("chain");
         Chain chain = Chain.getChain(chainName);
         if (chain == null) {
-            chain = Chain.getChain(Integer.valueOf(chainName));
+            chain = Chain.getChain(Integer.parseInt(chainName));
         }
         boolean retrieve = "true".equals(params.get("retrieve"));
         byte[] transactionFullHash = Convert.parseHexString(params.get("transactionFullHash"));
@@ -346,28 +367,21 @@ public class DesktopApplication extends Application {
                 }
                 prunableMessage = chain.getPrunableMessageHome().getPrunableMessage(transactionFullHash);
             }
-            String secretPhrase = params.get("secretPhrase");
             byte[] sharedKey = Convert.parseHexString(params.get("sharedKey"));
             if (sharedKey == null) {
                 sharedKey = Convert.EMPTY_BYTE;
             }
-            if (sharedKey.length != 0 && secretPhrase != null) {
-                growl("Do not specify both secret phrase and shared key");
-                return;
-            }
             byte[] data = null;
             if (prunableMessage != null) {
                 try {
-                    if (secretPhrase != null) {
-                        data = prunableMessage.decrypt(secretPhrase);
-                    } else if (sharedKey.length > 0) {
-                        data = prunableMessage.decrypt(sharedKey);
+                    if (sharedKey.length > 0) {
+                        data = prunableMessage.decryptUsingSharedKey(sharedKey);
                     } else {
                         data = prunableMessage.getMessage();
                     }
                 } catch (RuntimeException e) {
                     Logger.logDebugMessage("Decryption of message to recipient failed: " + e.toString());
-                    growl("Wrong secretPhrase or sharedKey");
+                    growl("Wrong sharedKey");
                     return;
                 }
             }

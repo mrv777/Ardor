@@ -1,6 +1,6 @@
 /*
  * Copyright © 2013-2016 The Nxt Core Developers.
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -1276,31 +1276,31 @@ public final class Account {
         return accountLeaseTable.get(accountDbKeyFactory.newKey(this));
     }
 
-    public EncryptedData encryptTo(byte[] data, String senderSecretPhrase, boolean compress) {
-        byte[] key = getPublicKey(this.id);
-        if (key == null) {
+    public EncryptedData encryptTo(byte[] privateKey, byte[] data, boolean compress) {
+        byte[] publicKey = getPublicKey(this.id);
+        if (publicKey == null) {
             throw new IllegalArgumentException("Recipient account doesn't have a public key set");
         }
-        return Account.encryptTo(key, data, senderSecretPhrase, compress);
+        return Account.encryptTo(privateKey, publicKey, data, compress);
     }
 
-    public static EncryptedData encryptTo(byte[] publicKey, byte[] data, String senderSecretPhrase, boolean compress) {
+    public static EncryptedData encryptTo(byte[] privateKey, byte[] publicKey, byte[] data, boolean compress) {
         if (compress && data.length > 0) {
             data = Convert.compress(data);
         }
-        return EncryptedData.encrypt(data, senderSecretPhrase, publicKey);
+        return EncryptedData.encrypt(data, privateKey, publicKey);
     }
 
-    public byte[] decryptFrom(EncryptedData encryptedData, String recipientSecretPhrase, boolean uncompress) {
-        byte[] key = getPublicKey(this.id);
-        if (key == null) {
+    public byte[] decryptFrom(byte[] privateKey, EncryptedData encryptedData, boolean uncompress) {
+        byte[] publicKey = getPublicKey(this.id);
+        if (publicKey == null) {
             throw new IllegalArgumentException("Sender account doesn't have a public key set");
         }
-        return Account.decryptFrom(key, encryptedData, recipientSecretPhrase, uncompress);
+        return Account.decryptFrom(privateKey, publicKey, encryptedData, uncompress);
     }
 
-    public static byte[] decryptFrom(byte[] publicKey, EncryptedData encryptedData, String recipientSecretPhrase, boolean uncompress) {
-        byte[] decrypted = encryptedData.decrypt(recipientSecretPhrase, publicKey);
+    public static byte[] decryptFrom(byte[] privateKey, byte[] publicKey, EncryptedData encryptedData, boolean uncompress) {
+        byte[] decrypted = encryptedData.decrypt(privateKey, publicKey);
         if (uncompress && decrypted.length > 0) {
             decrypted = Convert.uncompress(decrypted);
         }

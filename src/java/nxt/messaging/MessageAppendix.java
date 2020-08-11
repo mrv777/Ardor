@@ -1,6 +1,6 @@
 /*
  * Copyright © 2013-2016 The Nxt Core Developers.
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -71,7 +71,7 @@ public class MessageAppendix extends Appendix.AbstractAppendix {
         }
         this.message = new byte[messageLength];
         buffer.get(this.message);
-        if (isText && !Arrays.equals(message, Convert.toBytes(Convert.toString(message)))) {
+        if (isText && !Convert.isUtf8Text(message)) {
             throw new NxtException.NotValidException("Message is not UTF-8 text");
         }
     }

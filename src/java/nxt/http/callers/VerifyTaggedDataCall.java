@@ -8,6 +8,10 @@ public class VerifyTaggedDataCall extends APICall.Builder<VerifyTaggedDataCall> 
         super(ApiSpec.verifyTaggedData);
     }
 
+    public static VerifyTaggedDataCall create() {
+        return new VerifyTaggedDataCall();
+    }
+
     public static VerifyTaggedDataCall create(int chain) {
         return new VerifyTaggedDataCall().param("chain", chain);
     }

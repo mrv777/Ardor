@@ -8,6 +8,10 @@ public class GetBundlersCall extends APICall.Builder<GetBundlersCall> {
         super(ApiSpec.getBundlers);
     }
 
+    public static GetBundlersCall create() {
+        return new GetBundlersCall();
+    }
+
     public static GetBundlersCall create(int chain) {
         return new GetBundlersCall().param("chain", chain);
     }

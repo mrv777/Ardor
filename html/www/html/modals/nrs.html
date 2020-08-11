@@ -1,6 +1,6 @@
 <!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   ~ Copyright © 2013-2016 The Nxt Core Developers.                            ~
-  ~ Copyright © 2016-2019 Jelurida IP B.V.                                    ~
+  ~ Copyright © 2016-2020 Jelurida IP B.V.                                    ~
   ~                                                                           ~
   ~ See the LICENSE.txt file at the top-level directory of this distribution  ~
   ~ for licensing information.                                                ~
@@ -199,7 +199,7 @@
                     </div>
                 </div>
 
-                <div id="nrs_modal_state" class="nrs_modal_content" style="display:none">
+                <div id="nrs_modal_state" class="nrs_modal_content table-responsive" style="display:none">
                     <table class="table table-striped" id="nrs_node_state_table" style="margin-bottom:0;">
                         <tbody>
                             <tr>
@@ -354,8 +354,17 @@
                             <tr>
                                 <td style="font-weight: bold"><span data-i18n="forged_balance">Forged Balance</span>:</td><td><span id="account_balance_forged_balance"></span></td>
                             </tr>
-                            <tr>
+                            <tr class="account-balance-row">
                                 <td style="font-weight: bold"><span data-i18n="public_key">Public Key</span>:</td><td><span id="account_balance_public_key" style="word-break:break-all;word-wrap: break-word;"></span></td>
+                            </tr>
+                            <tr>
+                                <td style="font-weight: bold"><span data-i18n="private_key">Private Key</span>:</td>
+                                <td>
+                                    <button id="account_details_modal_private_key_show_button" class="btn btn-default" data-i18n="show">SHOW</button>
+                                    <span id="account_details_modal_private_key_text" style="word-break:break-all; word-wrap:break-word;"></span>
+                                </td>
+                            </tr>
+                            <tr>
                             </tr>
                             <tr>
                                 <td style="font-weight: bold"><span data-i18n="account_qr_code">Account QR Code</span>:</td>
@@ -383,6 +392,16 @@
                                     </div>
                                     <div id="account_details_modal_paperwallet_na"></div>
                                 </td>
+                            </tr>
+                            <tr>
+                                <td class="ledger_account_details" style="font-weight: bold"><span data-i18n="bip32_path"></span>:</td>
+                                <td class="ledger_account_details">
+                                    <span id="account_balance_bip32_path" style="word-break:break-all;word-wrap: break-word;"></span>
+                                    <a href="#" class="btn btn-default" data-toggle="modal" data-dismiss="modal" data-target="#ledger_show_address_modal" data-i18n="verify">VERIFY</a>
+                                </td>
+                            </tr>
+                            <tr id="account_permissions_row">
+                                <td style="font-weight: bold"><span data-i18n="account_permissions">Account Permissions</span>:</td><td><span id="account_permissions_details" style="word-break:break-all;word-wrap: break-word;"></span></td>
                             </tr>
                         </tbody>
                     </table>
@@ -504,7 +523,6 @@
                             <textarea class="form-control" name="website" id="generate_token_data" placeholder="Website or Text" data-i18n="[placeholder]website_or_text" tabindex="1" rows="3"></textarea>
                         </div>
                         <div data-replace-with-modal-template="secret_phrase_modal_template"></div>
-                        <input type="hidden" class="mobile-offline" value=""/>
                     </form>
                 </div>
 
@@ -566,12 +584,86 @@
     </div>
 </div>
 
+<div class="modal fade modal-no-hide" id="bip32_calculations_modal" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button>
+                <h4 class="modal-title" data-i18n="bip32_calculations">BIP32 CALCULATIONS</h4>
+            </div>
+            <div class="modal-body">
+                <form role="form" autocomplete="off">
+                    <div class="callout callout-danger error_message" style="display:none"></div>
+                    <div class="passphrase_warning_container">
+                        <div class="callout callout-danger passphrase_warning" style="display:none">
+                            <strong><span data-i18n="warning">Warning</span>:</strong>
+                            <span class="passphrase_warning_text"></span>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="control-label input-group" data-i18n="calculation_type">Calculation Type</label>
+                        <div class="btn-group" data-toggle="buttons">
+                            <label class="btn btn-default" data-type="client" data-i18n="client">Client</label>
+                            <label class="btn btn-default" data-type="server" data-i18n="server">Server</label>
+                            <label class="btn btn-default" data-type="hardware" data-i18n="hardware">Hardware</label>
+                        </div>
+                    </div>
+                    <input type="hidden" name="calculation_type" value=""/>
+                    <div class="seed_entry">
+                        <div class="form-group">
+                            <label for="seed_mnemonic" data-i18n="mnemonic">MNEMONIC</label>
+                            <textarea class="form-control" id="seed_mnemonic" name="mnemonic" tabindex="1" rows="3"></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label for="seed_passphrase" data-i18n="seed_passphrase">SEED PASSPHRASE (OPTIONAL)</label>
+                            <input class="form-control" id="seed_passphrase" name="passphrase" tabindex="2"/>
+                        </div>
+                        <div class="form-group">
+                            <label for="seed_seed" data-i18n="seed">SEED</label>
+                            <textarea class="form-control" id="seed_seed" rows="3" readonly></textarea>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="seed_bip32" data-i18n="bip32_path">BIP32 PATH</label>
+                        <input class="form-control" id="seed_bip32" name="bip32Path" tabindex="3"/>
+                    </div>
+                    <div class="form-group">
+                        <label for="seed_private_key" data-i18n="private_key">PRIVATE KEY</label>
+                        <input class="form-control" id="seed_private_key" readonly/>
+                    </div>
+                    <div class="form-group">
+                        <label for="seed_master_public_key" data-i18n="master_public_key">MASTER PUBLIC KEY</label>
+                        <textarea class="form-control" id="seed_master_public_key" rows="2" readonly></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="seed_public_key" data-i18n="public_key">PUBLIC KEY</label>
+                        <input class="form-control" id="seed_public_key" readonly/>
+                    </div>
+                    <div class="form-group">
+                        <label for="seed_accountRS" data-i18n="account_id">ACCOUNT ID</label>
+                        <input class="form-control" id="seed_accountRS" readonly/>
+                    </div>
+                    <div class="form-group">
+                        <label for="seed_account" data-i18n="numeric_account_id">NUMERIC ACCOUNT ID</label>
+                        <input class="form-control" id="seed_account" readonly/>
+                    </div>
+                    <input type="hidden" name="request_type" value="deriveAccountFromSeed"/>
+                </form>
+            </div>
+            <div class="modal-footer" style="margin-top:0;">
+                <button type="button" class="btn btn-default" data-dismiss="modal" data-i18n="cancel">Cancel</button>
+                <button type="button" class="btn btn-primary" data-i18n="calculate">Calculate</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <div class="modal fade modal-no-hide" id="passphrase_validation_modal" tabindex="-1" role="dialog">
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
                 <button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button>
-                <h4 class="modal-title" data-i18n="passphrase_validation">PASSPHRASE VALIDATION</h4>
+                <h4 class="modal-title" data-i18n="passphrase_private_key_validation">PASSPHRASE PRIVATE KEY VALIDATION</h4>
             </div>
             <div class="modal-body">
                 <form autocomplete="off">
@@ -606,10 +698,7 @@
             <div class="modal-body">
                 <div>
                     <img height="128px" width="128px" src="img/nxt_logo.png" align="left" hspace="10" vspace="10">
-                    <p>
-                        Copyright © 2013-2016 The Nxt Core Developers.<br />
-                        Copyright © 2016-2019 Jelurida IP B.V.<br />
-                        Distributed under the <a href="https://www.jelurida.com/jpl" target="_blank">Jelurida Public License (JPL)</a> version 1.2 for the Ardor Public Blockchain Platform, with ABSOLUTELY NO WARRANTY.<br />
+                    <p id="copyright_notice">
                     </p>
                     <p>
                         Ardor is developed by <a href="https://www.jelurida.com" target="_blank"><img src="img/jelurida_logo.png" height="24px" alt="Jelurida" align="center" hspace="2">Jelurida</a>,
@@ -617,8 +706,8 @@
                     </p>
                     <p align="center">
                         <a href="https://www.jelurida.com/support" target="_blank">Help Desk</a> |
-                        Support: <a href="mailto:support@jelurida.com">support@jelurida.com</a> |
-                        Business enquiries: <a href="mailto:info@jelurida.com">info@jelurida.com</a>
+                        Support: <a href="mailto:support@jelurida.com" target="_blank">support@jelurida.com</a> |
+                        Business enquiries: <a href="mailto:info@jelurida.com" target="_blank">info@jelurida.com</a>
                     </p>
                  </div>
             </div>
@@ -762,9 +851,10 @@
                     <li id="user_info_description" data-tab="description"><a href="#" data-i18n="description">Description</a></li>
                     <li id="user_info_actions" data-tab="actions"><a href="#" data-i18n="actions">Actions</a></li>
                     <li id="user_info_account_properties" data-tab="account_properties"><a href="#" data-i18n="account_properties">Account Properties</a></li>
+                    <li id="user_info_account_permissions" data-tab="account_permissions"><a href="#" data-i18n="account_permissions">Account Permissions</a></li>
                 </ul>
 
-                <div class="data-container data-loading user_info_modal_content" id="user_info_modal_transactions" style="display:none;max-height:350px;overflow:auto;">
+                <div class="data-container data-loading user_info_modal_content table-responsive" id="user_info_modal_transactions" style="display:none;max-height:350px;overflow:auto;">
                     <table class="table table-striped" id="user_info_modal_transactions_table">
                         <thead>
                         <tr>
@@ -783,7 +873,7 @@
                     <div class="data-empty-container" style="padding-top:10px" data-i18n="user_no_transactions">This user has no transactions.</div>
                 </div>
 
-                <div class="data-container data-loading user_info_modal_content" id="user_info_modal_ledger" style="display:none;max-height:350px;overflow:auto;">
+                <div class="data-container data-loading user_info_modal_content table-responsive" id="user_info_modal_ledger" style="display:none;max-height:350px;overflow:auto;">
                     <table class="table table-striped" id="user_info_modal_ledger_table">
                         <thead>
                         <tr>
@@ -805,7 +895,7 @@
                     <div class="data-empty-container" style="padding-top:10px" data-i18n="user_no_ledger">This user has no ledger entries.</div>
                 </div>
 
-                <div class="data-container data-loading user_info_modal_content" id="user_info_modal_aliases" style="display:none;max-height:350px;overflow:auto;">
+                <div class="data-container data-loading user_info_modal_content table-responsive" id="user_info_modal_aliases" style="display:none;max-height:350px;overflow:auto;">
                     <table class="table table-striped" id="user_info_modal_aliases_table">
                         <thead>
                         <tr>
@@ -821,7 +911,7 @@
                     <div class="data-empty-container" style="padding-top:10px" data-i18n="user_no_aliases">This user has no aliases.</div>
                 </div>
 
-                <div class="data-container data-loading user_info_modal_content" id="user_info_modal_assets" style="display:none;max-height:350px;overflow:auto;">
+                <div class="data-container data-loading user_info_modal_content table-responsive" id="user_info_modal_assets" style="display:none;max-height:350px;overflow:auto;">
                     <table class="table table-striped" id="user_info_modal_assets_table">
                         <thead>
                         <tr>
@@ -839,7 +929,7 @@
                     <div class="data-empty-container" style="padding-top:10px" data-i18n="user_no_assets">This user has no assets.</div>
                 </div>
 
-                <div class="data-container data-loading user_info_modal_content" id="user_info_modal_trade_history" style="display:none;max-height:350px;overflow:auto;">
+                <div class="data-container data-loading user_info_modal_content table-responsive" id="user_info_modal_trade_history" style="display:none;max-height:350px;overflow:auto;">
                     <table class="table table-striped" id="user_info_modal_trade_history_table">
                         <thead>
                         <tr>
@@ -859,7 +949,7 @@
                     <div class="data-empty-container" style="padding-top:10px" data-i18n="user_no_trade_history">This user has no trade history.</div>
                 </div>
 
-                <div class="data-container data-loading user_info_modal_content" id="user_info_modal_currencies" style="display:none;max-height:350px;overflow:auto;">
+                <div class="data-container data-loading user_info_modal_content table-responsive" id="user_info_modal_currencies" style="display:none;max-height:350px;overflow:auto;">
                     <table class="table table-striped" id="user_info_modal_currencies_table">
                         <thead>
                         <tr>
@@ -876,7 +966,7 @@
                     <div class="data-empty-container" style="padding-top:10px" data-i18n="user_no_currencies">This user has no currencies.</div>
                 </div>
 
-                <div class="data-container data-loading user_info_modal_content" id="user_info_modal_marketplace" style="display:none;max-height:350px;overflow:auto;">
+                <div class="data-container data-loading user_info_modal_content table-responsive" id="user_info_modal_marketplace" style="display:none;max-height:350px;overflow:auto;">
                     <table class="table table-striped" id="user_info_modal_marketplace_table">
                         <thead>
                         <tr>
@@ -908,7 +998,7 @@
                     </div>
                 </div>
 
-                <div class="data-container data-loading user_info_modal_content" id="user_info_modal_account_properties" style="position: relative; display:none;max-height:350px;">
+                <div class="data-container data-loading user_info_modal_content table-responsive" id="user_info_modal_account_properties" style="position: relative; display:none;max-height:350px;">
                     <div style="position:absolute; right:9px;"> 
                         <div class="btn-group" data-toggle="buttons" id="user_modal_account_properties_page_type">
                             <label class="btn btn-default active" data-type="incoming">
@@ -937,6 +1027,25 @@
                     <div class="data-empty-container" style="padding-top:10px" data-i18n="no_properties">This account has no properties.</div>
                 </div>
 
+                <div class="data-container data-loading user_info_modal_content" id="user_info_modal_account_permissions" style="position: relative; display:none;max-height:350px;">
+                    <div style="overflow:auto; position:relative; top:40px; margin-bottom:90px; max-height: 400px;" >
+                        <table class="table table-striped" id="user_info_modal_account_permissions_table">
+                            <thead>
+                            <tr>
+                                <th data-i18n="granted_by">Granted By</th>
+                                <th data-i18n="permissions">Permissions</th>
+                                <th data-i18n="height">Height</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="data-loading-container"><img src="img/loading_indicator.gif" alt="Loading..." width="32" height="32" /></div>
+                    <div class="data-empty-container" style="padding-top:10px" data-i18n="no_permissions">This account has no permissions.</div>
+                </div>
+
             </div>
             <div class="modal-footer" style="margin-top:0;">
                 <button type="button" class="btn btn-primary" data-dismiss="modal" data-i18n="close">Close</button>
@@ -945,20 +1054,17 @@
     </div>
 </div>
 
-<div class="modal fade" id="logout_clear_user_data_modal" tabindex="-1" role="dialog" aria-hidden="true">
+<div class="modal fade" id="generic_confirm_modal" tabindex="-1" role="dialog" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
                 <button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button>
-                <h4 class="modal-title" data-i18n="warning">Warning</h4>
+                <h4 class="modal-title"></h4>
             </div>
-            <div class="modal-body">
-                <span data-i18n="confirm_logout_clear_user_data_msg">All personal settings like contacts or asset
-                    bookmarks will be deleted. Continue?</span>
-            </div>
+            <div class="modal-body"></div>
             <div class="modal-footer" style="margin-top:0;">
                 <button type="button" class="btn btn-default" data-dismiss="modal" data-i18n="cancel">Cancel</button>
-                <button type="button" class="btn btn-default" id="logout_clear_user_data_confirm_btn" data-i18n="continue">Continue</button>
+                <button type="button" class="btn btn-default" id="generic_confirm_modal_btn"></button>
             </div>
         </div>
     </div>
@@ -981,7 +1087,7 @@
                         <label for="client_status_remote_peer" data-i18n="remote_peer">Remote Peer</label>
                         <input class="form-control" name="peer" id="client_status_remote_peer" placeholder="Random" data-i18n="[placeholder]random">
                     </div>
-                    <div class="data-container" style="max-height:350px;overflow:auto;">
+                    <div class="data-container table-responsive" style="max-height:350px;overflow:auto;">
                         <table class="table table-striped" id="request_confirmations_info_table">
                             <thead>
                                 <tr>
@@ -1042,3 +1148,34 @@
     </div>
 </div>
 
+<div class="modal fade" id="ledger_show_address_modal" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button>
+                <h4 class="modal-title">
+                    <span data-i18n="verify_address">Verify Address</span>
+                </h4>
+            </div>
+            <div class="modal-body">
+                <form role="form" autocomplete="off">
+                    <div class="callout callout-danger error_message" style="display:none"></div>
+                    <div class="form-group">
+                        <label data-i18n="address">Address</label>
+                        <input class="form-control" name="verifyAddress" readonly/>
+                    </div>
+                    <div class="form-group hardware-wallet">
+                        <label data-i18n="hardware_wallet_status"></label>
+                        <div class="form-group">
+                            <div class="callout callout-info hardware-status" style="margin-bottom: 0;"></div>
+                        </div>
+                    </div>
+                    <input type="hidden" name="request_type" value="ledgerVerifyAddress"/>
+                </form>
+            </div>
+            <div class="modal-footer" style="margin-top:0;">
+                <button type="button" class="btn btn-default" data-dismiss="modal" data-i18n="close">Close</button>
+            </div>
+        </div>
+    </div>
+</div>

@@ -8,6 +8,10 @@ public class DownloadTaggedDataCall extends APICall.Builder<DownloadTaggedDataCa
         super(ApiSpec.downloadTaggedData);
     }
 
+    public static DownloadTaggedDataCall create() {
+        return new DownloadTaggedDataCall();
+    }
+
     public static DownloadTaggedDataCall create(int chain) {
         return new DownloadTaggedDataCall().param("chain", chain);
     }

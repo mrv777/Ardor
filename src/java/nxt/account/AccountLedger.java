@@ -1,6 +1,6 @@
 /*
  * Copyright © 2013-2016 The Nxt Core Developers.
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -495,7 +495,11 @@ public class AccountLedger {
             COIN_EXCHANGE_TRADE(60, true),
         // TYPE_LIGHT_CONTRACT
             CONTRACT_REFERENCE_SET(63, true),
-            CONTRACT_REFERENCE_DELETE(64, true);
+            CONTRACT_REFERENCE_DELETE(64, true),
+
+        // TYPE_CHILD_CHAIN_CONTROL
+            ADD_PERMISSION(67, true),
+            REMOVE_PERMISSION(68, true);
 
 
         /** Event code mapping */
@@ -569,12 +573,42 @@ public class AccountLedger {
      * they are stored in the holding_type field of the account_ledger table.
      */
     public enum LedgerHolding {
-        UNCONFIRMED_COIN_BALANCE(1, true),
-        COIN_BALANCE(2, false),
-        UNCONFIRMED_ASSET_BALANCE(3, true),
-        ASSET_BALANCE(4, false),
-        UNCONFIRMED_CURRENCY_BALANCE(5, true),
-        CURRENCY_BALANCE(6, false);
+        UNCONFIRMED_COIN_BALANCE(1, true) {
+            @Override
+            public HoldingType getHoldingType() {
+                return HoldingType.COIN;
+            }
+        },
+        COIN_BALANCE(2, false) {
+            @Override
+            public HoldingType getHoldingType() {
+                return HoldingType.COIN;
+            }
+        },
+        UNCONFIRMED_ASSET_BALANCE(3, true) {
+            @Override
+            public HoldingType getHoldingType() {
+                return HoldingType.ASSET;
+            }
+        },
+        ASSET_BALANCE(4, false) {
+            @Override
+            public HoldingType getHoldingType() {
+                return HoldingType.ASSET;
+            }
+        },
+        UNCONFIRMED_CURRENCY_BALANCE(5, true) {
+            @Override
+            public HoldingType getHoldingType() {
+                return HoldingType.CURRENCY;
+            }
+        },
+        CURRENCY_BALANCE(6, false) {
+            @Override
+            public HoldingType getHoldingType() {
+                return HoldingType.CURRENCY;
+            }
+        };
 
         /** Holding code mapping */
         private static final Map<Integer, LedgerHolding> holdingMap = new HashMap<>();
@@ -620,6 +654,13 @@ public class AccountLedger {
         public int getCode() {
             return code;
         }
+
+        /**
+         * The HoldingType for this LedgerHolding
+         *
+         * @return                          HoldingType
+         */
+        public abstract HoldingType getHoldingType();
 
         /**
          * Get the holding from the holding code
@@ -780,7 +821,7 @@ public class AccountLedger {
             eventHash = rs.getBytes("event_hash");
             chainId = rs.getInt("chain_id");
             accountId = rs.getLong("account_id");
-            holding = LedgerHolding.fromCode((int) rs.getByte("holding_type"));
+            holding = LedgerHolding.fromCode(rs.getByte("holding_type"));
             holdingId = rs.getLong("holding_id");
             change = rs.getLong("change");
             balance = rs.getLong("balance");
@@ -943,12 +984,12 @@ public class AccountLedger {
          */
         @Override
         public boolean equals(Object obj) {
-            return (obj != null && (obj instanceof LedgerEntry) && accountId == ((LedgerEntry)obj).accountId &&
+            return obj instanceof LedgerEntry && accountId == ((LedgerEntry)obj).accountId &&
                     event == ((LedgerEntry)obj).event && eventId == ((LedgerEntry)obj).eventId &&
                     Arrays.equals(eventHash, ((LedgerEntry)obj).eventHash) &&
                     chainId == ((LedgerEntry)obj).chainId &&
                     holding == ((LedgerEntry)obj).holding &&
-                    holdingId == ((LedgerEntry) obj).holdingId);
+                    holdingId == ((LedgerEntry) obj).holdingId;
         }
 
         /**

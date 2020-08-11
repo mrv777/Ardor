@@ -1,6 +1,6 @@
 /******************************************************************************
  * Copyright © 2013-2016 The Nxt Core Developers.                             *
- * Copyright © 2016-2019 Jelurida IP B.V.                                     *
+ * Copyright © 2016-2020 Jelurida IP B.V.                                     *
  *                                                                            *
  * See the LICENSE.txt file at the top-level directory of this distribution   *
  * for licensing information.                                                 *
@@ -14,244 +14,210 @@
  *                                                                            *
  ******************************************************************************/
 
-/**
- * @depends {nrs.js}
- */
-var NRS = (function (NRS) {
-    var isDesktopApplication = navigator.userAgent.indexOf("JavaFX") >= 0;
-    var isMobileDevice = window["cordova"] !== undefined;
-    var isLocalHost = false;
-    var remoteNode = null;
-    var isLoadedOverHttps = ("https:" == window.location.protocol);
+(isNode ? client : NRS).onSiteBuildDone().then(() => {
+    NRS = (function (NRS) {
+        let isDesktopApplication = navigator.userAgent.indexOf("JavaFX") >= 0;
+        let isLocalHost = false;
+        let hostName;
+        let isLoadedOverHttps;
+        const nativeBigInt = (typeof global !== 'undefined') && global.BigInt || (typeof window !== 'undefined') && window.BigInt;
+        const isBigIntSupported = typeof nativeBigInt === 'function';
 
-    NRS.isPrivateIP = function (ip) {
-        if (!/^\d+\.\d+\.\d+\.\d+$/.test(ip)) {
-            return false;
+        function useHdWallet() {
+            return NRS.bip32Account !== undefined;
         }
-        var parts = ip.split('.');
-        return parts[0] === '10' || parts[0] == '127' || parts[0] === '172' && (parseInt(parts[1], 10) >= 16 && parseInt(parts[1], 10) <= 31) || parts[0] === '192' && parts[1] === '168';
-    };
 
-    if (window.location && window.location.hostname) {
-        var hostName = window.location.hostname.toLowerCase();
-        isLocalHost = hostName == "localhost" || hostName == "127.0.0.1" || NRS.isPrivateIP(hostName);
-    }
-
-    NRS.isIndexedDBSupported = function() {
-        return window.indexedDB !== undefined;
-    };
-
-    NRS.isExternalLinkVisible = function() {
-        // When using JavaFX add a link to a web wallet except on Linux since on Ubuntu it sometimes hangs
-        if (NRS.isMobileApp()) {
-            return false;
+        function useHardwareWallet() {
+            return useHdWallet() && NRS.bip32Account.getProvider() === NRS.BIP32_PROVIDER.LEDGER_HARDWARE;
         }
-        return !(isDesktopApplication && navigator.userAgent.indexOf("Linux") >= 0);
-    };
 
-    NRS.isWebWalletLinkVisible = function() {
-        if (NRS.isMobileApp()) {
-            return false;
+        // Must be here before assigning isLocalHost!
+        NRS.isPrivateIP = function (ip) {
+            if (!/^\d+\.\d+\.\d+\.\d+$/.test(ip)) {
+                return false;
+            }
+            var parts = ip.split('.');
+            return parts[0] === '10' || parts[0] == '127' || parts[0] === '172' && (parseInt(parts[1], 10) >= 16 && parseInt(parts[1], 10) <= 31) || parts[0] === '192' && parts[1] === '168';
+        };
+
+        if (isNode) {
+            // TODO do we need to specify values here?
+        } else {
+            isLoadedOverHttps = "https:" == window.location.protocol;
+            if (window.location && window.location.hostname) {
+                hostName = window.location.hostname.toLowerCase();
+                isLocalHost = hostName == "localhost" || hostName == "127.0.0.1" || NRS.isPrivateIP(hostName);
+            }
         }
-        return isDesktopApplication && navigator.userAgent.indexOf("Linux") == -1;
-    };
 
-    NRS.isMobileApp = function () {
-        return isMobileDevice || (NRS.mobileSettings && NRS.mobileSettings.is_simulate_app);
-    };
+        NRS.isIndexedDBSupported = function () {
+            return window.indexedDB !== undefined;
+        };
 
-    NRS.isEnableMobileAppSimulation = function () {
-        return !isMobileDevice;
-    };
+        NRS.isExternalLinkVisible = function () {
+            // When using JavaFX add a link to a web wallet except on Linux since on Ubuntu it sometimes hangs
+            return !(isDesktopApplication && navigator.userAgent.indexOf("Linux") >= 0);
+        };
 
-    NRS.isRequireCors = function () {
-        return !isMobileDevice;
-    };
+        NRS.isWebWalletLinkVisible = function () {
+            return isDesktopApplication && navigator.userAgent.indexOf("Linux") == -1;
+        };
 
-    NRS.isPollGetState = function() {
-        // When using JavaFX do not poll the server unless it's a working as a proxy
-        return !isDesktopApplication || NRS.state && NRS.state.apiProxy;
-    };
+        NRS.isPollGetState = function () {
+            // When using JavaFX do not poll the server unless it's working as a proxy
+            return !isDesktopApplication || NRS.state && NRS.state.apiProxy;
+        };
 
-    NRS.isUpdateRemoteNodes = function() {
-        return NRS.state && NRS.state.apiProxy;
-    };
+        NRS.isFileEncryptionSupported = function () {
+            return NRS.isFileReaderSupported();
+        };
 
-    NRS.isRemoteNodeConnectionAllowed = function() {
-        // The client always connects to remote nodes over Http since most Https nodes use a test certificate and
-        // therefore cannot be used.
-        // However, if the client itself is loaded over Https, it cannot connect to nodes over Http since this will
-        // result in a mixed content error.
-        return !isLoadedOverHttps;
-    };
+        NRS.isShowDummyCheckbox = function () {
+            return isDesktopApplication && navigator.userAgent.indexOf("Linux") >= 0; // Correct rendering problem of checkboxes on Linux
+        };
 
-    NRS.isFileEncryptionSupported = function() {
-        return !isDesktopApplication; // When using JavaFX you cannot read the file to encrypt
-    };
-
-    NRS.isShowDummyCheckbox = function() {
-        return isDesktopApplication && navigator.userAgent.indexOf("Linux") >= 0; // Correct rendering problem of checkboxes on Linux
-    };
-
-    NRS.getRemoteNodeUrl = function() {
-        if (!NRS.isMobileApp()) {
+        NRS.getRemoteNodeUrl = function () {
             if (!isNode) {
                 return "";
             }
             return NRS.getModuleConfig().url;
-        }
-        if (remoteNode) {
-            return remoteNode.getUrl();
-        }
-        remoteNode = NRS.remoteNodesMgr.getRandomNode();
-        if (remoteNode) {
-            var url = remoteNode.getUrl();
-            NRS.logConsole("Remote node url: " + url);
-            return url;
-        } else {
-            NRS.logConsole("No available remote nodes");
-            $.growl($.t("no_available_remote_nodes"));
-        }
-    };
+        };
 
-    NRS.getRemoteNode = function () {
-        return remoteNode;
-    };
-
-    NRS.resetRemoteNode = function(blacklist) {
-        if (remoteNode && blacklist) {
-            remoteNode.blacklist();
-        }
-        remoteNode = null;
-    };
-
-    NRS.isMobileForcedRemoteNode = function (address, announcedAddress) {
-        return (address === NRS.mobileSettings.remote_node_address || announcedAddress === NRS.mobileSettings.remote_node_address);
-    };
-
-    NRS.getDownloadLink = function(url, link) {
-        if (NRS.isMobileApp()) {
-            var script = "NRS.openMobileBrowser(\"" + url + "\");";
-            if (link) {
-                link.attr("onclick", script);
-                return;
-            }
-            return "<a onclick='" + script +"' class='btn btn-xs btn-default'>" + $.t("download") + "</a>";
-        } else {
+        NRS.getDownloadLink = function (url, link) {
             if (link) {
                 link.attr("href", url);
                 return;
             }
             return "<a href='" + url + "' class='btn btn-xs btn-default'>" + $.t("download") + "</a>";
+        };
+
+        NRS.isScanningAllowed = function () {
+            return isLocalHost || NRS.isTestNet;
+        };
+
+        NRS.changeNow_url = function () {
+            return NRS.settings.changeNow_url;
+        };
+
+        NRS.isForgingSupported = function () {
+            return !(NRS.state && NRS.state.apiProxy);
+        };
+
+        NRS.isFundingMonitorSupported = function () {
+            return !(NRS.state && NRS.state.apiProxy);
+        };
+
+        NRS.isShufflingSupported = function () {
+            return !(NRS.state && NRS.state.apiProxy);
+        };
+
+        NRS.isConfirmResponse = function () {
+            return NRS.state && NRS.state.apiProxy;
+        };
+
+        NRS.isShowClientOptionsLink = function () {
+            return NRS.state && NRS.state.apiProxy;
+        };
+
+        NRS.getGeneratorAccuracyWarning = function () {
+            if (isDesktopApplication) {
+                return "";
+            }
+            return $.t("generator_timing_accuracy_warning");
+        };
+
+        NRS.isShowRemoteWarning = function () {
+            return !isLocalHost && !NRS.isHdWalletPrivateKeyAvailable();
+        };
+
+        NRS.isForgingSafe = function () {
+            return isLocalHost;
+        };
+
+        NRS.isPassphraseAtRisk = function () {
+            return !isLocalHost || NRS.state && NRS.state.apiProxy;
+        };
+
+        NRS.isWindowPrintSupported = function () {
+            return !isDesktopApplication && navigator.userAgent.indexOf("Firefox") == -1;
+        };
+
+        NRS.getAdminPassword = function () {
+            if (isNode) {
+                return NRS.getModuleConfig().adminPassword;
+            }
+            if (window.java) {
+                return window.java.getAdminPassword();
+            }
+            return NRS.deviceSettings.admin_password;
+        };
+
+        NRS.isFileReaderSupported = function () {
+            return (isDesktopApplication && window.java && window.java.isFileReaderSupported()) ||
+                (!isDesktopApplication && !!(window.File && window.FileList && window.FileReader)); // https://github.com/Modernizr/Modernizr/blob/master/feature-detects/file/api.js
+        };
+
+        NRS.isVideoSupported = function () {
+            return !isDesktopApplication;
+        };
+
+        NRS.isAnimationAllowed = function () {
+            return !isDesktopApplication;
+        };
+
+        NRS.isCameraAccessSupported = function () {
+            return !isDesktopApplication;
+        };
+
+        NRS.isHardwareWalletConnectionAllowed = function () {
+            return isDesktopApplication || location.protocol === "https:" ||
+                location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+        };
+
+        NRS.useClientSideKeyDerivation = function () {
+            return isBigIntSupported;
+        };
+
+        NRS.getBip32CalculatorType = function () {
+            return isDesktopApplication || isLocalHost ? "server" : "client";
+        };
+
+        NRS.isBip32CalculatorDisableClientOption = function () {
+            return isDesktopApplication;
+        };
+
+        NRS.isHdWalletPrivateKeyAvailable = function() {
+            if (!useHdWallet()) {
+                return false;
+            }
+            if (useHardwareWallet()) {
+                return true;
+            }
+            return NRS.bip32Account.getPrivateKey() !== null;
         }
-    };
 
-    NRS.openMobileBrowser = function(url) {
-        try {
-            // Works on Android 6.0 (does not work in 5.1)
-            cordova.InAppBrowser.open(url, '_system');
-        } catch(e) {
-            NRS.logConsole(e.message);
+        NRS.isDisablePassphraseValidation = function() {
+            return NRS.isHdWalletPrivateKeyAvailable();
         }
-    };
 
-    NRS.isCordovaScanningEnabled = function () {
-        return isMobileDevice;
-    };
-
-    NRS.isScanningAllowed = function () {
-        return isMobileDevice || isLocalHost || NRS.isTestNet;
-    };
-
-    NRS.isCameraPermissionRequired = function () {
-        return device && device.platform == "Android" && device.version >= "6.0.0";
-    };
-
-    NRS.changeNow_url = function() {
-        return NRS.settings.changeNow_url;
-    };
-
-    NRS.isForgingSupported = function() {
-        return !NRS.isMobileApp() && !(NRS.state && NRS.state.apiProxy);
-    };
-
-    NRS.isFundingMonitorSupported = function() {
-        return !NRS.isMobileApp() && !(NRS.state && NRS.state.apiProxy);
-    };
-
-    NRS.isShufflingSupported = function() {
-        return !NRS.isMobileApp() && !(NRS.state && NRS.state.apiProxy);
-    };
-
-    NRS.isConfirmResponse = function() {
-        return NRS.isMobileApp() || (NRS.state && NRS.state.apiProxy);
-    };
-
-    NRS.isDisplayOptionalDashboardTiles = function() {
-        return !NRS.isMobileApp();
-    };
-
-    NRS.isShowClientOptionsLink = function() {
-        return NRS.isMobileApp() || (NRS.state && NRS.state.apiProxy);
-    };
-
-    NRS.getGeneratorAccuracyWarning = function() {
-        if (isDesktopApplication) {
-            return "";
+        NRS.isAndroidWebView = function() {
+            return typeof androidWebViewInterface !== 'undefined';
         }
-        return $.t("generator_timing_accuracy_warning");
-    };
 
-    NRS.isInitializePlugins = function() {
-        return !NRS.isMobileApp();
-    };
+        NRS.isPublicKeyLoadedOnLogin = () => useHdWallet();
+        NRS.isBip32PathAvailable = () => useHdWallet();
 
-    NRS.isShowRemoteWarning = function() {
-        return !isLocalHost;
-    };
+        NRS.isHardwareEncryptionEnabled = () => useHardwareWallet();
+        NRS.isHardwareDecryptionEnabled = () => useHardwareWallet();
+        NRS.isHardwareTransactionSigningEnabled = () => useHardwareWallet();
+        NRS.isHardwareTokenSigningEnabled = () => useHardwareWallet();
+        NRS.isHardwareShowAddressEnabled = () => useHardwareWallet();
+        NRS.isPrivateKeyStoredOnHardware = () => useHardwareWallet();
 
-    NRS.isForgingSafe = function() {
-        return isLocalHost;
-    };
+        return NRS;
+    }(isNode ? client : NRS || {}, jQuery));
 
-    NRS.isPassphraseAtRisk = function() {
-        return !isLocalHost || NRS.state && NRS.state.apiProxy || NRS.isMobileApp();
-    };
-
-    NRS.isWindowPrintSupported = function() {
-        return !isDesktopApplication && !isMobileDevice && navigator.userAgent.indexOf("Firefox") == -1;
-    };
-    
-    NRS.getAdminPassword = function() {
-        if (window.java) {
-            return window.java.getAdminPassword();
-        }
-        if (isNode) {
-            return NRS.getModuleConfig().adminPassword;
-        }
-        return NRS.settings.admin_password;
-    };
-
-    NRS.isFileReaderSupported = function() {
-        return (isDesktopApplication && window.java && window.java.isFileReaderSupported())  ||
-               (!isDesktopApplication && !!(window.File && window.FileList && window.FileReader)); // https://github.com/Modernizr/Modernizr/blob/master/feature-detects/file/api.js
-    };
-
-    NRS.isVideoSupported = function() {
-        return !isDesktopApplication;
-    };
-
-    NRS.isAnimationAllowed = function() {
-        return !isDesktopApplication;
-    };
-
-    NRS.isCameraAccessSupported = function() {
-        return !isDesktopApplication;
-    };
-
-    return NRS;
-}(isNode ? client : NRS || {}, jQuery));
-
-if (isNode) {
-    module.exports = NRS;
-}
+    if (isNode) {
+        module.exports = NRS;
+    }
+});

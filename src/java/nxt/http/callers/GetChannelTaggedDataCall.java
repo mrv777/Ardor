@@ -8,6 +8,10 @@ public class GetChannelTaggedDataCall extends APICall.Builder<GetChannelTaggedDa
         super(ApiSpec.getChannelTaggedData);
     }
 
+    public static GetChannelTaggedDataCall create() {
+        return new GetChannelTaggedDataCall();
+    }
+
     public static GetChannelTaggedDataCall create(int chain) {
         return new GetChannelTaggedDataCall().param("chain", chain);
     }

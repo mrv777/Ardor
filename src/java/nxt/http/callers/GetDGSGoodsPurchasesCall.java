@@ -8,6 +8,10 @@ public class GetDGSGoodsPurchasesCall extends APICall.Builder<GetDGSGoodsPurchas
         super(ApiSpec.getDGSGoodsPurchases);
     }
 
+    public static GetDGSGoodsPurchasesCall create() {
+        return new GetDGSGoodsPurchasesCall();
+    }
+
     public static GetDGSGoodsPurchasesCall create(int chain) {
         return new GetDGSGoodsPurchasesCall().param("chain", chain);
     }

@@ -1,6 +1,6 @@
 /*
  * Copyright © 2013-2016 The Nxt Core Developers.
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -18,6 +18,7 @@ package nxt.addons;
 
 import nxt.Constants;
 import nxt.Nxt;
+import nxt.NxtException;
 import nxt.account.Account;
 import nxt.blockchain.Block;
 import nxt.blockchain.BlockchainProcessor;
@@ -30,6 +31,7 @@ import nxt.blockchain.FxtChain;
 import nxt.blockchain.Transaction;
 import nxt.blockchain.TransactionProcessor;
 import nxt.blockchain.TransactionType;
+import nxt.configuration.ConfigPropertyBuilder;
 import nxt.configuration.SubSystem;
 import nxt.db.DbIterator;
 import nxt.http.APICall;
@@ -55,6 +57,7 @@ import org.apache.commons.math3.stat.descriptive.StatisticalSummary;
 import org.apache.commons.math3.stat.descriptive.SummaryStatistics;
 import org.json.simple.JSONStreamAware;
 
+import javax.servlet.http.HttpServletRequest;
 import java.io.Reader;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
@@ -62,6 +65,7 @@ import java.security.AccessController;
 import java.security.PrivilegedAction;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -75,14 +79,37 @@ import static nxt.addons.AbstractContractContext.EventSource;
 import static nxt.addons.ContractRunner.INVOCATION_TYPE.BLOCK;
 import static nxt.addons.ContractRunner.INVOCATION_TYPE.REQUEST;
 import static nxt.addons.ContractRunner.INVOCATION_TYPE.TRANSACTION;
+import static nxt.addons.ContractRunner.INVOCATION_TYPE.VOUCHER;
 
+@SuppressWarnings("rawtypes")
 public final class ContractRunner implements AddOn, ContractProvider {
 
+    @SuppressWarnings("rawtypes")
     public enum INVOCATION_TYPE {
-        TRANSACTION("processTransaction", TransactionContext.class),
-        BLOCK("processBlock", BlockContext.class),
-        REQUEST("processRequest", RequestContext.class),
-        VOUCHER("processVoucher", VoucherContext.class);
+        TRANSACTION("processTransaction", TransactionContext.class) {
+            @Override
+            public JO invokeMethod(Contract contract, AbstractContractContext context) {
+                return contract.processTransaction((TransactionContext) context);
+            }
+        },
+        BLOCK("processBlock", BlockContext.class) {
+            @Override
+            public JO invokeMethod(Contract contract, AbstractContractContext context) {
+                return contract.processBlock((BlockContext) context);
+            }
+        },
+        REQUEST("processRequest", RequestContext.class) {
+            @Override
+            public JO invokeMethod(Contract contract, AbstractContractContext context) throws NxtException {
+                return contract.processRequest((RequestContext) context);
+            }
+        },
+        VOUCHER("processVoucher", VoucherContext.class) {
+            @Override
+            public JO invokeMethod(Contract contract, AbstractContractContext context) {
+                return contract.processVoucher((VoucherContext) context);
+            }
+        };
 
         private final String methodName;
         private final Class contextClass;
@@ -125,6 +152,8 @@ public final class ContractRunner implements AddOn, ContractProvider {
         public static Optional<INVOCATION_TYPE> getByMethodName(String methodName) {
             return Arrays.stream(values()).filter(type -> type.getMethodName().equals(methodName)).findFirst();
         }
+
+        public abstract JO invokeMethod(Contract contract, AbstractContractContext context) throws NxtException;
     }
 
     private static final StatisticalSummary NULL_STATISTICAL_SUMMARY = new StatisticalSummary() {
@@ -168,11 +197,11 @@ public final class ContractRunner implements AddOn, ContractProvider {
     private static final String CONFIG_FILE_PROPERTY = CONFIG_PROPERTY_PREFIX + "configFile";
 
     private volatile ContractRunnerConfig config = new NullContractRunnerConfig("Not initialized");
-    private Map<String, ContractAndSetupParameters> supportedContracts = new HashMap<>();
-    private Map<String, ContractReference> supportedContractReferences = new HashMap<>();
-    private Map<String, APIServlet.APIRequestHandler> apiRequests;
-    private Map<String, ContractReference> addedContractReferences = new HashMap<>();
-    private Map<String, ContractReference> deletedContractReferences = new HashMap<>();
+    private final Map<String, ContractAndSetupParameters> supportedContracts = new HashMap<>();
+    private final Map<String, ContractReference> supportedContractReferences = new HashMap<>();
+    private final Map<String, APIServlet.APIRequestHandler> apiRequests = new HashMap<>();
+    private final Map<String, ContractReference> addedContractReferences = new HashMap<>();
+    private final Map<String, ContractReference> deletedContractReferences = new HashMap<>();
 
     @Override
     public void init() {
@@ -181,25 +210,26 @@ public final class ContractRunner implements AddOn, ContractProvider {
         if (sm != null) {
             sm.checkPermission(new ContractRunnerPermission("init"));
         }
-        apiRequests = new HashMap<>();
-        apiRequests.put("getSupportedContracts", new ContractRunnerAPIs.GetSupportedContractsAPI(this, new APITag[]{APITag.ADDONS}));
+        apiRequests.put("getSupportedContracts", new ContractRunnerAPIs.GetSupportedContractsAPI(this, new APITag[]{APITag.ADDONS}, "adminPassword"));
         apiRequests.put("triggerContractByTransaction", new ContractRunnerAPIs.TriggerContractByTransactionAPI(this, new APITag[]{APITag.ADDONS}, "triggerFullHash", "apply", "validate", "adminPassword"));
         apiRequests.put("triggerContractByHeight", new ContractRunnerAPIs.TriggerContractByHeightAPI(this, new APITag[]{APITag.ADDONS}, "contractName", "height", "apply", "adminPassword"));
         apiRequests.put("triggerContractByRequest", new ContractRunnerAPIs.TriggerContractByRequestAPI(this, new APITag[]{APITag.ADDONS}, "contractName", "setupParams", "adminPassword"));
         apiRequests.put("triggerContractByVoucher", new ContractRunnerAPIs.TriggerContractByVoucherAPI(this, "voucher", new APITag[]{APITag.ADDONS}, "contractName"));
         apiRequests.put("uploadContractRunnerConfiguration", new ContractRunnerAPIs.UploadContractRunnerConfigurationAPI(this, "config", new APITag[]{APITag.ADDONS}, "adminPassword"));
+        ContractRunnerEncryptedConfig contractRunnerEncryptedConfig = new ContractRunnerEncryptedConfig(this);
+        contractRunnerEncryptedConfig.init();
+        apiRequests.putAll(contractRunnerEncryptedConfig.getAPIRequests());
 
-        if (!Nxt.getServerStatus().isDatabaseReady() || !Nxt.isEnabled(SubSystem.ADDONS)) {
+        boolean isDatabaseReady = Nxt.getServerStatus().isDatabaseReady();
+        boolean isAddonsEnabled = Nxt.isEnabled(SubSystem.ADDONS);
+        if (!isDatabaseReady || !isAddonsEnabled) {
             // For some utilities it is enough that we register the API even if Nxt itself is not initialized
+            Logger.logInfoMessage("ContractRunner not initialized, database is ready %b,  addons are enabled %b", isDatabaseReady, isAddonsEnabled);
             return;
         }
 
         // Read contract runner configuration
         loadConfig(Nxt.getStringProperty(CONFIG_FILE_PROPERTY));
-
-        ContractRunnerEncryptedConfig contractRunnerEncryptedConfig = new ContractRunnerEncryptedConfig(this);
-        contractRunnerEncryptedConfig.init();
-        apiRequests.putAll(contractRunnerEncryptedConfig.getAPIRequests());
 
         // Register listeners for contract activation
         Nxt.getBlockchainProcessor().addListener(this::processBlock, BlockchainProcessor.Event.AFTER_BLOCK_ACCEPT);
@@ -208,6 +238,53 @@ public final class ContractRunner implements AddOn, ContractProvider {
         ContractReference.addListener(this::contractAdded, ContractReference.Event.SET_CONTRACT_REFERENCE);
         ContractReference.addListener(this::contractDeleted, ContractReference.Event.DELETE_CONTRACT_REFERENCE);
         Logger.logInfoMessage("ContractRunner Started");
+    }
+
+    @Override
+    public Collection<ConfigPropertyBuilder> getConfigProperties() {
+        List<ConfigPropertyBuilder> l = new ArrayList<>();
+        //TODO: need to add privateKey too ?
+        l.add(ConfigPropertyBuilder.createPasswordProperty(ContractRunner.CONFIG_PROPERTY_PREFIX + "secretPhrase",
+                "", "The secret phrase of the contract runner account"));
+        l.add(ConfigPropertyBuilder.createAccountProperty(ContractRunner.CONFIG_PROPERTY_PREFIX + "accountRS",
+                null, "Alternatively if you only want your contract runner to verify " +
+                        "transactions submitted by another contract runner, specify the account of the contract " +
+                        "runner you would like to follow"));
+        l.add(ConfigPropertyBuilder.createBooleanProperty(ContractRunner.CONFIG_PROPERTY_PREFIX + "autoFeeRate",
+                false, "If set to true (default: false), the contract runner will calculate " +
+                        "the best fee available based on the current bundlers")
+        );
+        for (ChildChain childChain : ChildChain.getAll()) {
+            l.add(ConfigPropertyBuilder.createStringProperty(ContractRunner.CONFIG_PROPERTY_PREFIX + "feeRateNQTPerFXT." + childChain.getName(),
+                    "", "When autoFeeRate is set to false or the best fee cannot be obtained the " +
+                            "contract runner will use this value specified in NQT to calculate the child chain fee to submit"));
+        }
+        l.add(ConfigPropertyBuilder.createBooleanProperty(ContractRunner.CONFIG_PROPERTY_PREFIX + "validator",
+                false, "If set to true (default: false), the contract runner will watch for " +
+                        "transactions submitted by other contract runners and will try to verify that the other " +
+                        "contract runner indeed run the contract stored on the blockchain")
+        );
+        l.add(ConfigPropertyBuilder.createPasswordProperty(ContractRunner.CONFIG_PROPERTY_PREFIX + "validatorSecretPhrase",
+                "", "When validator is set to true, and another contract runner is using an account " +
+                        "under account control, specify here the secret phrase of the controlling account. Your contract " +
+                        "runner will intercept the transactions submitted by the other contract runner, repeat the " +
+                        "calculations, and if it receives the same result, will submit an approval transaction for the " +
+                        "transaction submitted by the other contract runner"));
+        l.add(ConfigPropertyBuilder.createIntegerProperty(ContractRunner.CONFIG_PROPERTY_PREFIX + "catchUpInterval",
+                3600, "A timeout value specified in seconds (default: 3600 i.e. one hour). " +
+                        "During blockchain download the contract runner will only submit transactions when " +
+                        "downloading a block with a timestamp later than the current time minus the defined " +
+                        "catchUpInterval. The purpose of this setting is to prevent a contract runner from flooding " +
+                        "the unconfirmed transaction pool with duplicate transactions during blockchain download.")
+                .setMin(0));
+        l.add(ConfigPropertyBuilder.createPasswordProperty(ContractRunner.CONFIG_PROPERTY_PREFIX + "seed",
+                "", "Supply random seed to the contract runner formatted as hex string (default: " +
+                        "the public key of the contract account which is useless from randomness perspective). " +
+                        "Convert any random value to hex string using the hexConvert API and specify the resulting " +
+                        "hex string value as a seed. A seed of less than 16 bytes can be easily brute forced so make " +
+                        "sure your seed is longer. Keep your seed secret, it can be used in the future to validate " +
+                        "your contract execution"));
+        return l;
     }
 
     private void loadConfig(String configFileName) {
@@ -224,37 +301,47 @@ public final class ContractRunner implements AddOn, ContractProvider {
         loadConfig(configJson);
     }
 
-    boolean loadConfig(JO configJson) {
+    private boolean loadConfig(JO configJson) {
         ActiveContractRunnerConfig newConfig = new ActiveContractRunnerConfig(this);
         try {
             newConfig.init(configJson);
+        } catch (IllegalArgumentException e) {
+            Logger.logErrorMessage("ContractRunner wrong initial parameters: %s", e.getMessage());
+            config = new NullContractRunnerConfig("Not yet configured: " + e.getMessage());
+            return false;
         } catch (Throwable t) {
             Logger.logErrorMessage("ContractRunner configuration loading error", t);
-            config = new NullContractRunnerConfig("Not yet configured: " + t.getMessage());
+            config = new NullContractRunnerConfig("Configuration error: " + t.getMessage());
             return false;
         }
         if (config.getAccountId() != 0 && config.getAccountId() != newConfig.getAccountId()) {
             Logger.logErrorMessage("Cannot switch contract runner account from %s to %s during runtime", Convert.rsAccount(config.getAccountId()), Convert.rsAccount(newConfig.getAccountId()));
             return false;
         }
+        // Shutdown all initialized contracts using existing config and clear supported contracts list before reloading using the new config
+        reset();
         config = newConfig;
 
         try (DbIterator<ContractReference> iterator = ContractReference.getContractReferences(config.getAccountId(), null, 0, Integer.MAX_VALUE)) {
             while (iterator.hasNext()) {
-                loadContract(iterator.next());
+                ContractReference contractReference = iterator.next();
+                Logger.logInfoMessage("Loading contract %s tx %s runner account %s", contractReference.getContractName(), contractReference.getContractId(), Convert.rsAccount(contractReference.getAccountId()));
+                loadContract(contractReference);
             }
         } catch (Throwable t) {
             Logger.logErrorMessage("Error retrieving contract references for account " + config.getAccountRs(), t);
         }
+        supportedContracts.values().forEach(contractAndSetupParameters -> contractAndSetupParameters.init(() -> new InitializationContext(config, contractAndSetupParameters, EventSource.NODE_RUNTIME_LIFECYCLE)));
         return true;
     }
 
-    private void loadContract(ContractReference contractReference) {
+    private ContractAndSetupParameters loadContract(ContractReference contractReference) {
         try {
-            ContractLoader.loadContract(contractReference, supportedContracts, supportedContractReferences);
+            return ContractLoader.loadContract(contractReference, supportedContracts, supportedContractReferences);
         } catch (Throwable t) {
             Logger.logErrorMessage(String.format("Error loading contract %s", contractReference.getContractName()), t);
         }
+        return new ContractAndSetupParameters("", ContractLoader.NULL_CONTRACT, new JO());
     }
 
     JSONStreamAware parseConfig(Reader reader) {
@@ -273,12 +360,12 @@ public final class ContractRunner implements AddOn, ContractProvider {
     }
 
     private <T extends AbstractContractContext> JO processImpl(ContractAndSetupParameters contractAndParameters, T context, INVOCATION_TYPE invocationType) {
-        Contract contract = contractAndParameters.getContract();
+        Contract<?,?> contract = contractAndParameters.getContract();
         Method contractMethod;
         try {
             contractMethod = contract.getClass().getDeclaredMethod(invocationType.getMethodName(), invocationType.getContextClass());
         } catch (NoSuchMethodException e) {
-            return null;
+            return context.generateInfoResponse("Method %s not implemented by contract %s", invocationType.getMethodName(), contract.getClass().getSimpleName());
         }
         context.setContractSetupParameters(contractAndParameters.getParams());
         if (invocationType == BLOCK || invocationType == REQUEST) {
@@ -315,16 +402,28 @@ public final class ContractRunner implements AddOn, ContractProvider {
                     return context.generateErrorResponse(11003, "The trigger %s %s is not an accepted transaction type of contract %s",
                             invocationType, operationContext.getTransaction().getFullHash(), contract.getClass().getName());
                 }
+            } else if (annotation.annotationType().equals(ValidateBlockchainIsUpToDate.class)) {
+                if (Nxt.getBlockchainProcessor().isDownloading()) {
+                    return context.generateErrorResponse(11004, "Cannot execute contract since blockchain is currently downloading",
+                            invocationType, operationContext.getTransaction().getFullHash(), contract.getClass().getName());
+                }
+            } else if (annotation.annotationType().equals(ValidateHeight.class)) {
+                ValidateHeight validateHeight = (ValidateHeight) annotation;
+                int height = Nxt.getBlockchain().getHeight();
+                if ((height % validateHeight.divisor()) != validateHeight.reminder()) {
+                    return context.generateErrorResponse(11002, "The blockchain height divided by %d does not have reminder %d",
+                            height, validateHeight.divisor(), validateHeight.reminder());
+                }
             }
         }
         return invokeContract(contract, contractMethod, invocationType, context);
     }
 
-    private <T extends AbstractContractContext> JO invokeContract(Contract contract, Method contractMethod, INVOCATION_TYPE invocationType, T context) {
+    private <T extends AbstractContractContext> JO invokeContract(Contract<?,?> contract, Method contractMethod, INVOCATION_TYPE invocationType, T context) {
         Logger.logInfoMessage("Invoking %s on contract %s", contractMethod.getName(), contract.getClass().getCanonicalName());
         long startTime = System.nanoTime();
         try {
-            JO result = (JO)contractMethod.invoke(contract, context);
+            JO result = invocationType.invokeMethod(contract, context);
             long interval = System.nanoTime() - startTime;
             invocationType.addMeasurementNormal(contract.getClass().getCanonicalName(), interval);
             return result;
@@ -361,8 +460,8 @@ public final class ContractRunner implements AddOn, ContractProvider {
             }
             try {
                 JO contractResponse = processTransaction(transaction, true, config.isValidator());
-                if (contractResponse != null) {
-                    Logger.logInfoMessage("ContractRunner response: " + contractResponse.toJSONString());
+                if (contractResponse != null && contractResponse.isExist("errorCode")) {
+                    Logger.logInfoMessage("ContractRunner error response: " + contractResponse.toJSONString());
                 }
             } catch (Exception e) {
                 ChainTransactionId txid = new ChainTransactionId(transaction.getChain().getId(), transaction.getFullHash());
@@ -383,8 +482,8 @@ public final class ContractRunner implements AddOn, ContractProvider {
             }
             try {
                 JO contractResponse = processTransaction(transaction, true, config.isValidator());
-                if (contractResponse != null) {
-                    Logger.logInfoMessage("ContractRunner response: " + contractResponse.toJSONString());
+                if (contractResponse != null && contractResponse.isExist("errorCode")) {
+                    Logger.logInfoMessage("ContractRunner error response: " + contractResponse.toJSONString());
                 }
             } catch (Exception e) {
                 ChainTransactionId txid = new ChainTransactionId(transaction.getChain().getId(), transaction.getFullHash());
@@ -407,11 +506,30 @@ public final class ContractRunner implements AddOn, ContractProvider {
 
     private void processBlock(Block block) {
         try {
-            addedContractReferences.forEach((contractName, contractReference) ->
-                    ContractLoader.loadContract(contractReference, supportedContracts, supportedContractReferences));
+            addedContractReferences.forEach((contractName, contractReference) -> {
+                Logger.logInfoMessage("Adding contract %s tx %s runner account %s", contractName, contractReference.getContractId(), Convert.rsAccount(contractReference.getAccountId()));
+                ContractAndSetupParameters existingContract = supportedContracts.get(contractName);
+                if (existingContract != null) {
+                    Logger.logInfoMessage("Shutting down existing contract");
+                    ShutdownContext shutdownContext = new ShutdownContext(config, existingContract, EventSource.CONTRACT_REFERENCE_LIFECYCLE);
+                    existingContract.shutdown(() -> shutdownContext);
+                    supportedContracts.remove(contractName);
+                    supportedContractReferences.remove(contractName);
+                }
+                Logger.logInfoMessage("Initializing new contract");
+                ContractAndSetupParameters contractAndSetupParameters = loadContract(contractReference);
+                contractAndSetupParameters.init(() -> new InitializationContext(config, contractAndSetupParameters, EventSource.CONTRACT_REFERENCE_LIFECYCLE));
+            });
             deletedContractReferences.forEach((contractName, contractReference) -> {
+                Logger.logInfoMessage("Removing contract reference %s tx %s runner account %s", contractName, contractReference.getContractId(), Convert.rsAccount(contractReference.getAccountId()));
+                ContractAndSetupParameters contractAndSetupParameters = supportedContracts.get(contractName);
+                if (contractAndSetupParameters == null) {
+                    return;
+                }
+                contractAndSetupParameters.shutdown(() -> new ShutdownContext(config, contractAndSetupParameters, EventSource.CONTRACT_REFERENCE_LIFECYCLE));
                 supportedContracts.remove(contractName);
                 supportedContractReferences.remove(contractName);
+                Logger.logInfoMessage("Contract reference %s removed", contractReference.getContractName());
             });
             addedContractReferences.clear();
             deletedContractReferences.clear();
@@ -457,6 +575,38 @@ public final class ContractRunner implements AddOn, ContractProvider {
         } else {
             return approveTransaction(contract.getContract(), transactionToApprove, transactions);
         }
+    }
+
+    JO processRequest(HttpServletRequest req, String contractName) {
+        ContractAndSetupParameters contract = supportedContracts.get(contractName);
+        if (contract == null) {
+            return generateErrorResponse(1003, "Contract is not supported %s", contractName);
+        }
+        RequestContext context = new RequestContext(req, config, contractName);
+        JO jo = process(contract, context, REQUEST);
+        if (jo == null) {
+            return generateErrorResponse(1002, "Contract %s returned no response", contractName);
+        }
+        if (jo.isExist("transactions")) {
+            jo.put("submitContractTransactionsResponse", submitContractTransactions(contract.getContract(), jo.getJoList("transactions")));
+        }
+        return jo;
+    }
+
+    JO processVoucher(JO voucher, String contractName) {
+        ContractAndSetupParameters contract = supportedContracts.get(contractName);
+        if (contract == null) {
+            return generateErrorResponse(1003, "Contract is not supported %s", contractName);
+        }
+        VoucherContext context = new VoucherContext(voucher, config, contractName);
+        JO jo = process(contract, context, VOUCHER);
+        if (jo == null) {
+            return generateErrorResponse(1003, "Contract %s invoked by account %s returned no response", contractName, config.getAccountRs());
+        }
+        if (jo.isExist("transactions")) {
+            jo.put("submitContractTransactionsResponse", submitContractTransactions(contract.getContract(), jo.getJoList("transactions")));
+        }
+        return jo;
     }
 
     JO processTransaction(Transaction contractOrTriggerTransaction, boolean isApply, boolean validator) {
@@ -526,7 +676,8 @@ public final class ContractRunner implements AddOn, ContractProvider {
             isValidator = false;
         }
         if (contractName == null) {
-            return generateErrorResponse(1000, "ContractRunner trigger %s did not specify contract name", Convert.toHexString(triggerTransaction.getFullHash()));
+            Logger.logInfoMessage("ContractRunner: transaction %s did not trigger a contract", Convert.toHexString(triggerTransaction.getFullHash()));
+            return new JO();
         }
         ContractAndSetupParameters contract = supportedContracts.get(contractName);
         if (contract == null) {
@@ -597,15 +748,15 @@ public final class ContractRunner implements AddOn, ContractProvider {
                     return generateErrorResponse(1000, "Found a match but cannot submit approval to a parent chain transaction");
                 }
                 // If we found a match, we submit approval transaction to the original transaction
-                String validatorSecretPhrase = config.getValidatorSecretPhrase();
-                if (validatorSecretPhrase == null) {
+                byte[] validatorPrivateKey = config.getValidatorPrivateKey();
+                if (validatorPrivateKey == null) {
                     return generateErrorResponse(1000, "Cannot approve transaction, validatorSecretPhrase not specified");
                 }
                 expectedTransactionJSON = new JO(JSONData.unconfirmedTransaction(transactionToApprove));
                 int chainId = (int) expectedTransactionJSON.get("chain");
                 APICall.Builder builder = ApproveTransactionCall.create(chainId).
                         param("phasedTransaction", chainId + ":" + expectedTransactionJSON.getString("fullHash")).
-                        secretPhrase(validatorSecretPhrase);
+                        privateKey(validatorPrivateKey);
                 if (Chain.getChain(chainId) instanceof ChildChain) {
                     builder.param("feeRateNQTPerFXT", config.getCurrentFeeRateNQTPerFXT(chainId));
                 }
@@ -620,9 +771,9 @@ public final class ContractRunner implements AddOn, ContractProvider {
     }
 
     JO submitContractTransactions(Contract contract, List<JO> transactions) {
-        String secretPhrase = config.getSecretPhrase();
-        if (secretPhrase == null) {
-            return generateErrorResponse(1000, "Cannot submit transactions, contract runner secret phrase not specified");
+        byte[] privateKey = config.getPrivateKey();
+        if (privateKey == null) {
+            return generateErrorResponse(1000, "Cannot submit transactions, contract runner private key not specified");
         }
         int counter = 0;
         int errorsCounter = 0;
@@ -641,7 +792,7 @@ public final class ContractRunner implements AddOn, ContractProvider {
             APICall apiCall;
             if (!transactionJSON.isExist("signature")) {
                 builder = SignTransactionCall.create().
-                        secretPhrase(secretPhrase).
+                        privateKey(privateKey).
                         unsignedTransactionJSON(transactionJSON.toJSONString()).
                         validate(true);
                 apiCall = builder.build();
@@ -658,8 +809,8 @@ public final class ContractRunner implements AddOn, ContractProvider {
             apiCall = builder.build();
             JO broadcastTransactionResponse = new JO(apiCall.invoke());
             if (broadcastTransactionResponse.get("errorCode") != null) {
-                Logger.logErrorMessage(String.format("Error broadcasting transaction %s chain %d message %s",
-                        transactionJSON.getString("fullHash"), transactionJSON.getLong("chain"), broadcastTransactionResponse.getString("errorDescription")));
+                Logger.logErrorMessage(String.format("Error %s broadcasting transaction %s on chain %d",
+                        broadcastTransactionResponse.getString("errorDescription"), transactionJSON.getString("fullHash"), transactionJSON.getLong("chain")));
                 errorsCounter++;
             } else {
                 counter++;
@@ -696,7 +847,7 @@ public final class ContractRunner implements AddOn, ContractProvider {
         return response;
     }
 
-    public JO generateInfoResponse(String message, Object... params) {
+    private JO generateInfoResponse(@SuppressWarnings("SameParameterValue") String message, Object... params) {
         message = String.format(message, params);
         Logger.logInfoMessage(message, params);
         JO response = new JO();
@@ -719,30 +870,37 @@ public final class ContractRunner implements AddOn, ContractProvider {
         } else if (encryptedAppendix != null) {
             if (transaction.getRecipientId() != config.getAccountId()) {
                 return generateErrorResponse(1000, "Cannot decrypt attached message, contract account %s is not the recipient %s of attached message", config.getAccountRs(), Convert.rsAccount(transaction.getRecipientId()));
-            } else if (config.getSecretPhrase() == null) {
-                return generateErrorResponse(1000, "Cannot decrypt attached message, contract runner secret phrase not specified for account %s", config.getAccountRs());
+            } else if (config.getPrivateKey() == null) {
+                return generateErrorResponse(1000, "Cannot decrypt attached message, contract runner private key not specified for account %s", config.getAccountRs());
             } else if (config.isValidator()) {
                 // TODO if this becomes an important limitation perhaps we can rely on a shared key in this case
                 return generateErrorResponse(1000, "Cannot decrypt attached message, validator cannot decrypt encrypted trigger message");
             }
-            messageText = Convert.toString(Account.decryptFrom(transaction.getSenderPublicKey(), encryptedAppendix.getEncryptedData(), config.getSecretPhrase(), encryptedAppendix.isCompressed()), encryptedAppendix.isText());
+            messageText = Convert.toString(Account.decryptFrom(config.getPrivateKey(), transaction.getSenderPublicKey(), encryptedAppendix.getEncryptedData(), encryptedAppendix.isCompressed()), encryptedAppendix.isText());
         } else {
-            // TODO this is not really an error condition. Can we handle this gracefully
-            return generateErrorResponse(1000, "Transaction %s of chain %s does not trigger a contract", Convert.toHexString(transaction.getFullHash()), transaction.getChain());
+            return new JO();
         }
         try {
             return JO.parse(messageText);
         } catch (Exception e) {
-            return generateErrorResponse(1000, "cannot parse attached message " + messageText + ", probably not a trigger transaction " + e);
+            return generateErrorResponse(1000, "Contract runner - cannot parse attached message " + messageText);
         }
     }
 
     @Override
     public void shutdown() {
-        Logger.logInfoMessage("ContractRunner shutdown");
+        shutdownAllContracts();
+        Logger.logInfoMessage("ContractRunner shutdown complete");
+    }
+
+    private void shutdownAllContracts() {
+        Logger.logInfoMessage("ContractRunner shutting down all contracts");
+        supportedContracts.forEach((name, contractAndSetupParameters) -> contractAndSetupParameters.shutdown(() ->
+                new ShutdownContext(config, contractAndSetupParameters, EventSource.NODE_RUNTIME_LIFECYCLE)));
     }
 
     public void reset() {
+        shutdownAllContracts();
         supportedContracts.clear();
         supportedContractReferences.clear();
     }

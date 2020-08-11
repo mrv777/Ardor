@@ -8,6 +8,10 @@ public class StartShufflerCall extends APICall.Builder<StartShufflerCall> {
         super(ApiSpec.startShuffler);
     }
 
+    public static StartShufflerCall create() {
+        return new StartShufflerCall();
+    }
+
     public static StartShufflerCall create(int chain) {
         return new StartShufflerCall().param("chain", chain);
     }

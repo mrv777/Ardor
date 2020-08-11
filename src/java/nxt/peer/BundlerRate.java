@@ -1,6 +1,6 @@
 /*
  * Copyright © 2013-2016 The Nxt Core Developers.
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -135,21 +135,20 @@ public final class BundlerRate {
 
     /**
      * Create a signed bundler rate
-     *
      * @param   chain                   Child chain
      * @param   rate                    Bundler rate
      * @param   feeLimit                Current fee limit
-     * @param   secretPhrase            Bundler account secret phrase
+     * @param   privateKey              Private key
      */
-    public BundlerRate(ChildChain chain, long rate, long feeLimit, String secretPhrase) {
+    public BundlerRate(ChildChain chain, long rate, long feeLimit, byte[] privateKey) {
         this.chain = chain;
-        this.publicKey = Crypto.getPublicKey(secretPhrase);
+        this.publicKey = Crypto.getPublicKey(privateKey);
         this.accountId = Account.getId(publicKey);
         this.rate = rate;
         this.feeLimit = feeLimit;
         //rounded to 10 minutes for privacy reasons
         this.timestamp = (Nxt.getEpochTime() / 600) * 600;
-        this.signature = Crypto.sign(getUnsignedBytes(), secretPhrase);
+        this.signature = Crypto.sign(getUnsignedBytes(), privateKey);
     }
 
     /**
@@ -157,14 +156,10 @@ public final class BundlerRate {
      *
      * @param   buffer                      Encoded data
      * @throws  BufferUnderflowException    Encoded data is too short
-     * @throws  NetworkException            Encoded data is not valid
      */
-    public BundlerRate(ByteBuffer buffer) throws BufferUnderflowException, NetworkException {
+    public BundlerRate(ByteBuffer buffer) throws BufferUnderflowException {
         int chainId = buffer.getInt();
         this.chain = ChildChain.getChildChain(chainId);
-        if (this.chain == null) {
-            throw new NetworkException("Child chain '" + chainId + "' is not valid");
-        }
         this.publicKey = new byte[32];
         buffer.get(this.publicKey);
         this.accountId = Account.getId(this.publicKey);

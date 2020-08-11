@@ -1,5 +1,5 @@
 /*
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -17,6 +17,7 @@ package com.jelurida.ardor.contracts;
 
 import nxt.Tester;
 import nxt.http.APICall;
+import nxt.http.callers.TriggerContractByRequestCall;
 import nxt.util.Convert;
 import nxt.addons.JO;
 import nxt.util.Logger;
@@ -28,14 +29,8 @@ import static nxt.blockchain.ChildChain.IGNIS;
 public class NewAccountFaucetTest extends AbstractContractTest {
 
     @Test
-    public void fundNewAccount() {
-        JO setupParams = new JO();
-        setupParams.put("chain", 2);
-        setupParams.put("thresholdAmountNQT", 1100000000);
-        setupParams.put("thresholdBlocks", 10);
-        setupParams.put("faucetAmountNQT", 500000000);
-        String contractName = NewAccountFaucet.class.getSimpleName();
-        ContractTestHelper.deployContract(NewAccountFaucet.class, setupParams);
+    public void fundNewAccountFromVoucher() {
+        String contractName = setupContract();
         generateBlock();
         Tester newGuy = new Tester("rule chase pound passion whistle odd tumble joy howl reason crack turn");
         // newGuy generates a voucher
@@ -68,14 +63,32 @@ public class NewAccountFaucetTest extends AbstractContractTest {
     }
 
     @Test
+    public void fundNewAccountFromRequest() {
+        String contractName = setupContract();
+        generateBlock();
+        Tester newGuy = new Tester("rule chase pound passion whistle odd tumble joy howl reason crack turn");
+
+        // newGuy requests funding from the contract
+        JO response = TriggerContractByRequestCall.create().contractName("NewAccountFaucet").setParamValidation(false).param("recipientPublicKey", newGuy.getPublicKeyStr()).param("chain", 2).call();
+        Logger.logDebugMessage("triggerContractByRequest: " + response);
+        generateBlock();
+
+        // new Guy account is funded
+        Assert.assertEquals(-500000000 - (100000000 + 100000000 + 202000000), ALICE.getChainBalanceDiff(2)); // SendMoney + fee + new account fee + deploy contract fee
+        Assert.assertEquals(500000000, newGuy.getChainBalanceDiff(2)); // Faucet received
+        Assert.assertEquals(402000000, FORGY.getChainBalanceDiff(2)); // Forging reward
+
+        // newGuy requests funding from the contract again
+        response = TriggerContractByRequestCall.create().contractName("NewAccountFaucet").setParamValidation(false).param("recipientPublicKey", newGuy.getPublicKeyStr()).param("chain", 2).call();
+        Logger.logDebugMessage("triggerContractByVoucher: " + response);
+
+        // No luck since the account already has a public key
+        Assert.assertEquals(10001L, response.get("errorCode"));
+    }
+
+    @Test
     public void failToFundExistingAccount() {
-        JO setupParams = new JO();
-        setupParams.put("chain", 2);
-        setupParams.put("thresholdAmountNQT", 1100000000);
-        setupParams.put("thresholdBlocks", 10);
-        setupParams.put("faucetAmountNQT", 500000000);
-        String contractName = NewAccountFaucet.class.getSimpleName();
-        ContractTestHelper.deployContract(NewAccountFaucet.class, setupParams);
+        String contractName = setupContract();
 
         // BOB generates a voucher
         JO response = getVoucher(BOB);
@@ -94,13 +107,7 @@ public class NewAccountFaucetTest extends AbstractContractTest {
 
     @Test
     public void enforceThreshold() {
-        JO setupParams = new JO();
-        setupParams.put("chain", 2);
-        setupParams.put("thresholdAmountNQT", 1100000000);
-        setupParams.put("thresholdBlocks", 10);
-        setupParams.put("faucetAmountNQT", 500000000);
-        String contractName = NewAccountFaucet.class.getSimpleName();
-        ContractTestHelper.deployContract(NewAccountFaucet.class, setupParams);
+        String contractName = setupContract();
         generateBlock();
 
         // contracts.json sets threshold of 11 IGNIS over 1440 blocks
@@ -118,6 +125,17 @@ public class NewAccountFaucetTest extends AbstractContractTest {
         generateBlocks(10);
         paymentFromFaucet = getPaymentFromFaucet(contractName, baseSecretPhrase + "5");
         Assert.assertNotNull(paymentFromFaucet.get("transactions"));
+    }
+
+    private String setupContract() {
+        JO setupParams = new JO();
+        setupParams.put("chain", 2);
+        setupParams.put("thresholdAmountNQT", 1100000000);
+        setupParams.put("thresholdBlocks", 10);
+        setupParams.put("faucetAmountNQT", 500000000);
+        String contractName = NewAccountFaucet.class.getSimpleName();
+        ContractTestHelper.deployContract(NewAccountFaucet.class, setupParams);
+        return contractName;
     }
 
     private JO getPaymentFromFaucet(String contractName, String baseSecretPhrase) {

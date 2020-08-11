@@ -1,6 +1,6 @@
 /*
  * Copyright © 2013-2016 The Nxt Core Developers.
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -172,7 +172,7 @@ public class BasicDb {
             FullTextTrigger.setActive(false);
             Connection con = getPooledConnection();
             Statement stmt = con.createStatement();
-            boolean compact = ! Nxt.getBooleanProperty("nxt.disableCompactOnShutdown");
+            boolean compact = !Nxt.getBooleanProperty("nxt.disableCompactOnShutdown");
             if (compact) {
                 stmt.execute("SHUTDOWN COMPACT");
                 Logger.logShutdownMessage("Database shutdown completed");

@@ -1,6 +1,6 @@
 /*
  * Copyright © 2013-2016 The Nxt Core Developers.
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -24,6 +24,7 @@ import nxt.account.AccountPropertyTransactionType;
 import nxt.account.PaymentTransactionType;
 import nxt.ae.AssetExchangeTransactionType;
 import nxt.aliases.AliasTransactionType;
+import nxt.blockchain.chaincontrol.ChildChainControlTransactionType;
 import nxt.ce.CoinExchangeTransactionType;
 import nxt.dgs.DigitalGoodsTransactionType;
 import nxt.lightcontracts.LightContractTransactionType;
@@ -35,6 +36,9 @@ import nxt.util.Convert;
 import nxt.util.Logger;
 import nxt.voting.AccountControlTransactionType;
 import nxt.voting.VotingTransactionType;
+
+import java.util.Collections;
+import java.util.List;
 
 public abstract class ChildTransactionType extends TransactionType {
 
@@ -51,6 +55,7 @@ public abstract class ChildTransactionType extends TransactionType {
     protected static final byte TYPE_ACCOUNT_PROPERTY = 10;
     protected static final byte TYPE_COIN_EXCHANGE = 11;
     protected static final byte TYPE_LIGHT_CONTRACT = 12;
+    protected static final byte TYPE_CHILD_CHAIN_CONTROL = 13;
 
     public static TransactionType findTransactionType(byte type, byte subtype) {
         switch (type) {
@@ -80,6 +85,8 @@ public abstract class ChildTransactionType extends TransactionType {
                 return CoinExchangeTransactionType.findTransactionType(subtype);
             case TYPE_LIGHT_CONTRACT:
                 return LightContractTransactionType.findTransactionType(subtype);
+            case TYPE_CHILD_CHAIN_CONTROL:
+                return ChildChainControlTransactionType.findTransactionType(subtype);
             default:
                 return null;
         }
@@ -102,17 +109,17 @@ public abstract class ChildTransactionType extends TransactionType {
                 return false;
             }
             deposit = Constants.UNCONFIRMED_POOL_DEPOSIT_FQT;
-            senderAccount.addToUnconfirmedBalance(FxtChain.FXT, getLedgerEvent(), eventId, (long) 0, -deposit);
+            senderAccount.addToUnconfirmedBalance(FxtChain.FXT, getLedgerEvent(), eventId, 0, -deposit);
         }
         long totalAmount = Math.addExact(amount, fee);
         if (childChain.getBalanceHome().getBalance(senderAccount.getId()).getUnconfirmedBalance() < totalAmount) {
-            senderAccount.addToUnconfirmedBalance(FxtChain.FXT, getLedgerEvent(), eventId, (long) 0, deposit);
+            senderAccount.addToUnconfirmedBalance(FxtChain.FXT, getLedgerEvent(), eventId, 0, deposit);
             return false;
         }
         senderAccount.addToUnconfirmedBalance(childChain, getLedgerEvent(), eventId, -amount, -fee);
         if (!applyAttachmentUnconfirmed(transaction, senderAccount)) {
             senderAccount.addToUnconfirmedBalance(childChain, getLedgerEvent(), eventId, amount, fee);
-            senderAccount.addToUnconfirmedBalance(FxtChain.FXT, getLedgerEvent(), eventId, (long) 0, deposit);
+            senderAccount.addToUnconfirmedBalance(FxtChain.FXT, getLedgerEvent(), eventId, 0, deposit);
             return false;
         }
         return true;
@@ -142,7 +149,7 @@ public abstract class ChildTransactionType extends TransactionType {
         senderAccount.addToUnconfirmedBalance(childChain, getLedgerEvent(), eventId,
                 transaction.getAmount(), transaction.getFee());
         if (((ChildTransactionImpl)transaction).getReferencedTransactionId() != null) {
-            senderAccount.addToUnconfirmedBalance(FxtChain.FXT, getLedgerEvent(), eventId, (long) 0, Constants.UNCONFIRMED_POOL_DEPOSIT_FQT);
+            senderAccount.addToUnconfirmedBalance(FxtChain.FXT, getLedgerEvent(), eventId, 0, Constants.UNCONFIRMED_POOL_DEPOSIT_FQT);
         }
     }
 
@@ -158,6 +165,12 @@ public abstract class ChildTransactionType extends TransactionType {
         return applyAttachmentUnconfirmed((ChildTransactionImpl)transaction, senderAccount);
     }
 
+    /**
+     * @param transaction Transaction to apply as unconfirmed
+     * @param senderAccount Cached sender account
+     *
+     * @return return false ONLY if double spending detected.
+     */
     protected abstract boolean applyAttachmentUnconfirmed(ChildTransactionImpl transaction, Account senderAccount);
 
     @Override
@@ -182,4 +195,12 @@ public abstract class ChildTransactionType extends TransactionType {
     protected void validateId(ChildTransactionImpl transaction) throws NxtException.NotCurrentlyValidException {
     }
 
+    @Override
+    public final List<ChildChain> getInvolvedChildChains(Transaction transaction) {
+        return getInvolvedChildChains((ChildTransactionImpl)transaction);
+    }
+
+    protected List<ChildChain> getInvolvedChildChains(ChildTransactionImpl transaction) {
+        return Collections.singletonList(transaction.getChain());
+    }
 }

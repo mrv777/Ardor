@@ -1,6 +1,6 @@
 /*
  * Copyright © 2013-2016 The Nxt Core Developers.
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -19,7 +19,7 @@ package nxt.ms;
 import nxt.BlockchainTest;
 import nxt.Tester;
 import nxt.blockchain.ChildChain;
-import nxt.db.TransactionalDb;
+import nxt.dbschema.Db;
 import nxt.http.APICall;
 import nxt.http.APICall.InvocationError;
 import nxt.http.client.PublishExchangeOfferBuilder;
@@ -110,7 +110,7 @@ public class CurrencyFreezeMonitorTest extends BlockchainTest {
     }
 
     public static void setCurrencyFreezeHeight(Currency currency, int height) {
-        TransactionalDb.runInDbTransaction(() -> CurrencyFreezeMonitor.enableFreeze(currency.getId(), 1, height));
+        Db.db.runInDbTransaction(() -> CurrencyFreezeMonitor.enableFreeze(currency.getId(), 1, height));
     }
 
     private Currency createCurrencyWithOffers() {

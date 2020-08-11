@@ -1,6 +1,6 @@
 /*
  * Copyright © 2013-2016 The Nxt Core Developers.
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -20,9 +20,12 @@ import nxt.NxtException;
 import nxt.account.Account;
 import nxt.account.AccountLedger;
 import nxt.blockchain.Attachment;
+import nxt.blockchain.ChildChain;
 import nxt.blockchain.ChildTransactionImpl;
 import nxt.blockchain.ChildTransactionType;
 import nxt.blockchain.TransactionType;
+import nxt.util.Listener;
+import nxt.util.Listeners;
 import org.json.simple.JSONObject;
 
 import java.nio.ByteBuffer;
@@ -63,7 +66,6 @@ public abstract class MessagingTransactionType extends ChildTransactionType {
     }
 
     public final static TransactionType ARBITRARY_MESSAGE = new MessagingTransactionType() {
-
         @Override
         public final byte getSubtype() {
             return SUBTYPE_MESSAGING_ARBITRARY_MESSAGE;
@@ -91,6 +93,9 @@ public abstract class MessagingTransactionType extends ChildTransactionType {
 
         @Override
         public void applyAttachment(ChildTransactionImpl transaction, Account senderAccount, Account recipientAccount) {
+            LISTENERS.notify(
+                    new MessageEvent(senderAccount, recipientAccount, transaction.getMessage(), transaction.getChain()),
+                    Event.ON_MESSAGE);
         }
 
         @Override
@@ -118,4 +123,47 @@ public abstract class MessagingTransactionType extends ChildTransactionType {
 
     };
 
+    public enum Event {
+        ON_MESSAGE
+    }
+
+    public static class MessageEvent {
+        private final Account senderAccount;
+        private final Account recipientAccount;
+        private final MessageAppendix message;
+        private final ChildChain chain;
+
+        MessageEvent(Account senderAccount, Account recipientAccount, MessageAppendix message, ChildChain chain) {
+            this.message = message;
+            this.chain = chain;
+            this.senderAccount = senderAccount;
+            this.recipientAccount = recipientAccount;
+        }
+
+        public Account getSenderAccount() {
+            return senderAccount;
+        }
+
+        public Account getRecipientAccount() {
+            return recipientAccount;
+        }
+
+        public MessageAppendix getMessage() {
+            return message;
+        }
+
+        public ChildChain getChain() {
+            return chain;
+        }
+    }
+
+    private static final Listeners<MessageEvent, Event> LISTENERS = new Listeners<>();
+
+    public static boolean addListener(Listener<MessageEvent> listener, Event eventType) {
+        return LISTENERS.addListener(listener, eventType);
+    }
+
+    public static boolean removeListener(Listener<MessageEvent> listener, Event eventType) {
+        return LISTENERS.removeListener(listener, eventType);
+    }
 }

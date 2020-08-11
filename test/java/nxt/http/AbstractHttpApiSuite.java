@@ -1,6 +1,6 @@
 /*
  * Copyright © 2013-2016 The Nxt Core Developers.
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -26,16 +26,23 @@ import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 
-import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 
 public abstract class AbstractHttpApiSuite extends SafeShutdownSuite {
+
+    private static final Map<String, String> additionalProperties = new HashMap<>();
+
+    public static Object putAdditionalProperty(String key, String value) {
+        return additionalProperties.put(key, value);
+    }
 
     private static Helper.BlockListener listener;
 
     @BeforeClass
     public static void init() {
         SafeShutdownSuite.safeSuiteInit();
-        BlockchainTest.initNxt(Collections.emptyMap());
+        BlockchainTest.initNxt(additionalProperties);
         Nxt.getTransactionProcessor().clearUnconfirmedTransactions();
         listener = new Helper.BlockListener();
         Nxt.getBlockchainProcessor().addListener(listener, BlockchainProcessor.Event.BLOCK_GENERATED);

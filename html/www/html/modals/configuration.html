@@ -1,0 +1,128 @@
+<!--
+  ~ Copyright © 2013-2016 The Nxt Core Developers.
+  ~ Copyright © 2016-2020 Jelurida IP B.V.
+  ~
+  ~ See the LICENSE.txt file at the top-level directory of this distribution
+  ~ for licensing information.
+  ~
+  ~ Unless otherwise agreed in a custom licensing agreement with Jelurida B.V.,
+  ~ no part of this software, including this file, may be copied, modified,
+  ~ propagated, or distributed except according to the terms contained in the
+  ~ LICENSE.txt file.
+  ~
+  ~ Removal or modification of this copyright notice is prohibited.
+  ~
+  -->
+
+<div class="modal fade" id="m_view_configuration_property" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button>
+                <h4 class="modal-title">View configuration property</h4>
+            </div>
+            <div class="modal-body" id="m_view_configuration_property_template">
+                <script type="text/x-handlebars-template">
+                    <dl>
+                        <dt>Property</dt>
+                        <dd>{{name}}</dd>
+                        {{#if isShowValues}}
+                        <dt>Values</dt>
+                        <dd>
+                            <dl class="dl-horizontal">
+                                <dt>Configured</dt>
+                                <dd>{{{formattedConfiguredValue}}}</dd>
+                                <dt>Installer</dt>
+                                <dd>{{{formattedInstallerValue}}}</dd>
+                                <dt>Default</dt>
+                                <dd>{{{formattedDefaultValue}}}</dd>
+                                {{#if isWithNewValue}}
+                                    <dt>New value</dt>
+                                    <dd>{{{formattedNewValue}}}</dd>
+                                {{/if}}
+                            </dl>
+                        </dd>
+                        {{/if}}
+                        <dt>Group</dt>
+                        <dd>{{formattedGroup}}</dd>
+                        <dt>Description</dt>
+                        <dd>{{{description}}}</dd>
+                        <dt>Type</dt>
+                        <dd>{{formattedType}}</dd>
+                    </dl>
+                </script>
+            </div>
+            <div class="modal-footer" style="margin-top:0;">
+                <button type="button" class="btn btn-default" data-dismiss="modal" data-i18n="close">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="m_update_configuration_property" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button>
+                <h4 class="modal-title" data-i18n="change_configuration_property">Change configuration property</h4>
+            </div>
+            <div class="modal-body">
+                <form role="form" autocomplete="off">
+                    <div class="callout callout-danger error_message" style="display:none"></div>
+                    <div class="form-group">
+                        <label for="configuration_property_name" data-i18n="property">Property</label>
+                        <input type="text" name="property" id="configuration_property_name" class="form-control" readonly>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="configuration_property_current_value" data-i18n="current_value">Current value</label>
+                        <input type="text" id="configuration_property_current_value" class="form-control" readonly>
+                    </div>
+                    <div class="form-group">
+                        <label for="configuration_property_current_value_list" data-i18n="current_value">Current value</label>
+                        <textarea id="configuration_property_current_value_list" class="form-control" rows="6" readonly></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="configuration_property_value" data-i18n="value">Value</label>
+                        <input type="text" name="value" id="configuration_property_value" class="form-control value">
+                    </div>
+                    <div class="form-group">
+                        <label for="configuration_property_list" data-i18n="value">Value</label>
+                        <textarea id="configuration_property_list" name="list" class="form-control value" rows="6"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="configuration_property_passphrase" data-i18n="value">Value</label>
+                        <input type="password" name="passphrase" id="configuration_property_passphrase" class="form-control value">
+                    </div>
+                    <div class="form-group">
+                        <label for="configuration_property_boolean" data-i18n="value">Value</label>
+                        <div>
+                            <input type="checkbox" name="boolean_value" id="configuration_property_boolean" class="value">
+                            <span></span>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label data-i18n="type">Type</label>
+                        <p class="type-information"></p>
+                    </div>
+                    <div class="form-group">
+                        <label>
+                            <input type="checkbox" id="configuration_restore_property_checkbox" name="restore" value="true"/>
+                            <span data-i18n="configuration_restore_property_info">Restore the property to its installation default.</span>
+                        </label>
+                        <label>
+                            <input type="checkbox" id="configuration_discard_property_checkbox" name="discard" value="true"/>
+                            <span data-i18n="configuration_discard_property_info">Discard the pending change to the property.</span>
+                        </label>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer" style="margin-top:0;">
+                <button type="button" class="btn btn-default" data-dismiss="modal" data-i18n="cancel">Cancel</button>
+                <button type="button" class="btn btn-primary" data-ignore="true" id="configuration_property_submit" data-i18n="change">Change</button>
+            </div>
+        </div>
+    </div>
+</div>

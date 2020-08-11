@@ -1,5 +1,5 @@
 /*
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -23,12 +23,12 @@ import org.json.simple.JSONObject;
 
 public interface TransactionResponse {
 
-    static TransactionResponse create(Object object) {
-        if (object instanceof JSONObject) {
-            return new TransactionResponseImpl((JSONObject) object);
-        } else {
-            return new TransactionResponseImpl((JO) object);
-        }
+    static TransactionResponse create(JO object) {
+        return new TransactionResponseImpl(object);
+    }
+
+    static TransactionResponse create(JSONObject object) {
+        return new TransactionResponseImpl(object);
     }
 
     TransactionType getTransactionType();

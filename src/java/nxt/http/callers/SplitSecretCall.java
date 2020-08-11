@@ -20,6 +20,10 @@ public class SplitSecretCall extends APICall.Builder<SplitSecretCall> {
         return param("minimumPieces", minimumPieces);
     }
 
+    public SplitSecretCall secret(String secret) {
+        return param("secret", secret);
+    }
+
     public SplitSecretCall primeFieldSize(String primeFieldSize) {
         return param("primeFieldSize", primeFieldSize);
     }

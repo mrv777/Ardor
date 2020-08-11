@@ -1,5 +1,5 @@
 /*
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -210,13 +210,13 @@ public final class JPLSnapshot implements AddOn {
                 SortedMap<String, Long> snapshotIgnisBalances = snapshotIgnisBalances();
                 Logger.logInfoMessage("Snapshot contains " + snapshotIgnisBalances.entrySet().size() + " Ignis balances");
                 BigInteger snapshotTotal = BigInteger.valueOf(snapshotIgnisBalances.values().stream().mapToLong(Long::longValue).sum());
-                Logger.logInfoMessage("Snapshot total is " + snapshotTotal.longValueExact());
+                Logger.logInfoMessage("Snapshot total is " + Convert.longValueExact(snapshotTotal));
                 BigInteger inputTotal = BigInteger.valueOf(inputJSON.values().stream().mapToLong(value -> (Long) value).sum());
                 if (!inputTotal.equals(BigInteger.ZERO)) {
                     snapshotIgnisBalances.entrySet().forEach(entry -> {
                         long snapshotBalance = entry.getValue();
-                        long adjustedBalance = BigInteger.valueOf(snapshotBalance).multiply(inputTotal)
-                                .divide(snapshotTotal).divide(BigInteger.valueOf(9)).longValueExact();
+                        long adjustedBalance = Convert.longValueExact(BigInteger.valueOf(snapshotBalance).multiply(inputTotal)
+                                .divide(snapshotTotal).divide(BigInteger.valueOf(9)));
                         entry.setValue(adjustedBalance);
                     });
                 }

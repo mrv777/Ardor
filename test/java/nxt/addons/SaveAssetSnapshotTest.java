@@ -1,6 +1,6 @@
 /*
  * Copyright © 2013-2016 The Nxt Core Developers.
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -19,16 +19,19 @@ package nxt.addons;
 import nxt.BlockchainTest;
 import nxt.DeleteFileRule;
 import nxt.FileUtils;
+import nxt.SlowTestsCategory;
 import nxt.Tester;
 import nxt.ae.Asset;
 import nxt.ae.AssetFreezeMonitorTest;
 import nxt.blockchain.TransactionProcessorImpl;
+import nxt.freeze.FreezeMonitor;
 import nxt.http.assetexchange.AssetExchangeTest;
 import nxt.http.client.IssueAssetBuilder;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
 import java.io.File;
 import java.io.IOException;
@@ -38,6 +41,7 @@ import java.security.PrivilegedAction;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
+@Category(SlowTestsCategory.class)
 public class SaveAssetSnapshotTest extends BlockchainTest {
     @Rule
     public final DeleteFileRule deleteFileRule = new DeleteFileRule();
@@ -53,7 +57,8 @@ public class SaveAssetSnapshotTest extends BlockchainTest {
     public void destroy() {
         AccessController.doPrivileged((PrivilegedAction<Void>) () -> {
             TransactionProcessorImpl.getInstance().clearUnconfirmedTransactions();
-            blockchainProcessor.popOffTo(-2);
+            blockchainProcessor.fullReset();
+            FreezeMonitor.deleteAll();
             return null;
         });
     }

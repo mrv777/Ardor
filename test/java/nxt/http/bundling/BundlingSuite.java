@@ -1,5 +1,5 @@
 /*
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -16,6 +16,8 @@
 package nxt.http.bundling;
 
 import nxt.http.AbstractHttpApiSuite;
+import nxt.peer.FeeRateCalculatorTest;
+import nxt.peer.BundlerRateTest;
 import org.junit.runner.RunWith;
 import org.junit.runners.Suite;
 
@@ -25,7 +27,10 @@ import org.junit.runners.Suite;
         AssetBundlerTest.class,
         CurrencyBundlerTest.class,
         PurchaseBundlerTest.class,
-        TransactionTypeBundlerTest.class
+        TransactionTypeBundlerTest.class,
+        BundlingFeesTest.class,
+        FeeRateCalculatorTest.class,
+        BundlerRateTest.class
 })
 public class BundlingSuite extends AbstractHttpApiSuite {
 }

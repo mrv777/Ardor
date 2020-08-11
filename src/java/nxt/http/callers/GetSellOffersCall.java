@@ -8,6 +8,10 @@ public class GetSellOffersCall extends APICall.Builder<GetSellOffersCall> {
         super(ApiSpec.getSellOffers);
     }
 
+    public static GetSellOffersCall create() {
+        return new GetSellOffersCall();
+    }
+
     public static GetSellOffersCall create(int chain) {
         return new GetSellOffersCall().param("chain", chain);
     }

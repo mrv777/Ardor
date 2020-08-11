@@ -1,6 +1,6 @@
 /*
  * Copyright © 2013-2016 The Nxt Core Developers.
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -18,20 +18,30 @@ package nxt.http.assetexchange;
 
 import nxt.BlockchainTest;
 import nxt.Nxt;
+import nxt.RequireNonePermissionPolicyTestsCategory;
 import nxt.Tester;
 import nxt.account.HoldingType;
 import nxt.blockchain.Chain;
 import nxt.blockchain.ChildChain;
 import nxt.http.APICall;
+import nxt.http.APICall.InvocationError;
 import nxt.http.client.IssueAssetBuilder;
 import nxt.http.client.IssueAssetBuilder.IssueAssetResult;
+import nxt.http.client.PlaceAssetOrderBuilder;
 import nxt.http.client.TransferAssetBuilder;
 import nxt.http.client.TransferAssetBuilder.TransferResult;
 import nxt.http.monetarysystem.TestCurrencyIssuance;
 import org.json.simple.JSONObject;
 import org.junit.Assert;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
+import static nxt.blockchain.ChildChain.IGNIS;
+import static nxt.util.Convert.unitRateToAmount;
+
+
+// since all tests try to pay dividends.
+@Category(RequireNonePermissionPolicyTestsCategory.class)
 public class AssetExchangeTest extends BlockchainTest {
 
     public static IssueAssetResult issueAsset(Tester creator, String name) {
@@ -41,7 +51,7 @@ public class AssetExchangeTest extends BlockchainTest {
     }
 
     static TransferResult transfer(String assetId, Tester from, Tester to, long quantityQNT) {
-        return transfer(assetId, from, to, quantityQNT, ChildChain.IGNIS.ONE_COIN);
+        return transfer(assetId, from, to, quantityQNT, IGNIS.ONE_COIN);
     }
 
     public static TransferResult transfer(String assetId, Tester from, Tester to, long quantityQNT, long fee) {
@@ -54,7 +64,14 @@ public class AssetExchangeTest extends BlockchainTest {
     }
 
     static JSONObject payDividend(String assetId, Tester assetIssuer, int height, long amountNQTPerShare, Chain chain, byte holdingType, String holding) {
-        APICall apiCall = new APICall.Builder("dividendPayment")
+        APICall apiCall = payDividendCall(assetId, assetIssuer, height, amountNQTPerShare, chain, holdingType, holding);
+        JSONObject response = apiCall.invokeNoError();
+        BlockchainTest.generateBlock();
+        return response;
+    }
+
+    private static APICall payDividendCall(String assetId, Tester assetIssuer, int height, long amountNQTPerShare, Chain chain, byte holdingType, String holding) {
+        return new APICall.Builder("dividendPayment")
                 .param("secretPhrase", assetIssuer.getSecretPhrase())
                 .param("asset", assetId)
                 .param("height", height)
@@ -64,9 +81,10 @@ public class AssetExchangeTest extends BlockchainTest {
                 .param("feeNQT", chain.ONE_COIN)
                 .chain(chain.getId())
                 .build();
-        JSONObject response = apiCall.invoke();
-        BlockchainTest.generateBlock();
-        return response;
+    }
+
+    static InvocationError failToPayDividend(String assetId, Tester assetIssuer, int height, long amountNQTPerShare, Chain chain, byte holdingType, String holding) {
+        return payDividendCall(assetId, assetIssuer, height, amountNQTPerShare, chain, holdingType, holding).invokeWithError();
     }
 
     @Test
@@ -78,12 +96,12 @@ public class AssetExchangeTest extends BlockchainTest {
         generateBlock();
 
         // Pay dividend in IGNIS, nice and round
-        int chainId = ChildChain.IGNIS.getId();
-        payDividend(assetId, ALICE, Nxt.getBlockchain().getHeight(), 1000000L, ChildChain.IGNIS, HoldingType.COIN.getCode(), "");
+        int chainId = IGNIS.getId();
+        payDividend(assetId, ALICE, Nxt.getBlockchain().getHeight(), 1000000L, IGNIS, HoldingType.COIN.getCode(), "");
         generateBlock();
-        Assert.assertEquals(3 * ChildChain.IGNIS.ONE_COIN, BOB.getChainBalanceDiff(chainId));
-        Assert.assertEquals(2 * ChildChain.IGNIS.ONE_COIN, CHUCK.getChainBalanceDiff(chainId));
-        Assert.assertEquals(ChildChain.IGNIS.ONE_COIN, DAVE.getChainBalanceDiff(chainId));
+        Assert.assertEquals(3 * IGNIS.ONE_COIN, BOB.getChainBalanceDiff(chainId));
+        Assert.assertEquals(2 * IGNIS.ONE_COIN, CHUCK.getChainBalanceDiff(chainId));
+        Assert.assertEquals(IGNIS.ONE_COIN, DAVE.getChainBalanceDiff(chainId));
     }
 
     @Test
@@ -97,7 +115,7 @@ public class AssetExchangeTest extends BlockchainTest {
         int chainId = ChildChain.AEUR.getId();
         payDividend(assetId, RIKER, Nxt.getBlockchain().getHeight(), 1L, ChildChain.AEUR, HoldingType.COIN.getCode(), "");
         generateBlock();
-        Assert.assertEquals(-555-222-111 - ChildChain.AEUR.ONE_COIN, RIKER.getChainBalanceDiff(chainId));
+        Assert.assertEquals(-555 - 222 - 111 - ChildChain.AEUR.ONE_COIN, RIKER.getChainBalanceDiff(chainId));
         Assert.assertEquals(555, BOB.getChainBalanceDiff(chainId));
         Assert.assertEquals(222, CHUCK.getChainBalanceDiff(chainId));
         Assert.assertEquals(111, DAVE.getChainBalanceDiff(chainId));
@@ -114,7 +132,7 @@ public class AssetExchangeTest extends BlockchainTest {
 
         payDividend(assetId, RIKER, Nxt.getBlockchain().getHeight(), 1L, ChildChain.AEUR, HoldingType.ASSET.getCode(), receiverId.getAssetIdString());
         generateBlock();
-        Assert.assertEquals(10000000-555-222-111, RIKER.getAssetQuantityDiff(receiverId.getAssetId()));
+        Assert.assertEquals(10000000 - 555 - 222 - 111, RIKER.getAssetQuantityDiff(receiverId.getAssetId()));
         Assert.assertEquals(555, BOB.getAssetQuantityDiff(receiverId.getAssetId()));
         Assert.assertEquals(222, CHUCK.getAssetQuantityDiff(receiverId.getAssetId()));
         Assert.assertEquals(111, DAVE.getAssetQuantityDiff(receiverId.getAssetId()));
@@ -131,9 +149,35 @@ public class AssetExchangeTest extends BlockchainTest {
 
         payDividend(assetId, ALICE, Nxt.getBlockchain().getHeight(), 1L, ChildChain.AEUR, HoldingType.CURRENCY.getCode(), currencyId);
         generateBlock();
-        Assert.assertEquals(100000-555-222-111, ALICE.getCurrencyUnitsDiff(Long.parseUnsignedLong(currencyId)));
+        Assert.assertEquals(100000 - 555 - 222 - 111, ALICE.getCurrencyUnitsDiff(Long.parseUnsignedLong(currencyId)));
         Assert.assertEquals(555, BOB.getCurrencyUnitsDiff(Long.parseUnsignedLong(currencyId)));
         Assert.assertEquals(222, CHUCK.getCurrencyUnitsDiff(Long.parseUnsignedLong(currencyId)));
         Assert.assertEquals(111, DAVE.getCurrencyUnitsDiff(Long.parseUnsignedLong(currencyId)));
+    }
+
+    @Test
+    public void tradeAsset() {
+        String assetId = issueAsset(ALICE, "divSender").getAssetIdString();
+
+        long fee = IGNIS.ONE_COIN;
+
+        new PlaceAssetOrderBuilder(ALICE, assetId, 10, IGNIS.ONE_COIN * 2)
+                .setFeeNQT(fee)
+                .placeAskOrder();
+
+        generateBlock();
+
+        new PlaceAssetOrderBuilder(BOB, assetId, 10, IGNIS.ONE_COIN * 2)
+                .setFeeNQT(fee)
+                .placeBidOrder();
+
+        generateBlock();
+
+        Assert.assertEquals(10, BOB.getAssetQuantityDiff(Long.parseUnsignedLong(assetId)));
+        Assert.assertEquals(IssueAssetBuilder.ASSET_QNT - 10, ALICE.getAssetQuantityDiff(Long.parseUnsignedLong(assetId)));
+
+        long sellVolume = unitRateToAmount(10, IssueAssetBuilder.ASSET_DECIMALS, 2 * IGNIS.ONE_COIN, IGNIS.getDecimals());
+        Assert.assertEquals(- sellVolume - fee, BOB.getChainBalanceDiff(IGNIS.getId()));
+        Assert.assertEquals(sellVolume - fee - IssueAssetBuilder.ASSET_ISSUE_FEE_NQT, ALICE.getChainBalanceDiff(IGNIS.getId()));
     }
 }

@@ -1,6 +1,6 @@
 /*
  * Copyright © 2013-2016 The Nxt Core Developers.
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -36,8 +36,8 @@ public class AccountCurrencyBalance {
         this.currencyUnits = currencyUnits;
     }
 
-    public AccountCurrencyBalance(String secretPhrase, String currency, Chain chain) {
-        Account account = Account.getAccount(Crypto.getPublicKey(secretPhrase));
+    public AccountCurrencyBalance(byte[] privateKey, String currency, Chain chain) {
+        Account account = Account.getAccount(Crypto.getPublicKey(privateKey));
         assert account != null;
         accountId = account.getId();
         this.unconfirmedBalance = chain.getBalanceHome().getBalance(accountId).getUnconfirmedBalance();

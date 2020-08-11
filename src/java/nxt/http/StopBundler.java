@@ -1,6 +1,6 @@
 /*
  * Copyright © 2013-2016 The Nxt Core Developers.
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -38,15 +38,15 @@ public final class StopBundler extends APIServlet.APIRequestHandler {
     @Override
     protected JSONStreamAware processRequest(HttpServletRequest req) throws ParameterException {
         boolean bundlersChanged;
-        String secretPhrase = ParameterParser.getSecretPhrase(req, false);
+        byte[] privateKey = ParameterParser.getPrivateKey(req, false);
         long accountId = ParameterParser.getAccountId(req, false);
         ChildChain childChain = ParameterParser.getChildChain(req, false);
         JSONObject response = new JSONObject();
-        if (secretPhrase != null) {
-            if (accountId != 0 && Account.getId(Crypto.getPublicKey(secretPhrase)) != accountId) {
+        if (privateKey != null) {
+            if (accountId != 0 && Account.getId(Crypto.getPublicKey(privateKey)) != accountId) {
                 return JSONResponses.INCORRECT_ACCOUNT;
             }
-            accountId = Account.getId(Crypto.getPublicKey(secretPhrase));
+            accountId = Account.getId(Crypto.getPublicKey(privateKey));
             if (childChain == null) {
                 Bundler.stopAccountBundlers(accountId);
                 response.put("stoppedAccountBundlers", true);

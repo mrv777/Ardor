@@ -1,5 +1,5 @@
 /*
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -21,9 +21,7 @@ import nxt.configuration.Setup;
 import nxt.http.callers.GetBlockCall;
 import nxt.http.callers.SendMoneyCall;
 import nxt.http.responses.BlockResponse;
-import nxt.http.responses.BlockResponseImpl;
 import nxt.http.responses.TransactionResponse;
-import nxt.http.responses.TransactionResponseImpl;
 import nxt.voting.VoteWeighting;
 
 import java.net.MalformedURLException;
@@ -51,7 +49,7 @@ public class PhasedTransaction {
 
     private void submitPhasedTransaction(URL url) {
         JO block = GetBlockCall.create().remote(url).call();
-        BlockResponse blockResponse = new BlockResponseImpl(block);
+        BlockResponse blockResponse = BlockResponse.create(block);
         int height = blockResponse.getHeight();
 
         JO signedTransactionResponse = SendMoneyCall.create(2).
@@ -70,7 +68,7 @@ public class PhasedTransaction {
                 call();
 
         System.out.printf("SendMoney response: %s\n", signedTransactionResponse.toJSONString());
-        TransactionResponse transactionResponse = new TransactionResponseImpl(signedTransactionResponse.getJo("transactionJSON"));
+        TransactionResponse transactionResponse = TransactionResponse.create(signedTransactionResponse.getJo("transactionJSON"));
         System.out.printf("Phased: %s\n", transactionResponse.isPhased());
     }
 

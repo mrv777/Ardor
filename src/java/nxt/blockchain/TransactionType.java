@@ -1,6 +1,6 @@
 /*
  * Copyright © 2013-2016 The Nxt Core Developers.
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -23,6 +23,7 @@ import org.json.simple.JSONObject;
 
 import java.nio.ByteBuffer;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 
@@ -107,6 +108,12 @@ public abstract class TransactionType {
         return canHaveRecipient();
     }
 
+    /**
+     * Transaction is Phasing Unsafe if it's validity may change between the height it is accepted in the blockchain
+     * and the height it is executed.
+     *
+     * @return true if it's validity cannot change
+     */
     public abstract boolean isPhasingSafe();
 
     public boolean isPhasable() {
@@ -130,6 +137,8 @@ public abstract class TransactionType {
     }
 
     public abstract String getName();
+
+    public abstract List<ChildChain> getInvolvedChildChains(Transaction transaction);
 
     @Override
     public final String toString() {

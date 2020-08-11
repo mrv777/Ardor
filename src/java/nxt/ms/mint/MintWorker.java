@@ -1,6 +1,6 @@
 /*
  * Copyright © 2013-2016 The Nxt Core Developers.
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -48,6 +48,7 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLEncoder;
 import java.net.UnknownHostException;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -80,9 +81,17 @@ public class MintWorker {
         if (currencyCode == null) {
             throw new IllegalArgumentException("nxt.mint.currencyCode not specified");
         }
-        String secretPhrase = Convert.emptyToNull(Nxt.getStringProperty("nxt.mint.secretPhrase", null, true));
-        if (secretPhrase == null) {
-            throw new IllegalArgumentException("nxt.mint.secretPhrase not specified");
+
+        byte[] privateKey;
+        String privateKeyStr = Convert.emptyToNull(Nxt.getStringProperty("nxt.mint.privateKey", null, true));
+        if (privateKeyStr == null) {
+            String secretPhrase = Convert.emptyToNull(Nxt.getStringProperty("nxt.mint.secretPhrase", null, true));
+            if (secretPhrase == null) {
+                throw new IllegalArgumentException("nxt.mint.secretPhrase or nxt.mint.privateKey not specified");
+            }
+            privateKey = Crypto.getPrivateKey(secretPhrase);
+        } else {
+            privateKey = Convert.parseHexString(privateKeyStr);
         }
         boolean isSubmitted = Nxt.getBooleanProperty("nxt.mint.isSubmitted");
         boolean isStopOnError = Nxt.getBooleanProperty("nxt.mint.stopOnError");
@@ -92,7 +101,7 @@ public class MintWorker {
             throw new IllegalArgumentException("Invalid nxt.mint.chain childchain " + chainName);
         }
         long fee = Nxt.getIntProperty("nxt.mint.feeNQT");
-        byte[] publicKeyHash = Crypto.sha256().digest(Crypto.getPublicKey(secretPhrase));
+        byte[] publicKeyHash = Crypto.sha256().digest(Crypto.getPublicKey(privateKey));
         long accountId = Convert.fullHashToId(publicKeyHash);
         String rsAccount = Convert.rsAccount(accountId);
         JSONObject currency = getCurrency(currencyCode, childChain);
@@ -129,7 +138,7 @@ public class MintWorker {
         while (true) {
             counter++;
             try {
-                JSONObject response = mintImpl(childChain, fee, secretPhrase, accountId, units, currencyId, algorithm, counter, target,
+                JSONObject response = mintImpl(childChain, fee, privateKey, accountId, units, currencyId, algorithm, counter, target,
                     initialNonce, threadPoolSize, executorService, difficulty, isSubmitted);
                 Logger.logInfoMessage("currency mint response:" + JSON.toJSONString(response));
             } catch (Exception e) {
@@ -147,7 +156,7 @@ public class MintWorker {
         }
     }
 
-    private JSONObject mintImpl(ChildChain childChain, long fee, String secretPhrase, long accountId, long units, long currencyId, byte algorithm,
+    private JSONObject mintImpl(ChildChain childChain, long fee, byte[] privateKey, long accountId, long units, long currencyId, byte algorithm,
                                 long counter, byte[] target, long initialNonce, int threadPoolSize, ExecutorService executorService, BigInteger difficulty, boolean isSubmitted) {
         long startTime = System.currentTimeMillis();
         List<Callable<Long>> workersList = new ArrayList<>();
@@ -166,7 +175,7 @@ public class MintWorker {
                 solution, units, counter, hashes, (float) computationTime / 1000, hashes / computationTime, hashesPerDifficulty, isSubmitted);
         JSONObject response;
         if (isSubmitted) {
-            response = currencyMint(childChain, fee, secretPhrase, currencyId, solution, units, counter);
+            response = currencyMint(childChain, fee, privateKey, currencyId, solution, units, counter);
         } else {
             response = new JSONObject();
             response.put("message", "nxt.ms.mint.isSubmitted=false therefore currency mint transaction is not submitted");
@@ -189,16 +198,16 @@ public class MintWorker {
         }
     }
 
-    private JSONObject currencyMint(ChildChain childChain, long fee, String secretPhrase, long currencyId, long nonce, long units, long counter) {
+    private JSONObject currencyMint(ChildChain childChain, long fee, byte[] privateKey, long currencyId, long nonce, long units, long counter) {
         try {
             JSONObject ecBlock = getECBlock();
             Attachment attachment = new CurrencyMintingAttachment(nonce, currencyId, units, counter);
-            Transaction.Builder builder = childChain.newTransactionBuilder(Crypto.getPublicKey(secretPhrase), 0, fee,
+            Transaction.Builder builder = childChain.newTransactionBuilder(Crypto.getPublicKey(privateKey), 0, fee,
                     (short) 15, attachment)
                     .timestamp(((Long) ecBlock.get("timestamp")).intValue())
                     .ecBlockHeight(((Long) ecBlock.get("ecBlockHeight")).intValue())
                     .ecBlockId(Convert.parseUnsignedLong((String) ecBlock.get("ecBlockId")));
-            Transaction transaction = builder.build(secretPhrase);
+            Transaction transaction = builder.build(privateKey);
             Map<String, String> params = new HashMap<>();
             params.put("requestType", "broadcastTransaction");
             params.put("transactionBytes", Convert.toHexString(transaction.getBytes()));
@@ -266,7 +275,7 @@ public class MintWorker {
             connection.setRequestMethod("POST");
             connection.setDoOutput(true);
             if (connection.getResponseCode() == HttpURLConnection.HTTP_OK) {
-                try (Reader reader = new BufferedReader(new InputStreamReader(connection.getInputStream(), "UTF-8"))) {
+                try (Reader reader = new BufferedReader(new InputStreamReader(connection.getInputStream(), StandardCharsets.UTF_8))) {
                     response = (JSONObject) JSONValue.parse(reader);
                 }
             } else {

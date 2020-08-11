@@ -1,5 +1,5 @@
 /*
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -22,7 +22,6 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.security.cert.CRL;
-import java.security.cert.CertPath;
 import java.security.cert.Certificate;
 import java.security.cert.CertificateException;
 import java.security.cert.CertificateFactorySpi;
@@ -64,7 +63,7 @@ public class BlockchainCertificateFactorySpi extends CertificateFactorySpi {
      */
     @Override
     public Collection<? extends Certificate> engineGenerateCertificates(InputStream inStream) throws CertificateException {
-        List<Certificate> certificateList = new ArrayList();
+        List<Certificate> certificateList = new ArrayList<>();
         certificateList.add(engineGenerateCertificate(inStream));
         return certificateList;
     }

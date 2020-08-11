@@ -1,5 +1,5 @@
 /*
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -62,6 +62,17 @@ public class TransactionTypeExplorer {
                     break;
                 }
                 transactionTypeMap.put(transactionType, null);
+                String name = transactionType.getName();
+                StringBuilder sb = new StringBuilder();
+                for (int k=0; k<name.length(); k++) {
+                    char c = name.charAt(k);
+                    if (k>0 && Character.isUpperCase(c)) {
+                        sb.append(" ");
+                    }
+                    sb.append(c);
+                }
+                String formattedName = sb.toString().replace("Fxt", "Parent");
+                System.out.printf("%d,%d,%s\n", type, subtype, formattedName);
                 subtype++;
             }
             if (subtype == 0) {
@@ -72,10 +83,10 @@ public class TransactionTypeExplorer {
 
         try {
             // Iterate over all parent chain transactions
-            Connection con = Db.db.getConnection(FxtChain.FXT.getDbSchema());
-            PreparedStatement pstmt = con.prepareStatement("SELECT * FROM transaction_fxt");
             BlockchainImpl blockchain = BlockchainImpl.getInstance();
-            try (DbIterator<FxtTransactionImpl> iterator = blockchain.getTransactions(FxtChain.FXT, con, pstmt)) {
+            try (Connection con = Db.db.getConnection(FxtChain.FXT.getDbSchema());
+                 PreparedStatement pstmt = con.prepareStatement("SELECT * FROM transaction_fxt");
+                 DbIterator<FxtTransactionImpl> iterator = blockchain.getTransactions(FxtChain.FXT, con, pstmt)) {
                 while (iterator.hasNext()) {
                     Transaction transaction = iterator.next();
                     if (transactionTypeMap.get(transaction.getType()) == null) {
@@ -93,20 +104,21 @@ public class TransactionTypeExplorer {
             int from = 0;
             boolean done = false;
             while (!done) {
-                con = Db.db.getConnection(chain.getDbSchema());
-                String sqlStatement = param + DbUtils.limitsClause(from, from + step - 1);
-                pstmt = con.prepareStatement(sqlStatement);
-                DbUtils.setLimits(1, pstmt, from, from + step - 1);
-                try (DbIterator<ChildTransactionImpl> iterator = blockchain.getTransactions(chain, con, pstmt)) {
-                    if (!iterator.hasNext()) {
-                        done = true;
-                        continue;
-                    }
-                    while (iterator.hasNext()) {
-                        Transaction transaction = iterator.next();
-                        if (transactionTypeMap.get(transaction.getType()) == null) {
-                            logTransactionType(transaction);
-                            transactionTypeMap.put(transaction.getType(), transaction);
+                try (Connection con = Db.db.getConnection(chain.getDbSchema())) {
+                    String sqlStatement = param + DbUtils.limitsClause(from, from + step - 1);
+                    PreparedStatement pstmt = con.prepareStatement(sqlStatement);
+                    DbUtils.setLimits(1, pstmt, from, from + step - 1);
+                    try (DbIterator<ChildTransactionImpl> iterator = blockchain.getTransactions(chain, con, pstmt)) {
+                        if (!iterator.hasNext()) {
+                            done = true;
+                            continue;
+                        }
+                        while (iterator.hasNext()) {
+                            Transaction transaction = iterator.next();
+                            if (transactionTypeMap.get(transaction.getType()) == null) {
+                                logTransactionType(transaction);
+                                transactionTypeMap.put(transaction.getType(), transaction);
+                            }
                         }
                     }
                 }

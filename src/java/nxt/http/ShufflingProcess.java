@@ -1,6 +1,6 @@
 /*
  * Copyright © 2013-2016 The Nxt Core Developers.
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -67,13 +67,13 @@ public final class ShufflingProcess extends CreateTransaction {
             return JSON.prepare(response);
         }
 
-        String secretPhrase = ParameterParser.getSecretPhrase(req, true);
+        byte[] privateKey = ParameterParser.getPrivateKey(req, true);
         byte[] recipientPublicKey = ParameterParser.getPublicKey(req, "recipient");
         if (Account.getAccount(recipientPublicKey) != null) {
             return INCORRECT_PUBLIC_KEY; // do not allow existing account to be used as recipient
         }
 
-        ShufflingAttachment attachment = shuffling.process(senderId, secretPhrase, recipientPublicKey);
+        ShufflingAttachment attachment = shuffling.process(senderId, privateKey, recipientPublicKey);
         return createTransaction(req, senderAccount, attachment);
     }
 

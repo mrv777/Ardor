@@ -1,6 +1,6 @@
 /*
  * Copyright © 2013-2016 The Nxt Core Developers.
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -20,7 +20,7 @@ import nxt.BlockchainTest;
 import nxt.DeleteFileRule;
 import nxt.Tester;
 import nxt.blockchain.ChildChain;
-import nxt.db.TransactionalDb;
+import nxt.dbschema.Db;
 import nxt.http.assetexchange.AssetExchangeTest;
 import nxt.http.client.SetAssetPropertyBuilder;
 import nxt.http.client.TransferAssetBuilder;
@@ -115,13 +115,13 @@ public class AssetMigrateMonitorTest extends BlockchainTest {
     }
 
     private void setAssetMigrationHeight(Asset asset, int height) {
-        TransactionalDb.runInDbTransaction(() -> {
+        Db.db.runInDbTransaction(() -> {
             AssetMigrateMonitor.enableMigration(asset.getId(), targetChain, 0, height);
         });
     }
 
     private void setAssetMinMigrationHeight(Asset asset, int minHeight) {
-        TransactionalDb.runInDbTransaction(() -> {
+        Db.db.runInDbTransaction(() -> {
             AssetMigrateMonitor.enableMigration(asset.getId(), targetChain, minHeight, 0);
         });
     }

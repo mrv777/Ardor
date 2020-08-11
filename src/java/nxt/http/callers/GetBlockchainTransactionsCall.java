@@ -8,6 +8,10 @@ public class GetBlockchainTransactionsCall extends APICall.Builder<GetBlockchain
         super(ApiSpec.getBlockchainTransactions);
     }
 
+    public static GetBlockchainTransactionsCall create() {
+        return new GetBlockchainTransactionsCall();
+    }
+
     public static GetBlockchainTransactionsCall create(int chain) {
         return new GetBlockchainTransactionsCall().param("chain", chain);
     }

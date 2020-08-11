@@ -8,6 +8,10 @@ public class GetExpectedAssetDeletesCall extends APICall.Builder<GetExpectedAsse
         super(ApiSpec.getExpectedAssetDeletes);
     }
 
+    public static GetExpectedAssetDeletesCall create() {
+        return new GetExpectedAssetDeletesCall();
+    }
+
     public static GetExpectedAssetDeletesCall create(int chain) {
         return new GetExpectedAssetDeletesCall().param("chain", chain);
     }

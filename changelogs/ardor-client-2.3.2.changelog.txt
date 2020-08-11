@@ -1,0 +1,121 @@
+This stable release is a mandatory update for mainnet. A hardfork to enable
+new functionality and activate the GPS child chain is scheduled for block
+1453000 expected on Sep 22, 2020.
+
+At the hardfork height, the GPS asset (assetID: 3123987739214429747) will be
+migrated to a child chain. Existing asset exchange orders for the GPS asset
+will be cancelled, further transactions with it will be disabled, and a
+snapshot of the asset balances as of that height will be used to automatically
+distribute the tokens of the newly enabled GPS child chain.
+
+The following new features, already available on testnet, will be activated on
+mainnet after the hardfork:
+
+Allow sending zero fee child chain transactions even from accounts not yet
+registered on the blockchain.
+
+Allow setting up account control with zero max fees.
+
+The AEUR child chain will become permissioned, thus disabling further
+transactions with AEUR after the hardfork.
+
+Locally generated SSL keystore
+
+To simplify the setup of SSL certificates and a Java keystore required to enable
+https communication. The node auto-generates certificates and keystore in
+case none were provided. The auto-generated keystore can be used to setup Https
+communication quickly on a local node.
+When the nxt.apiSSL property is set to true and the keystore location is not
+specified or the nxt.keyStorePath property is pointing to a missing file, the
+node will automatically generate a key pair, a local root certificate and an SSL
+certificate signed by it, to form a valid certificate chain. The node will
+create a keystore containing these artifacts according to the format and
+password specified in nxt.keyStoreType and nxt.keyStorePassword correspondingly.
+The local root certificate is saved using the same path as the keystore file
+with a file suffix "-ca.crt". Import this certificate as a trusted CA into the
+browser keystore to enable the browser to validate the auto-generated
+certificate chain.
+
+When using light client or while downloading the blockchain, the local node
+forwards API calls to a random remote node and confirms each API response with
+up to three additional remote nodes. This functionality which was previously
+implemented by the wallet is now implemented by the node itself to make it
+faster and more reliable.
+
+A new API - getAPIProxyReports - provides information about the light client
+remote API calls and their confirmations.
+
+Improved retrieval of prunable transactions and bootstrapping of archival
+nodes.
+
+Lightweight contracts framework improvements
+
+Two new callbacks were added to the contract interface init and shutdown. init
+can be used by contract developers to perform static initialization tasks used
+during the lifetime of the contract, while shutdown can be used to reclaim
+resources used by the contract before shutting it down.
+When starting a node the init callback is invoked on all contracts loaded by the
+contract runner. Similarly, when shutting down the node the shutdown callback is
+invoked. When uploading a new version of an existing contract, when loading the
+new contract reference the contract runner will first shutdown the existing
+version of the contract then initialize the new version.
+
+It now possible to submit transactions from processRequest callback.
+Transactions returned using context.createTransaction() are automatically
+broadcast to the node by the contract runner.
+
+Due to the introduction of new functionality, some existing contracts developed
+using older versions of Ardor must be recompiled and redeployed to the
+blockchain.
+The existing version of such a contract may throw an exception when loaded or
+when triggered. Therefore, contract runner node operators should use the node
+log file to watch for exception messages and redeploy the contract if necessary.
+
+New sample contracts
+
+Trading bot (CoinExchangeTradingBot.java) is a contract which performs market
+making on the coin exchange and asset exchange.
+Contract runners can define the holdings (coin or asset) on which to submit buy
+and sell orders and the percentage difference from a base exchange rate loaded
+from coinmarketcap, which serves as a sample data source.
+The bot can be configured to compete with other traders or issue orders
+according to the base exchange rate to provide liquidity.
+
+The account balance notifier (AccountBalanceNotifier.java) monitors the account
+balances of configured holdings and raises an alert in case their holding
+balance drops below some minimum limit. The notifier can be used to monitor an
+account performing market making to alert the operator in case a holding balance
+is exhausted.
+
+The chain monitor contract (ChainMonitor.java) monitors specific aspects of the
+blockchain operations. It submits an alert to one or more notification services
+in case a problem with the blockchain operation is detected.
+
+The whale alert contract (WhaleAlert.java) watches the blockchain for balance
+changes larger than a pre-defined threshold defined per holding and alerts the
+configured notification service when such transaction is included in a block.
+
+Notification service contracts (SlackNotifier.java, TelegramNotifier.java) are
+utility contracts used for posting messages from other contracts to Slack and
+Telegram respectively.
+
+Wallet pages which do not rely on any specific account such as the Blocks,Peers,
+Generators,Node Configuration pages can be opened from the settings menu without
+requiring the user to login first.
+
+To prevent repetition. the administrator password setting was moved from the
+account settings to the device settings dialog.
+Users who defined the password in the account settings will have to manually
+redefine it in the wallet device settings.
+
+The wallet sidebar displays an approximate countdown for the next expected block
+using information extracted from the generators list.
+
+The Node JS module can now connect to a node using https with a self signed
+certificate by setting disableSslCertificateVerification to true in config.json
+
+Added a tax reporting add-on which produces a report in CSV format compatible
+with the CoinTracking service.
+
+Updated Jetty to version 9.4.31.
+

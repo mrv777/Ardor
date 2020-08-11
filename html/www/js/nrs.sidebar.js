@@ -1,6 +1,6 @@
 /******************************************************************************
  * Copyright © 2013-2016 The Nxt Core Developers.                             *
- * Copyright © 2016-2019 Jelurida IP B.V.                                     *
+ * Copyright © 2016-2020 Jelurida IP B.V.                                     *
  *                                                                            *
  * See the LICENSE.txt file at the top-level directory of this distribution   *
  * for licensing information.                                                 *
@@ -17,57 +17,59 @@
 /**
  * @depends {nrs.js}
  */
-var NRS = (function(NRS, $) {
-	$(".sidebar_context").on("contextmenu", "a", function(e) {
-		e.preventDefault();
-		NRS.closeContextMenu();
-		if ($(this).hasClass("no-context")) {
-			return;
-		}
+NRS.onSiteBuildDone().then(() => {
+	NRS = (function(NRS, $) {
+		$(".sidebar_context").on("contextmenu", "a", function(e) {
+			e.preventDefault();
+			NRS.closeContextMenu();
+			if ($(this).hasClass("no-context")) {
+				return;
+			}
 
-		NRS.selectedContext = $(this);
-		NRS.selectedContext.addClass("context");
-		$(document).on("click.contextmenu", NRS.closeContextMenu);
-		var contextMenu = $(this).data("context");
-		if (!contextMenu) {
-			contextMenu = $(this).closest(".list-group").attr("id") + "_context";
-		}
+			NRS.selectedContext = $(this);
+			NRS.selectedContext.addClass("context");
+			$(document).on("click.contextmenu", NRS.closeContextMenu);
+			var contextMenu = $(this).data("context");
+			if (!contextMenu) {
+				contextMenu = $(this).closest(".list-group").attr("id") + "_context";
+			}
 
-		var $contextMenu = $("#" + contextMenu);
-		if ($contextMenu.length) {
-			var $options = $contextMenu.find("ul.dropdown-menu a");
-			$.each($options, function() {
-				var requiredClass = $(this).data("class");
-				if (!requiredClass) {
-					$(this).show();
-				} else if (NRS.selectedContext.hasClass(requiredClass)) {
-					$(this).show();
-				} else {
-					$(this).hide();
-				}
-			});
+			var $contextMenu = $("#" + contextMenu);
+			if ($contextMenu.length) {
+				var $options = $contextMenu.find("ul.dropdown-menu a");
+				$.each($options, function() {
+					var requiredClass = $(this).data("class");
+					if (!requiredClass) {
+						$(this).show();
+					} else if (NRS.selectedContext.hasClass(requiredClass)) {
+						$(this).show();
+					} else {
+						$(this).hide();
+					}
+				});
 
-			$contextMenu.css({
-				display: "block",
-				left: e.pageX,
-				top: e.pageY
-			});
-		}
-		return false;
-	});
+				$contextMenu.css({
+					display: "block",
+					left: e.pageX,
+					top: e.pageY
+				});
+			}
+			return false;
+		});
 
-	NRS.closeContextMenu = function(e) {
-		if (e && e.which == 3) {
-			return;
-		}
+		NRS.closeContextMenu = function(e) {
+			if (e && e.which == 3) {
+				return;
+			}
 
-		$(".context_menu").hide();
-		if (NRS.selectedContext) {
-			NRS.selectedContext.removeClass("context");
-		}
+			$(".context_menu").hide();
+			if (NRS.selectedContext) {
+				NRS.selectedContext.removeClass("context");
+			}
 
-		$(document).off("click.contextmenu");
-	};
+			$(document).off("click.contextmenu");
+		};
 
-	return NRS;
-}(NRS || {}, jQuery));
+		return NRS;
+	}(NRS || {}, jQuery));
+});

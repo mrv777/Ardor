@@ -1,5 +1,5 @@
 /*
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -34,6 +34,10 @@ public final class SimpleShamirSecretSharing implements SecretSharing {
      */
     @Override
     public SecretShare[] split(final BigInteger secret, int needed, int available, BigInteger prime, Random random) {
+        if (secret.compareTo(BigInteger.ZERO) == 0) {
+            throw new IllegalArgumentException("Secret zero is not allowed");
+        }
+
         // Create a polynomial of degree representing the number of needed pieces
         final BigInteger[] coeff = new BigInteger[needed];
         coeff[0] = secret; // our secret is encoded in the polynomial free term

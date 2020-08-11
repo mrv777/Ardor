@@ -1,6 +1,6 @@
 /******************************************************************************
  * Copyright © 2013-2016 The Nxt Core Developers.                             *
- * Copyright © 2016-2019 Jelurida IP B.V.                                     *
+ * Copyright © 2016-2020 Jelurida IP B.V.                                     *
  *                                                                            *
  * See the LICENSE.txt file at the top-level directory of this distribution   *
  * for licensing information.                                                 *
@@ -328,7 +328,9 @@ function NxtAddress(moduleContext) {
 
 		adr = adr.replace(/(^\s+)|(\s+$)/g, '').toUpperCase();
 
-		if (adr.indexOf(context.getAccountMask()) == 0) adr = adr.substr(context.constants.ACCOUNT_MASK_LEN);
+		if (adr.split("-").length === 5) {
+			adr = adr.substr(adr.indexOf("-"));
+		}
 
 		if (adr.match(/^\d{1,20}$/g)) // account id
 		{

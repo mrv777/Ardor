@@ -1,6 +1,6 @@
 /*
  * Copyright © 2013-2016 The Nxt Core Developers.
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -41,14 +41,14 @@ public final class GetForging extends APIServlet.APIRequestHandler {
     @Override
     protected JSONStreamAware processRequest(HttpServletRequest req) throws ParameterException {
 
-        String secretPhrase = ParameterParser.getSecretPhrase(req, false);
+        byte[] privateKey = ParameterParser.getPrivateKey(req, false);
         int elapsedTime = Nxt.getEpochTime() - Nxt.getBlockchain().getLastBlock().getTimestamp();
-        if (secretPhrase != null) {
-            Account account = Account.getAccount(Crypto.getPublicKey(secretPhrase));
+        if (privateKey != null) {
+            Account account = Account.getAccount(Crypto.getPublicKey(privateKey));
             if (account == null) {
                 return UNKNOWN_ACCOUNT;
             }
-            Generator generator = Generator.getGenerator(secretPhrase);
+            Generator generator = Generator.getGenerator(privateKey);
             if (generator == null) {
                 return NOT_FORGING;
             }

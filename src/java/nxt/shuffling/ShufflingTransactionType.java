@@ -1,6 +1,6 @@
 /*
  * Copyright © 2013-2016 The Nxt Core Developers.
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -76,6 +76,9 @@ public abstract class ShufflingTransactionType extends ChildTransactionType {
 
     private final static Fee SHUFFLING_PROCESSING_FEE = new Fee.ConstantFee(Constants.ONE_FXT / 10);
     private final static Fee SHUFFLING_RECIPIENTS_FEE = new Fee.ConstantFee(11 * Constants.ONE_FXT / 100);
+
+    private final static Fee NEXT_SHUFFLING_PROCESSING_FEE = new Fee.ConstantFee(Constants.ONE_FXT / 10 + Fee.NEW_ACCOUNT_FEE);
+    private final static Fee NEXT_SHUFFLING_RECIPIENTS_FEE = new Fee.ConstantFee(11 * Constants.ONE_FXT / 100 + Fee.NEW_ACCOUNT_FEE);
 
 
     private ShufflingTransactionType() {}
@@ -375,6 +378,16 @@ public abstract class ShufflingTransactionType extends ChildTransactionType {
         }
 
         @Override
+        public Fee getNextFee(Transaction transaction) {
+            return NEXT_SHUFFLING_PROCESSING_FEE;
+        }
+
+        @Override
+        public int getNextFeeHeight() {
+            return Constants.CHILD_CHAIN_CONTROL_BLOCK;
+        }
+
+        @Override
         public Attachment.AbstractAttachment parseAttachment(ByteBuffer buffer) throws NxtException.NotValidException {
             return new ShufflingProcessingAttachment(buffer);
         }
@@ -494,6 +507,16 @@ public abstract class ShufflingTransactionType extends ChildTransactionType {
         @Override
         public Fee getBaselineFee(Transaction transaction) {
             return SHUFFLING_RECIPIENTS_FEE;
+        }
+
+        @Override
+        public Fee getNextFee(Transaction transaction) {
+            return NEXT_SHUFFLING_RECIPIENTS_FEE;
+        }
+
+        @Override
+        public int getNextFeeHeight() {
+            return Constants.CHILD_CHAIN_CONTROL_BLOCK;
         }
 
         @Override

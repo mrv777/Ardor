@@ -1,6 +1,6 @@
 /*
  * Copyright © 2013-2016 The Nxt Core Developers.
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -160,7 +160,7 @@ public final class Generator implements Comparable<Generator> {
         return listeners.removeListener(listener, eventType);
     }
 
-    public static Generator startForging(String secretPhrase) {
+    public static Generator startForging(byte[] privateKey) {
         SecurityManager sm = System.getSecurityManager();
         if (sm != null) {
             sm.checkPermission(new BlockchainPermission("forging"));
@@ -168,8 +168,8 @@ public final class Generator implements Comparable<Generator> {
         if (generators.size() >= MAX_FORGERS) {
             throw new RuntimeException("Cannot forge with more than " + MAX_FORGERS + " accounts on the same node");
         }
-        Generator generator = new Generator(secretPhrase);
-        Generator old = generators.putIfAbsent(secretPhrase, generator);
+        Generator generator = new Generator(privateKey);
+        Generator old = generators.putIfAbsent(Convert.toHexString(privateKey), generator);
         if (old != null) {
             Logger.logDebugMessage(old + " is already forging");
             return old;
@@ -179,12 +179,12 @@ public final class Generator implements Comparable<Generator> {
         return generator;
     }
 
-    public static Generator stopForging(String secretPhrase) {
+    public static Generator stopForging(byte[] privateKey) {
         SecurityManager sm = System.getSecurityManager();
         if (sm != null) {
             sm.checkPermission(new BlockchainPermission("forging"));
         }
-        Generator generator = generators.remove(secretPhrase);
+        Generator generator = generators.remove(Convert.toHexString(privateKey));
         if (generator != null) {
             Nxt.getBlockchain().updateLock();
             try {
@@ -220,12 +220,12 @@ public final class Generator implements Comparable<Generator> {
         return count;
     }
 
-    public static Generator getGenerator(String secretPhrase) {
+    public static Generator getGenerator(byte[] privateKey) {
         SecurityManager sm = System.getSecurityManager();
         if (sm != null) {
             sm.checkPermission(new BlockchainPermission("forging"));
         }
-        return generators.get(secretPhrase);
+        return generators.get(Convert.toHexString(privateKey));
     }
 
     public static int getGeneratorCount() {
@@ -324,16 +324,16 @@ public final class Generator implements Comparable<Generator> {
 
 
     private final long accountId;
-    private final String secretPhrase;
+    private final byte[] privateKey;
     private final byte[] publicKey;
     private volatile long hitTime;
     private volatile BigInteger hit;
     private volatile BigInteger effectiveBalance;
     private volatile long deadline;
 
-    private Generator(String secretPhrase) {
-        this.secretPhrase = secretPhrase;
-        this.publicKey = Crypto.getPublicKey(secretPhrase);
+    private Generator(byte[] privateKey) {
+        this.privateKey = privateKey;
+        this.publicKey = Crypto.getPublicKey(privateKey);
         this.accountId = Account.getId(publicKey);
         Nxt.getBlockchain().updateLock();
         try {
@@ -404,7 +404,7 @@ public final class Generator implements Comparable<Generator> {
         int start = Nxt.getEpochTime();
         while (true) {
             try {
-                BlockchainProcessorImpl.getInstance().generateBlock(secretPhrase, timestamp);
+                BlockchainProcessorImpl.getInstance().generateBlock(privateKey, timestamp);
                 setDelay(Constants.FORGING_DELAY);
                 return true;
             } catch (BlockchainProcessor.TransactionNotAcceptedException e) {

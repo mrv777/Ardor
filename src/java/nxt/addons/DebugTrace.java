@@ -1,6 +1,6 @@
 /*
  * Copyright © 2013-2016 The Nxt Core Developers.
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -57,6 +57,7 @@ import nxt.ms.PublishExchangeOfferAttachment;
 import nxt.ms.ReserveClaimAttachment;
 import nxt.ms.ReserveIncreaseAttachment;
 import nxt.shuffling.ShufflingHome;
+import nxt.shuffling.ShufflingParticipantHome;
 import nxt.util.Convert;
 import nxt.util.Logger;
 
@@ -283,11 +284,14 @@ public final class DebugTrace {
     }
 
     private void traceShufflingDistribute(ShufflingHome.Shuffling shuffling) {
-        shuffling.getShufflingParticipantHome().getParticipants(shuffling.getFullHash()).forEach(shufflingParticipant -> {
-            if (include(shufflingParticipant.getAccountId())) {
-                log(getValues(shufflingParticipant.getAccountId(), shuffling, false));
-            }
-        });
+        final ShufflingParticipantHome participantHome = shuffling.getShufflingParticipantHome();
+        try (DbIterator<ShufflingParticipantHome.ShufflingParticipant> participants = participantHome.getParticipants(shuffling.getFullHash())) {
+            participants.forEach(shufflingParticipant -> {
+                if (include(shufflingParticipant.getAccountId())) {
+                    log(getValues(shufflingParticipant.getAccountId(), shuffling, false));
+                }
+            });
+        }
         for (byte[] recipientPublicKey : shuffling.getRecipientPublicKeys()) {
             long recipientId = Account.getId(recipientPublicKey);
             if (include(recipientId)) {

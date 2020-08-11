@@ -8,6 +8,10 @@ public class GetFundingMonitorCall extends APICall.Builder<GetFundingMonitorCall
         super(ApiSpec.getFundingMonitor);
     }
 
+    public static GetFundingMonitorCall create() {
+        return new GetFundingMonitorCall();
+    }
+
     public static GetFundingMonitorCall create(int chain) {
         return new GetFundingMonitorCall().param("chain", chain);
     }

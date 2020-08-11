@@ -1,5 +1,5 @@
 /*
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -15,9 +15,20 @@
 
 package nxt.http.responses;
 
+import nxt.addons.JO;
+import org.json.simple.JSONObject;
+
 import java.util.List;
 
 public interface TaggedDataResponse {
+    static TaggedDataResponse create(JO object) {
+        return new TaggedDataResponseImpl(object);
+    }
+
+    static TaggedDataResponse create(JSONObject object) {
+        return new TaggedDataResponseImpl(object);
+    }
+
     byte[] getTransactionFullHash();
 
     long getAccount();

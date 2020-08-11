@@ -1,5 +1,5 @@
 /*
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -15,6 +15,9 @@
 
 package com.jelurida.ardor.contracts;
 
+import com.jelurida.ardor.contracts.trading.AccountBalanceNotifierTest;
+import com.jelurida.ardor.contracts.trading.CoinExchangeTradingBotLegacyTest;
+import com.jelurida.ardor.contracts.trading.CoinExchangeTradingBotTest;
 import nxt.SafeShutdownSuite;
 import nxt.addons.ParamInvocationHandlerTest;
 import org.junit.runner.RunWith;
@@ -36,13 +39,20 @@ import org.junit.runners.Suite;
         ContractUnderAccountControlTest.class,
         VersionComparisonTest.class,
         ContractManagerTest.class,
+        ContractLoaderTest.class,
         AllowedActionsTest.class,
         ForbiddenActionsTest.class,
         DatabaseAccessTest.class,
         LiberlandCitizenRegistryTest.class,
         ParamInvocationHandlerTest.class,
         ContractWithInnerInterfaceTest.class,
-        GetRandomNumberTest.class
+        GetRandomNumberTest.class,
+        CoinExchangeOperationsTest.class,
+        CoinExchangeTradingBotTest.class,
+        CoinExchangeTradingBotLegacyTest.class,
+        ContractWithInnerClassParameterTest.class,
+        AccountBalanceNotifierTest.class,
+        WhaleAlertTest.class
 })
 public class ContractRunnerSuite extends SafeShutdownSuite {
 }

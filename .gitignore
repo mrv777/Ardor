@@ -10,9 +10,11 @@
 /html/doc/*
 /html/**/*.gz
 /keystore
+/keystore-ca.crt
 /nxt.jar
 /nxtservice.jar
 /ardor.jar
+/ardor-tests.jar
 /ardorservice.jar
 /nxt_test_db
 /nxt_unit_test_db
@@ -31,8 +33,8 @@
 /javafx-sdk.runtime
 /dist
 deploy.sh
-/resource/nxt.manifest.mf
-/resource/nxtservice.manifest.mf
+/resource/ardor.manifest.mf
+/resource/ardorservice.manifest.mf
 /nxt.exe
 /nxtservice.exe
 /ardor.exe
@@ -44,3 +46,4 @@ deploy.sh
 /out
 /nxt
 /ardor
+/nxt_test_db_automation/

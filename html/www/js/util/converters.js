@@ -1,6 +1,6 @@
 /******************************************************************************
  * Copyright © 2013-2016 The Nxt Core Developers.                             *
- * Copyright © 2016-2019 Jelurida IP B.V.                                     *
+ * Copyright © 2016-2020 Jelurida IP B.V.                                     *
  *                                                                            *
  * See the LICENSE.txt file at the top-level directory of this distribution   *
  * for licensing information.                                                 *
@@ -37,12 +37,10 @@ var converters = function() {
 		byteArrayToHexString: function(bytes) {
 			var str = '';
 			for (var i = 0; i < bytes.length; ++i) {
-				if (bytes[i] < 0) {
-					bytes[i] += 256;
-				}
-				str += nibbleToChar[bytes[i] >> 4] + nibbleToChar[bytes[i] & 0x0F];
+			    var b = bytes[i] < 0 ? 256 : 0;
+			    b += bytes[i];
+				str += nibbleToChar[b >> 4] + nibbleToChar[b & 0x0F];
 			}
-
 			return str;
 		},
 		stringToByteArray: function(str) {
@@ -55,16 +53,13 @@ var converters = function() {
 			return bytes;
 		},
 		hexStringToByteArray: function(str) {
-			var bytes = [];
-			var i = 0;
 			if (0 !== str.length % 2) {
-				bytes.push(charToNibble[str.charAt(0)]);
-				++i;
+				throw new Error(`hex string length ${str.length} is not even`);
 			}
-
-			for (; i < str.length - 1; i += 2)
+			let bytes = [];
+			for (let i=0; i < str.length - 1; i += 2) {
 				bytes.push((charToNibble[str.charAt(i)] << 4) + charToNibble[str.charAt(i + 1)]);
-
+			}
 			return bytes;
 		},
 		stringToHexString: function(str) {
@@ -112,6 +107,16 @@ var converters = function() {
 			}
 
 			return value;
+		},
+		bigIntToHexString: function(n) {
+			let hex = n.toString(16);
+			if (hex.length > 0 && hex.substring(0, 1) === "-") {
+				throw new Error("Cannot convert negative number to hex string");
+			}
+			if (hex.length % 2 === 1) {
+				hex = "0" + hex;
+			}
+			return hex;
 		},
 		// create a wordArray that is Big-Endian
 		byteArrayToWordArray: function(byteArray) {

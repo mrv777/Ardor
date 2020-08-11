@@ -1,6 +1,6 @@
 /*
  * Copyright © 2013-2016 The Nxt Core Developers.
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -19,6 +19,7 @@ package nxt.dbschema;
 import nxt.Constants;
 import nxt.Nxt;
 import nxt.ae.AssetFreezeMonitor;
+import nxt.ae.AssetMigrateMonitor;
 import nxt.blockchain.BlockDb;
 import nxt.blockchain.BlockchainProcessorImpl;
 import nxt.blockchain.ChildChain;
@@ -26,7 +27,6 @@ import nxt.blockchain.ChildChainLoader;
 import nxt.db.BasicDb;
 import nxt.db.DbVersion;
 import nxt.db.FullTextTrigger;
-import nxt.db.TransactionalDb;
 import nxt.util.Convert;
 
 import java.sql.Connection;
@@ -506,7 +506,7 @@ public class FxtDbVersion extends DbVersion {
             case 159:
                 apply("CREATE INDEX IF NOT EXISTS holding_migrate_height_idx ON holding_migrate (height)");
             case 160:
-                TransactionalDb.runInDbTransaction(() -> {
+                Db.db.runInDbTransaction(() -> {
                     if (Constants.isTestnet) {
                         ChildChainLoader.enableChildChainLoading(ChildChain.MPG, Constants.MPG_BLOCK, 0);
                     }
@@ -524,14 +524,14 @@ public class FxtDbVersion extends DbVersion {
             case 164:
                 apply("CREATE INDEX IF NOT EXISTS phasing_poll_hashed_secret_height_idx ON phasing_poll_hashed_secret (height)");
             case 165:
-                TransactionalDb.runInDbTransaction(() -> {
+                Db.db.runInDbTransaction(() -> {
                     if (!Constants.isTestnet) {
                         ChildChainLoader.enableChildChainLoading(ChildChain.MPG, Constants.MPG_BLOCK, Constants.MPG_BLOCK);
                     }
                     apply(null);
                 });
             case 166:
-                TransactionalDb.runInDbTransaction(() -> {
+                Db.db.runInDbTransaction(() -> {
                     if (!Constants.isTestnet) {
                         //schedule freeze of C2C asset
                         AssetFreezeMonitor.enableFreeze(Convert.parseUnsignedLong("6066975351926729052"), Constants.MPG_BLOCK, Constants.MPG_BLOCK);
@@ -565,6 +565,38 @@ public class FxtDbVersion extends DbVersion {
             case 171:
                 apply("UPDATE account_control_phasing SET max_fees=ARRAY[], max_fees_chains=ARRAY[] WHERE max_fees=ARRAY[0]");
             case 172:
+                apply("CREATE TABLE IF NOT EXISTS blacklisted_open_api_nodes (host VARCHAR PRIMARY KEY, unblacklist_time INT)");
+            case 173:
+                apply("CREATE ALIAS CAN_BE_TRIMMED FOR \"nxt.db.TrimmableDbTable.canBeTrimmed\"");
+            case 174:
+                Db.db.runInDbTransaction(() -> {
+                    if (Constants.isTestnet) {
+                        AssetFreezeMonitor.enableFreeze(Constants.GPS_ASSET_ID, Constants.GPS_BLOCK, Constants.GPS_BLOCK);
+                    }
+                    apply(null);
+                });
+            case 175:
+                Db.db.runInDbTransaction(() -> {
+                    if (Constants.isTestnet) {
+                        AssetMigrateMonitor.enableMigration(Constants.GPS_ASSET_ID, ChildChain.GPS, Constants.GPS_BLOCK, Constants.GPS_BLOCK);
+                    }
+                    apply(null);
+                });
+            case 176:
+                Db.db.runInDbTransaction(() -> {
+                    if (! Constants.isTestnet) {
+                        AssetFreezeMonitor.enableFreeze(Constants.GPS_ASSET_ID, Constants.GPS_BLOCK, Constants.GPS_BLOCK);
+                    }
+                    apply(null);
+                });
+            case 177:
+                Db.db.runInDbTransaction(() -> {
+                    if (! Constants.isTestnet) {
+                        AssetMigrateMonitor.enableMigration(Constants.GPS_ASSET_ID, ChildChain.GPS, Constants.GPS_BLOCK, Constants.GPS_BLOCK);
+                    }
+                    apply(null);
+                });
+            case 178:
                 return;
             default:
                 throw new RuntimeException("Forging chain database inconsistent with code, at update " + nextUpdate

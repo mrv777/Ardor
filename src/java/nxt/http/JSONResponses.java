@@ -1,6 +1,6 @@
 /*
  * Copyright © 2013-2016 The Nxt Core Developers.
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -28,6 +28,7 @@ import org.json.simple.JSONStreamAware;
 import java.util.Arrays;
 import java.util.List;
 
+@SuppressWarnings({"unchecked", "unused"})
 public final class JSONResponses {
 
     public static final JSONStreamAware INCORRECT_ALIAS = incorrect("alias");
@@ -161,6 +162,8 @@ public final class JSONResponses {
     public static final JSONStreamAware UNKNOWN_CHAIN = unknown("chain");
     public static final JSONStreamAware INCORRECT_CHAIN = incorrect("chain");
     public static final JSONStreamAware MISSING_CHAIN = missing("chain");
+    public static final JSONStreamAware UNKNOWN_PERMISSION = unknown("permission");
+    public static final JSONStreamAware MISSING_PERMISSION = missing("permission");
     public static final JSONStreamAware UNKNOWN_PHASED_TRANSACTION = unknown("phasedTransaction");
     public static final JSONStreamAware INCORRECT_CONTRACT_NAME_LENGTH = incorrect("name", "(length must be > 0 but less than " + Constants.MAX_CONTRACT_NAME_LENGTH + " characters)");
     public static final JSONStreamAware INCORRECT_CONTRACT_PARAMS_LENGTH = incorrect("params", "(length must be less than " + Constants.MAX_CONTRACT_PARAMS_LENGTH + " characters)");
@@ -373,12 +376,12 @@ public final class JSONResponses {
         REQUIRED_LAST_BLOCK_NOT_FOUND = JSON.prepare(response);
     }
 
-    public static final JSONStreamAware MISSING_SECRET_PHRASE;
+    public static final JSONStreamAware MISSING_SECRET_PHRASE_OR_PRIVATE_KEY;
     static {
         JSONObject response = new JSONObject();
         response.put("errorCode", 3);
-        response.put("errorDescription", "secretPhrase not specified or not submitted to the remote node");
-        MISSING_SECRET_PHRASE = JSON.prepare(response);
+        response.put("errorDescription", "secretPhrase or privateKey not specified or not submitted to the remote node");
+        MISSING_SECRET_PHRASE_OR_PRIVATE_KEY = JSON.prepare(response);
     }
 
     public static final JSONStreamAware PRUNED_TRANSACTION;
@@ -453,7 +456,7 @@ public final class JSONResponses {
         PEERS_NETWORKING_DISABLED = JSON.prepare(response);
     }
 
-    static JSONStreamAware missing(String... paramNames) {
+    public static JSONStreamAware missing(String... paramNames) {
         JSONObject response = new JSONObject();
         response.put("errorCode", 3);
         if (paramNames.length == 1) {
@@ -591,6 +594,7 @@ public final class JSONResponses {
         INCORRECT_PROCESS_FILE = JSON.prepare(response);
     }
 
+    public static final JSONStreamAware INCORRECT_SERIALIZED_MASTER_PUBLIC_KEY = incorrect("serializedMasterPublicKey", "Not a valid serialization of a master public key");
 
     private JSONResponses() {} // never
 

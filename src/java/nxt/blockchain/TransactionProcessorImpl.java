@@ -1,6 +1,6 @@
 /*
  * Copyright © 2013-2016 The Nxt Core Developers.
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -876,10 +876,11 @@ public final class TransactionProcessorImpl implements TransactionProcessor {
             //
             synchronized(transactionCache) {
                 if (!cacheInitialized) {
-                    DbIterator<UnconfirmedTransaction> it = getAllUnconfirmedTransactions();
-                    while (it.hasNext()) {
-                        UnconfirmedTransaction unconfirmedTransaction = it.next();
-                        transactionCache.put(unconfirmedTransaction.getDbKey(), unconfirmedTransaction);
+                    try (DbIterator<UnconfirmedTransaction> it = getAllUnconfirmedTransactions()) {
+                        while (it.hasNext()) {
+                            UnconfirmedTransaction unconfirmedTransaction = it.next();
+                            transactionCache.put(unconfirmedTransaction.getDbKey(), unconfirmedTransaction);
+                        }
                     }
                     cacheInitialized = true;
                 }
@@ -943,7 +944,7 @@ public final class TransactionProcessorImpl implements TransactionProcessor {
                                 //
                                 if (((Appendix.Prunable)appendage).hasPrunableData()) {
                                     Logger.logDebugMessage(String.format("Loading prunable data for transaction %s %s appendage",
-                                            Long.toUnsignedString(transaction.getId()), appendage.getAppendixName()));
+                                            transaction.getStringId(), appendage.getAppendixName()));
                                     ((Appendix.Prunable)appendage).restorePrunableData(transaction, myTransaction.getBlockTimestamp(), myTransaction.getHeight());
                                 } else {
                                     foundAllData = false;

@@ -1,6 +1,6 @@
 /*
  * Copyright © 2013-2016 The Nxt Core Developers.
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -22,10 +22,11 @@ import nxt.NxtException;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.io.UnsupportedEncodingException;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -44,10 +45,9 @@ public final class Convert {
 
     public static final BigInteger two64 = new BigInteger("18446744073709551616");
     public static final long[] EMPTY_LONG = new long[0];
-    public static final int[] EMPTY_INT = new int[0];
     public static final byte[] EMPTY_BYTE = new byte[0];
     public static final byte[][] EMPTY_BYTES = new byte[0][];
-    public static final String[] EMPTY_STRING = new String[0];
+    static final String[] EMPTY_STRING = new String[0];
     private static final boolean BIG_INTEGER_HAS_LONG_VALUE_EXACT;
 
     static {
@@ -64,6 +64,9 @@ public final class Convert {
     public static byte[] parseHexString(String hex) {
         if (hex == null) {
             return null;
+        }
+        if (hex.length() % 2 != 0) {
+            throw new IllegalArgumentException(String.format("hex string length %d is not even", hex.length()));
         }
         byte[] bytes = new byte[hex.length() / 2];
         for (int i = 0; i < bytes.length; i++) {
@@ -129,7 +132,7 @@ public final class Convert {
         if (prefixEnd > 0) {
             return rsDecode(account.substring(prefixEnd + 1));
         } else if (prefixEnd == 0) {
-            return Long.valueOf(account);
+            return Long.parseLong(account);
         } else {
             return Long.parseUnsignedLong(account);
         }
@@ -256,11 +259,7 @@ public final class Convert {
     }
 
     public static byte[] toBytes(String s) {
-        try {
-            return s.getBytes("UTF-8");
-        } catch (UnsupportedEncodingException e) {
-            throw new RuntimeException(e.toString(), e);
-        }
+        return s.getBytes(StandardCharsets.UTF_8);
     }
 
     public static byte[] toBytes(String s, boolean isText) {
@@ -268,11 +267,7 @@ public final class Convert {
     }
 
     public static String toString(byte[] bytes) {
-        try {
-            return new String(bytes, "UTF-8");
-        } catch (UnsupportedEncodingException e) {
-            throw new RuntimeException(e.toString(), e);
-        }
+        return new String(bytes, StandardCharsets.UTF_8);
     }
 
     public static String toString(byte[] bytes, boolean isText) {
@@ -306,28 +301,6 @@ public final class Convert {
 
     public static long decimalMultiplier(int decimals) {
         return multipliers[decimals];
-    }
-
-    private static long parseStringFraction(String value, int decimals, long maxValue) {
-        String[] s = value.trim().split("\\.");
-        if (s.length == 0 || s.length > 2) {
-            throw new NumberFormatException("Invalid number: " + value);
-        }
-        long wholePart = Long.parseLong(s[0]);
-        if (wholePart > maxValue) {
-            throw new IllegalArgumentException("Whole part of value exceeds maximum possible");
-        }
-        if (s.length == 1) {
-            return wholePart * multipliers[decimals];
-        }
-        long fractionalPart = Long.parseLong(s[1]);
-        if (fractionalPart >= multipliers[decimals] || s[1].length() > decimals) {
-            throw new IllegalArgumentException("Fractional part exceeds maximum allowed divisibility");
-        }
-        for (int i = s[1].length(); i < decimals; i++) {
-            fractionalPart *= 10;
-        }
-        return wholePart * multipliers[decimals] + fractionalPart;
     }
 
     public static byte[] compress(byte[] bytes) {
@@ -404,7 +377,117 @@ public final class Convert {
             } else {
                 throw new ArithmeticException("BigInteger out of long range");
             }
-
         }
+    }
+
+    // See RFC 5652, section 6.3 https://tools.ietf.org/html/rfc5652#section-6.3
+    public static byte[] pkcs7Pad(byte[] plaintext) {
+        byte[] padding = PADDING[plaintext.length % 16];
+        byte[] padded = new byte[plaintext.length + padding.length];
+        System.arraycopy(plaintext, 0, padded, 0, plaintext.length);
+        System.arraycopy(padding, 0, padded, plaintext.length, padding.length);
+        return padded;
+    }
+
+    public static byte[] pkcs7Unpad(byte[] padded) {
+        int padLength = padded[padded.length - 1];
+        if (padLength < 1 || padLength > 16) {
+            return null;
+        }
+        for (int i = 0; i < padLength; i++) {
+            if (padded[padded.length - 1 - i] != padLength) {
+                return null;
+            }
+        }
+        byte[] plainText = new byte[padded.length - padLength];
+        System.arraycopy(padded, 0, plainText, 0, plainText.length);
+        return plainText;
+    }
+
+    private static final byte[][] PADDING = new byte[][]{
+            {16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16},
+            {15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15},
+            {14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14},
+            {13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13},
+            {12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12},
+            {11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11},
+            {10, 10, 10, 10, 10, 10, 10, 10, 10, 10},
+            {9, 9, 9, 9, 9, 9, 9, 9, 9},
+            {8, 8, 8, 8, 8, 8, 8, 8},
+            {7, 7, 7, 7, 7, 7, 7},
+            {6, 6, 6, 6, 6, 6},
+            {5, 5, 5, 5, 5},
+            {4, 4, 4, 4},
+            {3, 3, 3},
+            {2, 2},
+            {1}
+    };
+
+    public static byte[] toSignedBytes(short[] s) {
+        byte[] b = new byte[s.length];
+        for (int i = 0; i < s.length; i++) {
+            b[i] = (byte) (s[i] & 0xff);
+        }
+        return b;
+    }
+
+    public static short[] toUnsignedBytes(byte[] b) {
+        short[] s = new short[b.length];
+        for (int i = 0; i < b.length; i++) {
+            s[i] = (short) (b[i] & 0xff);
+        }
+        return s;
+    }
+
+    public static byte[] intToLittleEndian(int pathComponent) {
+        ByteBuffer pathBytes = ByteBuffer.allocate(4);
+        pathBytes.order(ByteOrder.LITTLE_ENDIAN);
+        pathBytes.putInt(pathComponent);
+        return pathBytes.array();
+    }
+
+    /**
+     * Converts an array in place from big to little endian and vice versa
+     * @param b input/output array modified in place, use Arrays.copy() when calling to avoid modification
+     * @return the converted array
+     */
+    public static byte[] switchEndian(byte[] b) {
+        for (int i=0; i<b.length / 2; i++) {
+            byte temp = b[i];
+            b[i] = b[b.length - i - 1];
+            b[b.length - i - 1] = temp;
+        }
+        return b;
+    }
+
+    @SuppressWarnings("BooleanMethodIsAlwaysInverted")
+    public static boolean isUtf8Text(byte[] message) {
+        return Arrays.equals(message, toBytes(toString(message)));
+    }
+
+    public static String bigIntegerToHexString(BigInteger bigInteger, int expectedLength) {
+        if (bigInteger.signum() == -1) {
+            throw new IllegalArgumentException("Method only accepts non-negative integers: " + bigInteger);
+        }
+        String str = bigInteger.toString(16);
+        int zeroPad = expectedLength - str.length();
+        if (zeroPad < 0) {
+            throw new IllegalArgumentException(String.format("BigInteger %s doesn't fit in %d hex characters.",
+                    bigInteger, expectedLength));
+        }
+        if (zeroPad > 0) {
+            StringBuilder sb = new StringBuilder();
+            for (int i=0; i < zeroPad; i++) {
+                sb.append("0");
+            }
+            sb.append(str);
+            str = sb.toString();
+        }
+        return str;
+    }
+
+
+    public static BigDecimal toBigDecimal(long amount, byte decimals) {
+        return new BigDecimal(BigInteger.valueOf(amount), decimals);
     }
 }

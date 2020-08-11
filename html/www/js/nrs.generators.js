@@ -1,6 +1,6 @@
 /******************************************************************************
  * Copyright © 2013-2016 The Nxt Core Developers.                             *
- * Copyright © 2016-2019 Jelurida IP B.V.                                     *
+ * Copyright © 2016-2020 Jelurida IP B.V.                                     *
  *                                                                            *
  * See the LICENSE.txt file at the top-level directory of this distribution   *
  * for licensing information.                                                 *
@@ -17,117 +17,115 @@
 /**
  * @depends {nrs.js}
  */
-var NRS = (function(NRS) {
+NRS.onSiteBuildDone().then(() => {
+    NRS = (function(NRS) {
 
-    var TIME_DRIFT = 20;
-    var timer = null;
-    var generators = [];
-    var lastBlockTime;
-    var timeFormatted;
-    var heightFormatted;
-    var activeCount;
+        const DEFAULT_GENERATION_DELAY = 10;
+        var timer = null;
+        var generators = [];
+        var lastBlockTime;
+        var timeFormatted;
+        var heightFormatted;
+        var activeCount;
 
-    NRS.pages.generators = function() {
-        NRS.renderGenerators(false);
-	};
+        NRS.pages.generators = function() {
+            NRS.preparePage();
+            NRS.renderGenerators(false);
+        };
 
-    NRS.renderGenerators = function(isRefresh) {
-        var view;
-        if (isRefresh) {
-            generators.forEach(
-                function(generator) {
-                    generator.remaining = generator.deadline - (NRS.toEpochTime() - lastBlockTime) + TIME_DRIFT;
-                }
-            );
+        NRS.renderGenerators = function(isRefresh) {
+            var view;
+            if (isRefresh) {
+                const $generatorsRemainingCells = $(".generators-remaining");
+                generators.forEach(
+                    function(generator, index) {
+                        let nextBlockTime = NRS.getEstimatedNextBlockTime(generator.deadline, lastBlockTime);
+                        $generatorsRemainingCells.eq(index).text(nextBlockTime);
+                    }
+                );
+                return;
+            }
+            if (timer) {
+                clearInterval(timer);
+                timer = null;
+            }
+            NRS.hasMorePages = false;
             view = NRS.simpleview.get('generators_page', {
                 errorMessage: null,
                 infoMessage: NRS.getGeneratorAccuracyWarning(),
-                isLoading: false,
+                isLoading: true,
                 isEmpty: false,
-                generators: generators,
-                timeFormatted: timeFormatted,
-                heightFormatted: heightFormatted,
-                activeCount: activeCount
+                generators: [],
+                timeFormatted: "<span>.</span><span>.</span><span>.</span></span>",
+                heightFormatted: "<span>.</span><span>.</span><span>.</span></span>",
+                activeCount: "<span>.</span><span>.</span><span>.</span></span>",
+                loadingDotsClass: "loading_dots"
             });
-            view.render({});
-            return;
-        }
-        if (timer) {
-            clearInterval(timer);
-            timer = null;
-        }
-        NRS.hasMorePages = false;
-        view = NRS.simpleview.get('generators_page', {
-            errorMessage: null,
-            infoMessage: NRS.getGeneratorAccuracyWarning(),
-            isLoading: true,
-            isEmpty: false,
-            generators: [],
-            timeFormatted: "<span>.</span><span>.</span><span>.</span></span>",
-            heightFormatted: "<span>.</span><span>.</span><span>.</span></span>",
-            activeCount: "<span>.</span><span>.</span><span>.</span></span>",
-            loadingDotsClass: "loading_dots"
-        });
-        var params = {
-            "limit": 10
-        };
-        NRS.sendRequest("getNextBlockGenerators+", params,
-            function(response) {
-                view.generators.length = 0;
-                lastBlockTime = response.timestamp;
-                if (!response.generators) {
+            var params = {
+                "limit": 10
+            };
+            NRS.sendRequest("getNextBlockGenerators+", params,
+                function(response) {
+                    view.generators.length = 0;
+                    lastBlockTime = response.timestamp;
+                    if (!response.generators) {
+                        view.render({
+                            isLoading: false,
+                            isEmpty: true,
+                            errorMessage: NRS.getErrorMessage(response)
+                        });
+                        return;
+                    }
+                    response.generators.forEach(
+                        function(generatorsJson) {
+                            view.generators.push(NRS.jsondata.generators(generatorsJson));
+                        }
+                    );
+                    timeFormatted = NRS.formatTimestamp(response.timestamp);
+                    heightFormatted = String(response.height).escapeHTML();
+                    activeCount = String(response.activeCount).escapeHTML();
                     view.render({
                         isLoading: false,
-                        isEmpty: true,
-                        errorMessage: NRS.getErrorMessage(response)
+                        isEmpty: view.generators.length == 0,
+                        timeFormatted: timeFormatted,
+                        heightFormatted: heightFormatted,
+                        activeCount: activeCount,
+                        loadingDotsClass: ""
                     });
-                    return;
-                }
-                response.generators.forEach(
-                    function(generatorsJson) {
-                        view.generators.push(NRS.jsondata.generators(generatorsJson));
+                    NRS.pageLoaded();
+                    if (NRS.currentPage == "generators") {
+                        generators = view.generators;
+                        timer = setInterval(function() {
+                            if (NRS.currentPage != "generators") {
+                                clearInterval(timer);
+                            } else {
+                                NRS.renderGenerators(true);
+                            }
+                        }, 1000);
                     }
-                );
-                timeFormatted = NRS.formatTimestamp(response.timestamp);
-                heightFormatted = String(response.height).escapeHTML();
-                activeCount = String(response.activeCount).escapeHTML();
-                view.render({
-                    isLoading: false,
-                    isEmpty: view.generators.length == 0,
-                    timeFormatted: timeFormatted,
-                    heightFormatted: heightFormatted,
-                    activeCount: activeCount,
-                    loadingDotsClass: ""
-                });
-                NRS.pageLoaded();
-                if (NRS.currentPage == "generators") {
-                    generators = view.generators;
-                    timer = setInterval(function() {
-                        if (NRS.currentPage != "generators") {
-                            clearInterval(timer);
-                        } else {
-                            NRS.renderGenerators(true);
-                        }
-                    }, 1000);
                 }
-            }
-        );
-    };
-
-    NRS.jsondata.generators = function(generator) {
-        var remaining = generator.deadline - (NRS.toEpochTime() - lastBlockTime) + TIME_DRIFT;
-        return {
-            accountFormatted: NRS.getAccountLink(generator, "account"),
-            balanceFormatted: NRS.formatAmount(generator.effectiveBalanceFXT),
-            hitTimeFormatted: NRS.formatTimestamp(generator.hitTime),
-            deadline: generator.deadline,
-            remaining: remaining
+            );
         };
-    };
 
-    NRS.incoming.generators = function() {
-        NRS.renderGenerators(false);
-    };
+        NRS.jsondata.generators = function(generator) {
+            let nextBlockTime = NRS.getEstimatedNextBlockTime(generator.deadline, lastBlockTime);
+            return {
+                accountFormatted: NRS.getAccountLink(generator, "account"),
+                balanceFormatted: NRS.formatAmount(generator.effectiveBalanceFXT),
+                hitTimeFormatted: NRS.formatTimestamp(generator.hitTime),
+                deadline: generator.deadline,
+                remaining: nextBlockTime
+            };
+        };
 
-	return NRS;
-}(NRS || {}, jQuery));
+        NRS.incoming.generators = function() {
+            NRS.renderGenerators(false);
+        };
+
+        NRS.getEstimatedNextBlockTime = function(generatorDeadline, lastBlockTime) {
+            return generatorDeadline - (NRS.toEpochTime() - lastBlockTime) + DEFAULT_GENERATION_DELAY;
+        };
+
+        return NRS;
+    }(NRS || {}, jQuery));
+});

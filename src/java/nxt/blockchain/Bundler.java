@@ -1,6 +1,6 @@
 /*
  * Copyright © 2013-2016 The Nxt Core Developers.
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -29,8 +29,19 @@ import nxt.util.Logger;
 import nxt.util.security.BlockchainPermission;
 
 import java.math.BigInteger;
-import java.util.*;
+import java.util.ArrayDeque;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.LinkedHashMap;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+import java.util.Queue;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicLong;
 
 public final class Bundler {
 
@@ -173,6 +184,17 @@ public final class Bundler {
         }
     }
 
+    private static class BroadcastedFxtTransaction {
+        private BroadcastedFxtTransaction(ChildBlockFxtTransaction tx) {
+            id = tx.getId();
+            expirationTime = tx.getExpiration();
+            feeFQT = tx.getFee();
+        }
+        private final long id;
+        private final int expirationTime;
+        private final long feeFQT;
+    }
+
     private static final short defaultChildBlockDeadline = (short)Nxt.getIntProperty("nxt.defaultChildBlockDeadline");
     private static final Filter bundlingFilter; //kept for backward compatibility
     private static final Map<String, Filter> availableBundlingFilters;
@@ -221,6 +243,7 @@ public final class Bundler {
 
     private static final Map<ChildChain, Map<Long, Bundler>> bundlers = new ConcurrentHashMap<>();
     private static final TransactionProcessorImpl transactionProcessor = TransactionProcessorImpl.getInstance();
+    private final Queue<BroadcastedFxtTransaction> broadcastedQueue = new ArrayDeque<>();
 
     public static Bundler getBundler(ChildChain childChain, long accountId) {
         SecurityManager sm = System.getSecurityManager();
@@ -286,23 +309,23 @@ public final class Bundler {
         return rule;
     }
 
-    public static synchronized Bundler addOrChangeBundler(ChildChain childChain, String secretPhrase,
+    public static synchronized Bundler addOrChangeBundler(ChildChain childChain, byte[] privateKey,
                                                           long totalFeesLimitFQT, List<Rule> bundlingRules) {
         SecurityManager sm = System.getSecurityManager();
         if (sm != null) {
             sm.checkPermission(new BlockchainPermission("bundling"));
         }
-        Bundler bundler = new Bundler(childChain, secretPhrase, totalFeesLimitFQT, bundlingRules);
+        Bundler bundler = new Bundler(childChain, privateKey, totalFeesLimitFQT, bundlingRules);
         bundler.runBundling();
         return bundler;
     }
 
-    public static synchronized Bundler addBundlingRule(ChildChain childChain, String secretPhrase, Rule rule) {
+    public static synchronized Bundler addBundlingRule(ChildChain childChain, byte[] privateKey, Rule rule) {
         SecurityManager sm = System.getSecurityManager();
         if (sm != null) {
             sm.checkPermission(new BlockchainPermission("bundling"));
         }
-        long accountId = Account.getId(Crypto.getPublicKey(secretPhrase));
+        long accountId = Account.getId(Crypto.getPublicKey(privateKey));
         Bundler bundler = getBundler(childChain, accountId);
         if (bundler != null) {
             bundler.bundlingRules.add(rule);
@@ -358,7 +381,7 @@ public final class Bundler {
         List<BundlerRate> rates = new ArrayList<>();
         getAllBundlers().forEach(bundler -> {
             BundlerRate bundlerRate = bundler.getBundlerRate();
-            if (bundlerRate != null) {
+            if (bundlerRate != null && bundlerRate.getChain().isEnabled()) {
                 rates.add(bundlerRate);
             }
         });
@@ -429,10 +452,18 @@ public final class Bundler {
                 bundler.runBundling();
             }
         })), TransactionProcessor.Event.ADDED_UNCONFIRMED_TRANSACTIONS);
+
+        //use the BLOCK_PUSHED event to not start new thread for this
+        Nxt.getBlockchainProcessor().addListener(block -> {
+                if (!Nxt.getBlockchainProcessor().isDownloading()) {
+                    bundlers.values().forEach(chainBundlers ->
+                            chainBundlers.values().forEach(bundler -> bundler.restoreFeesFromExpiredTransactions(block)));
+                }
+            }, BlockchainProcessor.Event.BLOCK_PUSHED);
     }
 
     private final ChildChain childChain;
-    private final String secretPhrase;
+    private final byte[] privateKey;
     private final byte[] publicKey;
     private final long accountId;
 
@@ -440,12 +471,13 @@ public final class Bundler {
 
     private final List<Rule> bundlingRules;
 
-    private volatile long currentTotalFeesFQT;
+    private final AtomicLong currentTotalFeesFQT = new AtomicLong();
+    private final AtomicLong confirmedTotalFeesFQT = new AtomicLong();
 
-    private Bundler(ChildChain childChain, String secretPhrase, long totalFeesLimitFQT, List<Rule> bundlingRules) {
+    private Bundler(ChildChain childChain, byte[] privateKey, long totalFeesLimitFQT, List<Rule> bundlingRules) {
         this.childChain = childChain;
-        this.secretPhrase = secretPhrase;
-        this.publicKey = Crypto.getPublicKey(secretPhrase);
+        this.privateKey = privateKey;
+        this.publicKey = Crypto.getPublicKey(privateKey);
         this.accountId = Account.getId(publicKey);
         this.totalFeesLimitFQT = totalFeesLimitFQT;
         this.bundlingRules = new ArrayList<>(bundlingRules);
@@ -470,8 +502,13 @@ public final class Bundler {
     }
 
     public final long getCurrentTotalFeesFQT() {
-        return currentTotalFeesFQT;
+        return currentTotalFeesFQT.get();
     }
+
+    public final long getConfirmedTotalFeesFQT() {
+        return confirmedTotalFeesFQT.get();
+    }
+
 
     public List<Rule> getBundlingRules() {
         return Collections.unmodifiableList(bundlingRules);
@@ -489,7 +526,7 @@ public final class Bundler {
         }
         if (minPublicRate != Long.MAX_VALUE) {
             return new BundlerRate(childChain, minPublicRate,
-                    (totalFeesLimitFQT != 0 ? totalFeesLimitFQT - currentTotalFeesFQT : Long.MAX_VALUE), secretPhrase);
+                    (totalFeesLimitFQT != 0 ? totalFeesLimitFQT - currentTotalFeesFQT.get() : Long.MAX_VALUE), privateKey);
         } else {
             return null;
         }
@@ -500,7 +537,7 @@ public final class Bundler {
         try {
             int now = Nxt.getEpochTime();
             List<ChildBlockFxtTransaction> childBlockFxtTransactions = new ArrayList<>();
-            LinkedList<ChildTransactionImpl> orderedChildTransactions = new LinkedList<>();
+            List<ChildTransactionImpl> orderedChildTransactions = new LinkedList<>();
             try (FilteringIterator<UnconfirmedTransaction> unconfirmedTransactions = new FilteringIterator<>(
                     TransactionProcessorImpl.getInstance().getUnconfirmedChildTransactions(childChain),
                     transaction -> transaction.getTransaction().hasAllReferencedTransactions(transaction.getTimestamp(), 0))) {
@@ -537,7 +574,7 @@ public final class Bundler {
                             continue;
                         }
                         long feeFQT = bundlingRule.calculateFeeFQT(childTransaction);
-                        if (Math.addExact(currentTotalFeesFQT, Math.addExact(totalFeeFQT, feeFQT)) > totalFeesLimitFQT && totalFeesLimitFQT > 0) {
+                        if (Math.addExact(currentTotalFeesFQT.get(), Math.addExact(totalFeeFQT, feeFQT)) > totalFeesLimitFQT && totalFeesLimitFQT > 0) {
                             Logger.logDebugMessage("Bundler " + Long.toUnsignedString(accountId) + " will exceed total fees limit, not bundling");
                             continue;
                         }
@@ -562,7 +599,10 @@ public final class Bundler {
                     } else if (!hasBetterChildBlockFxtTransaction(childTransactions, totalFeeFQT)) {
                         try {
                             ChildBlockFxtTransaction childBlockFxtTransaction = bundle(childTransactions, totalFeeFQT, now);
-                            currentTotalFeesFQT += totalFeeFQT;
+                            currentTotalFeesFQT.addAndGet(totalFeeFQT);
+                            synchronized (broadcastedQueue) {
+                                broadcastedQueue.offer(new BroadcastedFxtTransaction(childBlockFxtTransaction));
+                            }
                             childBlockFxtTransactions.add(childBlockFxtTransaction);
                         } catch (NxtException.NotCurrentlyValidException e) {
                             Logger.logDebugMessage(e.getMessage(), e);
@@ -585,11 +625,33 @@ public final class Bundler {
         }
     }
 
+    private void restoreFeesFromExpiredTransactions(Block lastBlock) {
+        //we stay on the safe side and restore the currentTotalFeesFQT only after the created transaction
+        // has expired, or else it could become valid due to blockchain reorganization
+        int expirationThreshold = lastBlock.getTimestamp() + Constants.MAX_TIMEDRIFT;
+        while (true) {
+            BroadcastedFxtTransaction transaction;
+            synchronized (broadcastedQueue) {
+                transaction = broadcastedQueue.peek();
+                if (transaction == null || expirationThreshold <= transaction.expirationTime) {
+                    break;
+                }
+                broadcastedQueue.poll();
+            }
+
+            if (Nxt.getBlockchain().getFxtTransaction(transaction.id) == null) {
+                currentTotalFeesFQT.addAndGet(-transaction.feeFQT);
+            } else {
+                confirmedTotalFeesFQT.addAndGet(transaction.feeFQT);
+            }
+        }
+    }
+
     private ChildBlockFxtTransaction bundle(List<ChildTransaction> childTransactions, long feeFQT, int timestamp) throws NxtException.ValidationException {
         FxtTransaction.Builder builder = FxtChain.FXT.newTransactionBuilder(publicKey, 0, feeFQT, defaultChildBlockDeadline,
                 new ChildBlockAttachment(childTransactions));
         builder.timestamp(timestamp);
-        ChildBlockFxtTransaction childBlockFxtTransaction = (ChildBlockFxtTransaction)builder.build(secretPhrase);
+        ChildBlockFxtTransaction childBlockFxtTransaction = (ChildBlockFxtTransaction)builder.build(privateKey);
         childBlockFxtTransaction.validate();
         /*
         Logger.logDebugMessage("Created ChildBlockFxtTransaction: " + Long.toUnsignedString(childBlockFxtTransaction.getId()) + " "
@@ -620,19 +682,4 @@ public final class Bundler {
         return false;
     }
 
-
-//
-//    private static String getFilterName(Class<?> clazz) {
-//        try {
-//            Method getFilterNameMethod = clazz.getMethod("getFilterName", null);
-//            try {
-//                return (String)getFilterNameMethod.invoke(null, null);
-//            } catch (IllegalAccessException | InvocationTargetException e) {
-//                Logger.logErrorMessage("Failed to invoke getFilterName");
-//                return clazz.getSimpleName();
-//            }
-//        } catch (NoSuchMethodException e) {
-//            return clazz.getSimpleName();
-//        }
-//    }
 }

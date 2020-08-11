@@ -1,5 +1,5 @@
 /*
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -39,7 +39,7 @@ public class LocalSigning {
     private void submitSignAndBroadcast() throws MalformedURLException {
         URL localUrl = new URL("http://localhost:26876/nxt"); // Start your local testnet node
         URL remoteUrl = new URL("https://testardor.jelurida.com/nxt"); // Jelurida remote testnet node
-        byte[] publicKey = Crypto.getPublicKey(SECRET_PHRASE); // Use to generate unsigned transaction without revealing the secret phrase
+        byte[] publicKey = Crypto.getPublicKey(Crypto.getPrivateKey(SECRET_PHRASE)); // Use to generate unsigned transaction without revealing the secret phrase
         int chainId = 1; // Use 2 for Ignis
 
         // This is just a sample, you can submit any transaction type using its specific caller

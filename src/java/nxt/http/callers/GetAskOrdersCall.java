@@ -8,6 +8,10 @@ public class GetAskOrdersCall extends APICall.Builder<GetAskOrdersCall> {
         super(ApiSpec.getAskOrders);
     }
 
+    public static GetAskOrdersCall create() {
+        return new GetAskOrdersCall();
+    }
+
     public static GetAskOrdersCall create(int chain) {
         return new GetAskOrdersCall().param("chain", chain);
     }

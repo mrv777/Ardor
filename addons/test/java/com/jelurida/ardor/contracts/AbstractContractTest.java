@@ -1,5 +1,5 @@
 /*
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -20,16 +20,22 @@ import nxt.Nxt;
 import nxt.Tester;
 import nxt.addons.AddOns;
 import nxt.addons.ContractRunner;
+import nxt.addons.JO;
 import nxt.blockchain.Block;
 import nxt.blockchain.Blockchain;
 import nxt.blockchain.ChainTransactionId;
 import nxt.blockchain.ChildTransaction;
 import nxt.blockchain.FxtTransaction;
+import nxt.http.callers.UploadContractRunnerConfigurationCall;
 import nxt.util.Convert;
-import org.junit.AfterClass;
+import org.json.simple.JSONObject;
+import org.junit.After;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
 import java.util.Collection;
@@ -39,21 +45,23 @@ import java.util.Map;
 import java.util.function.LongPredicate;
 import java.util.stream.Collectors;
 
+import static org.junit.Assert.assertTrue;
+
+@SuppressWarnings("SameParameterValue")
 public abstract class AbstractContractTest extends BlockchainTest {
 
-    private final Blockchain blockchain;
-    {
-        blockchain = AccessController.doPrivileged((PrivilegedAction<Blockchain>)Nxt::getBlockchain);
-    }
+    private final Blockchain blockchain = AccessController.doPrivileged((PrivilegedAction<Blockchain>) Nxt::getBlockchain);
+    private static final String runnerConfigFile = "./addons/test/java/com/jelurida/ardor/contracts/test_contracts.json";
 
     @BeforeClass
     public static void init() {
         AccessController.doPrivileged((PrivilegedAction<Void>) () -> {
             Map<String, String> properties = new HashMap<>();
-            properties.put("nxt.addOns", "nxt.addons.ContractRunner");
-            properties.put("addon.contractRunner.configFile", "./addons/resources/contracts.json");
+            properties.put("nxt.addOns", "nxt.addons.ContractRunner;" + TestApiAddOn.class.getName());
+            properties.put("addon.contractRunner.configFile", runnerConfigFile);
             properties.put("addon.contractRunner.secretPhrase", BlockchainTest.aliceSecretPhrase);
             properties.put("addon.contractRunner.feeRateNQTPerFXT.IGNIS", "200000000");
+            properties.put("addon.contractRunner.feeRateNQTPerFXT.AEUR", "20000");
             properties.put("nxt.testnetLeasingDelay", "2");
             properties.put("nxt.isLightClient", "false");
             properties.put("contract.manager.secretPhrase", BlockchainTest.aliceSecretPhrase);
@@ -66,10 +74,30 @@ public abstract class AbstractContractTest extends BlockchainTest {
         });
     }
 
-    @AfterClass
-    public static void reset() {
-        ContractRunner contractRunner = (ContractRunner)AddOns.getAddOn(ContractRunner.class);
-        contractRunner.reset();
+    @After
+    public void afterTest() {
+        // Revert to the default config
+        setRunnerConfig(readAllBytes(AbstractContractTest.runnerConfigFile));
+        ((ContractRunner) AddOns.getAddOn(ContractRunner.class)).reset();
+        TestApiAddOn.reset();
+    }
+
+    protected static byte[] readAllBytes(String filename) {
+        return AccessController.doPrivileged((PrivilegedAction<byte[]>) () -> {
+            try {
+                return Files.readAllBytes(Paths.get(filename));
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        });
+    }
+
+    protected static void setRunnerConfig(byte[] configBytes) {
+        final JSONObject response = UploadContractRunnerConfigurationCall.create()
+                .config(configBytes)
+                .build()
+                .invokeNoError();
+        assertTrue(new JO(response).getBoolean("configLoaded"));
     }
 
     public int getHeight() {
@@ -82,19 +110,22 @@ public abstract class AbstractContractTest extends BlockchainTest {
 
     /**
      * Test that the last block includes a parent transaction with the expected properties
+     *
      * @return the transaction submitted by the contract
      */
     protected FxtTransaction testAndGetLastParentTransaction(int chainId, int type, int subtype, LongPredicate amountValidator, long fee, Tester sender, Tester recipient) {
         List<? extends FxtTransaction> transactions = getLastBlockParentTransactions();
-        Assert.assertTrue(transactions.size() > 0);
+        assertTrue(transactions.size() > 0);
         FxtTransaction fxtTransaction = transactions.get(transactions.size() - 1);
         Assert.assertEquals(chainId, fxtTransaction.getChain().getId());
         Assert.assertEquals(type, fxtTransaction.getType().getType());
         Assert.assertEquals(subtype, fxtTransaction.getType().getSubtype());
-        Assert.assertTrue(amountValidator.test(fxtTransaction.getAmount()));
+        assertTrue(amountValidator.test(fxtTransaction.getAmount()));
         Assert.assertEquals(fee, fxtTransaction.getFee());
         Assert.assertEquals(sender.getId(), fxtTransaction.getSenderId());
-        Assert.assertEquals(recipient.getId(), fxtTransaction.getRecipientId());
+        if (recipient != null) {
+            Assert.assertEquals(recipient.getId(), fxtTransaction.getRecipientId());
+        }
         return fxtTransaction;
     }
 
@@ -105,16 +136,18 @@ public abstract class AbstractContractTest extends BlockchainTest {
 
     /**
      * Test that the last block includes a child transaction with the expected properties
+     *
      * @return the transaction submitted by the contract
      */
     protected ChildTransaction testAndGetLastChildTransaction(int chainId, int type, int subtype, LongPredicate amountValidator, long fee, Tester sender, Tester recipient, String referenceTransactionFullHash) {
         List<? extends ChildTransaction> transactions = getLastBlockChildTransactions(chainId);
-        Assert.assertTrue(transactions.size() > 0);
+        assertTrue(transactions.size() > 0);
         ChildTransaction childTransaction = transactions.get(transactions.size() - 1);
         Assert.assertEquals(chainId, childTransaction.getChain().getId());
         Assert.assertEquals(type, childTransaction.getType().getType());
         Assert.assertEquals(subtype, childTransaction.getType().getSubtype());
-        Assert.assertTrue(amountValidator.test(childTransaction.getAmount()));
+        Assert.assertTrue("Amount validation error. Amount on transaction: " + childTransaction.getAmount(),
+                amountValidator.test(childTransaction.getAmount()));
         Assert.assertEquals(fee, childTransaction.getFee());
         Assert.assertEquals(sender.getId(), childTransaction.getSenderId());
         if (recipient != null) {

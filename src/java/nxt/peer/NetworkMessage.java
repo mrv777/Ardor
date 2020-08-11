@@ -1,6 +1,6 @@
 /*
  * Copyright © 2013-2016 The Nxt Core Developers.
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -874,7 +874,12 @@ public abstract class NetworkMessage {
             }
             this.rates = new ArrayList<>(count);
             for (int i=0; i<count; i++) {
-                this.rates.add(new BundlerRate(bytes));
+                BundlerRate bundlerRate = new BundlerRate(bytes);
+                if (bundlerRate.getChain() != null && bundlerRate.getChain().isEnabled()) {
+                    this.rates.add(bundlerRate);
+                } else {
+                    Logger.logDebugMessage("Ignoring bundler rate for chain " + bundlerRate.getChain());
+                }
             }
         }
 

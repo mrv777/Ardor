@@ -1,6 +1,6 @@
 /*
  * Copyright © 2013-2016 The Nxt Core Developers.
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -142,11 +142,11 @@ public final class PrunableMessageHome {
         }
     }
 
-    public void add(TransactionImpl transaction, PrunableEncryptedMessageAppendix appendix) {
+    void add(TransactionImpl transaction, PrunableEncryptedMessageAppendix appendix) {
         add(transaction, appendix, Nxt.getBlockchain().getLastBlockTimestamp(), Nxt.getBlockchain().getHeight());
     }
 
-    public void add(TransactionImpl transaction, PrunableEncryptedMessageAppendix appendix, int blockTimestamp, int height) {
+    void add(TransactionImpl transaction, PrunableEncryptedMessageAppendix appendix, int blockTimestamp, int height) {
         if (appendix.getEncryptedData() != null) {
             PrunableMessage prunableMessage = prunableMessageTable.get(prunableMessageKeyFactory.newKey(transaction.getFullHash(), transaction.getId()));
             if (prunableMessage == null) {
@@ -315,16 +315,16 @@ public final class PrunableMessageHome {
             return chain;
         }
 
-        public byte[] decrypt(String secretPhrase) {
+        public byte[] decryptUsingPrivateKey(byte[] privateKey) {
             if (encryptedData == null) {
                 return null;
             }
-            byte[] publicKey = senderId == Account.getId(Crypto.getPublicKey(secretPhrase))
+            byte[] publicKey = senderId == Account.getId(Crypto.getPublicKey(privateKey))
                     ? Account.getPublicKey(recipientId) : Account.getPublicKey(senderId);
-            return Account.decryptFrom(publicKey, encryptedData, secretPhrase, isCompressed);
+            return Account.decryptFrom(privateKey, publicKey, encryptedData, isCompressed);
         }
 
-        public byte[] decrypt(byte[] sharedKey) {
+        public byte[] decryptUsingSharedKey(byte[] sharedKey) {
             if (encryptedData == null) {
                 return null;
             }

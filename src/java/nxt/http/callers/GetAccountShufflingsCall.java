@@ -8,6 +8,10 @@ public class GetAccountShufflingsCall extends APICall.Builder<GetAccountShufflin
         super(ApiSpec.getAccountShufflings);
     }
 
+    public static GetAccountShufflingsCall create() {
+        return new GetAccountShufflingsCall();
+    }
+
     public static GetAccountShufflingsCall create(int chain) {
         return new GetAccountShufflingsCall().param("chain", chain);
     }

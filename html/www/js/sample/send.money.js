@@ -1,5 +1,5 @@
 /******************************************************************************
- * Copyright © 2016-2019 Jelurida IP B.V.                                     *
+ * Copyright © 2016-2020 Jelurida IP B.V.                                     *
  *                                                                            *
  * See the LICENSE.txt file at the top-level directory of this distribution   *
  * for licensing information.                                                 *
@@ -16,7 +16,7 @@
 var loader = require("./loader");
 var config = loader.config;
 
-loader.load(function(NRS) {
+loader.load(async function(NRS) {
     var data = {
         recipient: NRS.getAccountIdFromPublicKey(config.recipientPublicKey), // public key to account id
         recipientPublicKey: config.recipientPublicKey, // Optional - public key announcement to init a new account
@@ -29,8 +29,8 @@ loader.load(function(NRS) {
     data = Object.assign(
         data,
         NRS.getMandatoryParams(),
-        NRS.encryptMessage(NRS, "note to myself", config.secretPhrase, NRS.getPublicKey(converters.stringToHexString(config.secretPhrase)), true),
-        NRS.encryptMessage(NRS, "message to recipient", config.secretPhrase, config.recipientPublicKey, false)
+        await NRS.encryptMessage(NRS, "note to myself", config.secretPhrase, NRS.getPublicKeyFromSecretPhrase(config.secretPhrase), true),
+        await NRS.encryptMessage(NRS, "message to recipient", config.secretPhrase, config.recipientPublicKey, false)
     );
     // Submit the request to the remote node using the standard client function which performs local signing for transactions
     // and validates the data returned from the server.

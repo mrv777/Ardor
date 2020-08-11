@@ -1,6 +1,6 @@
 /*
  * Copyright © 2013-2016 The Nxt Core Developers.
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -35,6 +35,7 @@ public class TrustAllSSLProvider {
     // Trust-all socket factory
     private static final SSLSocketFactory sslSocketFactory;
     static {
+        System.setProperty("com.sun.webkit.useHTTP2Loader", "false"); // Workaround to support test certificate with OpenJDK 14+
         TrustManager[] trustAllCerts = new TrustManager[] { new X509TrustManager() {
             public java.security.cert.X509Certificate[] getAcceptedIssuers() {
                 return null;

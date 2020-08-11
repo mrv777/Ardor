@@ -19,4 +19,8 @@ public class GetBundlerRatesCall extends APICall.Builder<GetBundlerRatesCall> {
     public GetBundlerRatesCall minBundlerBalanceFXT(long minBundlerBalanceFXT) {
         return param("minBundlerBalanceFXT", minBundlerBalanceFXT);
     }
+
+    public GetBundlerRatesCall transactionPriority(String transactionPriority) {
+        return param("transactionPriority", transactionPriority);
+    }
 }

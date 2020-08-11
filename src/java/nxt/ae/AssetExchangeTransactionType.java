@@ -1,6 +1,6 @@
 /*
  * Copyright © 2013-2016 The Nxt Core Developers.
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -1245,8 +1245,11 @@ public abstract class AssetExchangeTransactionType<Att extends Attachment> exten
                     || !AssetPropertyAttachment.PROPERTY_VALUE_RW.validate(attachment.getValue())) {
                 throw new NxtException.NotValidException("Invalid asset property: " + attachment.getJSONObject());
             }
-
-            checkRecipient(Asset.getAsset(attachment.getAssetId()), transaction.getRecipientId());
+            Asset asset = Asset.getAsset(attachment.getAssetId());
+            if (asset == null) {
+                throw new NxtException.NotCurrentlyValidException(String.format("Asset %s does not exist yet", Long.toUnsignedString(attachment.getAssetId())));
+            }
+            checkRecipient(asset, transaction.getRecipientId());
 
             if (transaction.getAmount() != 0) {
                 throw new NxtException.NotValidException("Asset property transaction cannot be used to send money");
@@ -1320,6 +1323,9 @@ public abstract class AssetExchangeTransactionType<Att extends Attachment> exten
                 throw new NxtException.NotCurrentlyValidException("No such property " + Long.toUnsignedString(attachment.getPropertyId()));
             }
             Asset asset = Asset.getAsset(property.getAssetId());
+            if (asset == null) {
+                throw new NxtException.NotCurrentlyValidException(String.format("Asset %s does not exist yet", Long.toUnsignedString(property.getAssetId())));
+            }
             if (asset.getAccountId() != transaction.getSenderId() && property.getSetterId() != transaction.getSenderId()) {
                 throw new NxtException.NotValidException("Account " + Long.toUnsignedString(transaction.getSenderId())
                         + " cannot delete property " + Long.toUnsignedString(attachment.getPropertyId()));

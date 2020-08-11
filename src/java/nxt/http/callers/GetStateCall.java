@@ -8,6 +8,10 @@ public class GetStateCall extends APICall.Builder<GetStateCall> {
         super(ApiSpec.getState);
     }
 
+    public static GetStateCall create() {
+        return new GetStateCall();
+    }
+
     public static GetStateCall create(int chain) {
         return new GetStateCall().param("chain", chain);
     }

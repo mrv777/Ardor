@@ -1,5 +1,5 @@
 /*
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -23,25 +23,25 @@ import java.util.List;
 
 public class TaggedDataResponseImpl implements TaggedDataResponse {
 
-    byte[] transactionFullHash;
-    long account;
-    String name;
-    String description;
-    String tags;
-    List<String> parsedTags;
-    String type;
-    String channel;
-    String filename;
-    boolean isText;
-    byte[] data;
-    int transactionTimestamp;
-    int blockTimestamp;
+    private final byte[] transactionFullHash;
+    private final long account;
+    private final String name;
+    private final String description;
+    private final String tags;
+    private final List<String> parsedTags;
+    private final String type;
+    private final String channel;
+    private final String filename;
+    private final boolean isText;
+    private final byte[] data;
+    private final int transactionTimestamp;
+    private final int blockTimestamp;
 
-    public TaggedDataResponseImpl(JSONObject response) {
+    TaggedDataResponseImpl(JSONObject response) {
         this(new JO(response));
     }
 
-    public TaggedDataResponseImpl(JO taggedDataJson) {
+    TaggedDataResponseImpl(JO taggedDataJson) {
         transactionFullHash = taggedDataJson.parseHexString("transactionFullHash");
         account = taggedDataJson.getEntityId("account");
         name = taggedDataJson.getString("name");

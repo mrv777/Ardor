@@ -1,6 +1,6 @@
 /*
  * Copyright © 2013-2016 The Nxt Core Developers.
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -34,6 +34,7 @@ import java.util.SortedMap;
 import java.util.SortedSet;
 import java.util.TreeMap;
 import java.util.TreeSet;
+import java.util.stream.Collectors;
 
 public class APITestServlet extends HttpServlet {
 
@@ -227,7 +228,7 @@ public class APITestServlet extends HttpServlet {
     private static String form(HttpServletRequest req, String requestType, boolean singleView, APIServlet.APIRequestHandler requestHandler) {
         List<String> parameters = requestHandler.getParameters();
         boolean requirePost = requestHandler.requirePost();
-        String fileParameter = requestHandler.getFileParameter();
+        List<String> fileParameters = requestHandler.getFileParameters();
         StringBuilder buf = new StringBuilder();
         buf.append("<div class='panel panel-default api-call-All' ");
         buf.append("id='api-call-").append(requestType).append("'>\n");
@@ -260,25 +261,24 @@ public class APITestServlet extends HttpServlet {
         String path = req.getServletPath();
         String formAction = "/test-proxy".equals(path) ? "/nxt-proxy" : "/nxt";
         buf.append("<form action='").append(formAction).append("' method='POST' ");
-        if (fileParameter != null) {
-            buf.append("enctype='multipart/form-data' ");
-        }
         buf.append("onsubmit='return ATS.submitForm(this");
-        if (fileParameter != null) {
-            buf.append(", \"").append(fileParameter).append("\"");
-        }
+        //if (fileParameter != null) {
+        buf.append(", [").append(fileParameters.stream().map(p -> "\"" + p + "\"").collect(Collectors.joining(", "))).append("]");
+        //}
         buf.append(")'>\n");
         buf.append("<input type='hidden' id='formAction' value='").append(formAction).append("'/>\n");
         buf.append("<input type='hidden' name='requestType' value='").append(requestType).append("'/>\n");
         buf.append("<div class='col-xs-12 col-lg-6' style='min-width: 40%;'>\n");
         buf.append("<table class='table'>\n");
-        if (fileParameter != null) {
-            buf.append("<tr class='api-call-input-tr'>\n");
-            buf.append("<td>").append(fileParameter).append(":</td>\n");
-            buf.append("<td><input type='file' name='").append(fileParameter).append("' id='").append(fileParameter).append(requestType).append("' ");
-            buf.append("style='width:100%;min-width:200px;'/></td>\n");
-            buf.append("</tr>\n");
-        }
+        fileParameters.forEach(fileParameter -> {
+            if (fileParameter.endsWith("File")) {
+                String parameter = fileParameter.substring(0, fileParameter.length() - 4);
+                if (parameters.contains(parameter) || parameters.contains(parameter + "Data")) {
+                    return;
+                }
+            }
+            appendFileParameter(buf, requestType, fileParameter);
+        });
         int paramIndex = 0;
         String prevParam = null;
         for (String parameter : parameters) {
@@ -290,6 +290,9 @@ public class APITestServlet extends HttpServlet {
                 buf.append("<td><input type='").append(isPassword(parameter, requestHandler) ? "password" : "text").append("' ");
             }
             buf.append("name='").append(parameter).append("' ");
+            if (APIServlet.isSensitiveParam(parameter)) {
+                buf.append("autocomplete='off' ");
+            }
             if (parameter.equals(prevParam)) {
                 paramIndex++;
             } else {
@@ -308,6 +311,14 @@ public class APITestServlet extends HttpServlet {
                 buf.append("/></td>\n");
             }
             buf.append("</tr>\n");
+            String fileParamName = parameter;
+            if (fileParamName.endsWith("Data")) {
+                fileParamName = fileParamName.substring(0, fileParamName.length() - 4);
+            }
+            fileParamName += "File";
+            if (fileParameters.contains(fileParamName)) {
+                appendFileParameter(buf, requestType, fileParamName);
+            }
         }
         buf.append("<tr>\n");
         buf.append("<td colspan='2'><input type='submit' class='btn btn-default' value='submit'/></td>\n");
@@ -333,9 +344,16 @@ public class APITestServlet extends HttpServlet {
         return buf.toString();
     }
 
+    private static void appendFileParameter(StringBuilder buf, String requestType, String fileParameter) {
+        buf.append("<tr class='api-call-input-tr'>\n");
+        buf.append("<td>").append(fileParameter).append(":</td>\n");
+        buf.append("<td><input type='file' name='").append(fileParameter).append("' id='").append(fileParameter).append(requestType).append("' ");
+        buf.append("style='width:100%;min-width:200px;' onchange='ATS.fileInputChanged(this)'/></td>\n");
+        buf.append("</tr>\n");
+    }
+
     private static boolean isPassword(String parameter, APIServlet.APIRequestHandler requestHandler) {
-        return "secretPhrase".equals(parameter) || "adminPassword".equals(parameter)
-                || "recipientSecretPhrase".equals(parameter) || requestHandler.isPassword(parameter);
+        return APIServlet.isSensitiveParam(parameter);
     }
 
     private static boolean isTextArea(String parameter, APIServlet.APIRequestHandler requestHandler) {

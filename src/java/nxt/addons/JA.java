@@ -1,5 +1,5 @@
 /*
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -90,6 +90,17 @@ public class JA extends AbstractList {
 
     public Object getObject(int i) {
         return ja.get(i);
+    }
+
+    public JA getArray(int i) {
+        Object o = ja.get(i);
+        if (o == null) {
+            return new JA(new JSONArray()); // no need to deal with null checks
+        }
+        if (o instanceof JA) {
+            return (JA)o;
+        }
+        return new JA((JSONArray) o);
     }
 
     /**

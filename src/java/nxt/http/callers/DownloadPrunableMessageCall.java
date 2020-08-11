@@ -8,6 +8,10 @@ public class DownloadPrunableMessageCall extends APICall.Builder<DownloadPrunabl
         super(ApiSpec.downloadPrunableMessage);
     }
 
+    public static DownloadPrunableMessageCall create() {
+        return new DownloadPrunableMessageCall();
+    }
+
     public static DownloadPrunableMessageCall create(int chain) {
         return new DownloadPrunableMessageCall().param("chain", chain);
     }

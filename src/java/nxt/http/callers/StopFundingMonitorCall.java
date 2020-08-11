@@ -8,6 +8,10 @@ public class StopFundingMonitorCall extends APICall.Builder<StopFundingMonitorCa
         super(ApiSpec.stopFundingMonitor);
     }
 
+    public static StopFundingMonitorCall create() {
+        return new StopFundingMonitorCall();
+    }
+
     public static StopFundingMonitorCall create(int chain) {
         return new StopFundingMonitorCall().param("chain", chain);
     }

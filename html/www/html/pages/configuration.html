@@ -1,0 +1,106 @@
+<!--
+  ~ Copyright © 2013-2016 The Nxt Core Developers.
+  ~ Copyright © 2016-2020 Jelurida IP B.V.
+  ~
+  ~ See the LICENSE.txt file at the top-level directory of this distribution
+  ~ for licensing information.
+  ~
+  ~ Unless otherwise agreed in a custom licensing agreement with Jelurida B.V.,
+  ~ no part of this software, including this file, may be copied, modified,
+  ~ propagated, or distributed except according to the terms contained in the
+  ~ LICENSE.txt file.
+  ~
+  ~ Removal or modification of this copyright notice is prohibited.
+  ~
+  -->
+<!--suppress HtmlFormInputWithoutLabel -->
+<div id="configuration_page" class="page">
+    <section class="content-header">
+        <h1 data-i18n="node_configuration" style="flex: none;" class="col-xs-8">Node Configuration</h1>
+        <div class="col-xs-4 text-right" style="padding-bottom: 10px;">
+            <div class="btn-group all-changed-filter" data-toggle="buttons">
+                <label class="btn btn-default" data-show-all="true">
+                    <input type="radio" name="config_property_state">
+                    <span data-i18n="all">All</span>
+                </label>
+                <label class="btn btn-default active" data-show-all="false">
+                    <input type="radio" name="config_property_state" checked>
+                    <span data-i18n="changed">Changed</span>
+                </label>
+            </div>
+        </div>
+        <div class="form-horizontal">
+            <div class="form-group">
+                <div class="col-xs-5">
+                    <form action="#" method="get" class="node_configuration_search sidebar-form" style="margin: auto;" autocomplete="off">
+                        <div class="input-group input-group-clearable">
+                            <input type="text" name="fs_q" class="form-control" placeholder="Title, Description or Tag" data-i18n="[placeholder]property_name_values_description" style="height:auto;" />
+                            <span class="input-group-btn">
+                                <button type="submit" name="fulltext_search" class="btn btn-flat"><i class="far fa-search"></i></button>
+                            </span>
+                        </div>
+                    </form>
+                </div>
+                <label class="col-xs-2 text-right control-label"
+                    for="configuration_page_group_select">Group</label>
+                <div class="col-xs-5">
+                    <select class="form-control" id="configuration_page_group_select">
+                        <option>All</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+        <div id="configuration_restart_required" class="alert alert-info hidden">
+            <span data-i18n="configuration_restart_required">A node restart is required in order for the changes to take effect.</span>
+            <button type="button" class="btn btn-success" data-i18n="save_and_shutdown">Save and shutdown</button>
+        </div>
+        <div data-i18n="configuration_must_set_admin_password" class="alert alert-warning hidden">
+            You must set up an administrative password when opening the API server port.
+        </div>
+    </section>
+    <section class="content" id="configuration_page_content">
+        <script type="text/x-handlebars-template">
+        {{#if errorMessage}}
+            <div class="alert alert-danger" role="alert">
+                {{{ errorMessage }}}
+                <a href="#" data-toggle="modal" data-target="#device_settings_modal"><i class="far fa-cog fa-lg"></i></a>
+            </div>
+        {{/if}}
+        <div class="data-container {{when isLoading 'data-loading' isEmpty 'data-empty'}}">
+            <div class="table-responsive">
+            <table class="table table-striped">
+                <thead>
+                <tr>
+                    <th>{{i18n "property"}}</th>
+                    <th>{{i18n "value"}}</th>
+                    <th>{{i18n "group"}}</th>
+                    <th>{{i18n "actions"}}</th>
+                </tr>
+                </thead>
+                <tbody>
+                {{#each properties}}
+                <tr class="{{trClass}} {{#if isWithNewValue}}text-primary{{/if}}">
+                    <td>{{{name}}}</td>
+                    <td class="value">{{{formattedValue}}}</td>
+                    <td>{{{formattedGroup}}}</td>
+                    <td>
+                        <a href='#' class='btn btn-xs btn-default' data-toggle='modal' data-target='#m_view_configuration_property'
+                           data-i18n="view" data-property="{{@index}}">View</a>
+                        {{#if isShowChangeButton}}
+                        <a href='#' class='btn btn-xs btn-default' data-toggle='modal' data-target='#m_update_configuration_property'
+                           data-i18n="change" data-property="{{@index}}">Change</a>
+                        {{/if}}
+                    </td>
+                </tr>
+                {{/each}}
+                </tbody>
+            </table>
+            </div>
+            <div class="data-loading-container"><img src="img/loading_indicator.gif" alt="Loading..." width="32" height="32" /></div>
+            <div class="data-empty-container">
+                <p>No configuration found.</p>
+            </div>
+        </div>
+        </script>
+    </section>
+</div>

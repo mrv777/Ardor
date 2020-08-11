@@ -1,6 +1,6 @@
 /*
  * Copyright © 2013-2016 The Nxt Core Developers.
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -25,8 +25,8 @@ import java.util.Arrays;
 
 public final class AnonymouslyEncryptedData {
 
-    public static AnonymouslyEncryptedData encrypt(byte[] plaintext, String secretPhrase, byte[] theirPublicKey, byte[] nonce) {
-        byte[] keySeed = Crypto.getKeySeed(secretPhrase, theirPublicKey, nonce);
+    public static AnonymouslyEncryptedData encrypt(byte[] plaintext, byte[] privateKey, byte[] theirPublicKey, byte[] nonce) {
+        byte[] keySeed = Crypto.getKeySeed(privateKey, theirPublicKey, nonce);
         byte[] myPrivateKey = Crypto.getPrivateKey(keySeed);
         byte[] myPublicKey = Crypto.getPublicKey(keySeed);
         byte[] sharedKey = Crypto.getSharedKey(myPrivateKey, theirPublicKey);
@@ -64,8 +64,8 @@ public final class AnonymouslyEncryptedData {
         this.publicKey = publicKey;
     }
 
-    public byte[] decrypt(String secretPhrase) {
-        byte[] sharedKey = Crypto.getSharedKey(Crypto.getPrivateKey(secretPhrase), publicKey);
+    public byte[] decrypt(byte[] privateKey) {
+        byte[] sharedKey = Crypto.getSharedKey(privateKey, publicKey);
         return Crypto.aesGCMDecrypt(data, sharedKey);
     }
 

@@ -8,6 +8,10 @@ public class GetAliasesLikeCall extends APICall.Builder<GetAliasesLikeCall> {
         super(ApiSpec.getAliasesLike);
     }
 
+    public static GetAliasesLikeCall create() {
+        return new GetAliasesLikeCall();
+    }
+
     public static GetAliasesLikeCall create(int chain) {
         return new GetAliasesLikeCall().param("chain", chain);
     }

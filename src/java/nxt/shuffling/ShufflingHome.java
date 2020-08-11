@@ -1,6 +1,6 @@
 /*
  * Copyright © 2013-2016 The Nxt Core Developers.
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -371,7 +371,7 @@ public final class ShufflingHome {
             return stage.getHash(this);
         }
 
-        public ShufflingAttachment process(final long accountId, final String secretPhrase, final byte[] recipientPublicKey) {
+        public ShufflingAttachment process(final long accountId, byte[] privateKey, final byte[] recipientPublicKey) {
             byte[][] data = Convert.EMPTY_BYTES;
             byte[] shufflingStateHash = null;
             int participantIndex = 0;
@@ -399,7 +399,7 @@ public final class ShufflingHome {
             for (byte[] bytes : data) {
                 AnonymouslyEncryptedData encryptedData = AnonymouslyEncryptedData.readEncryptedData(bytes);
                 try {
-                    byte[] decrypted = encryptedData.decrypt(secretPhrase);
+                    byte[] decrypted = encryptedData.decrypt(privateKey);
                     outputDataList.add(decrypted);
                 } catch (Exception e) {
                     Logger.logMessage("Decryption failed", e);
@@ -413,7 +413,7 @@ public final class ShufflingHome {
             for (int i = shufflingParticipants.size() - 1; i > participantIndex; i--) {
                 ShufflingParticipantHome.ShufflingParticipant participant = shufflingParticipants.get(i);
                 byte[] participantPublicKey = Account.getPublicKey(participant.getAccountId());
-                AnonymouslyEncryptedData encryptedData = AnonymouslyEncryptedData.encrypt(bytesToEncrypt, secretPhrase, participantPublicKey, this.hash);
+                AnonymouslyEncryptedData encryptedData = AnonymouslyEncryptedData.encrypt(bytesToEncrypt, privateKey, participantPublicKey, this.hash);
                 bytesToEncrypt = encryptedData.getBytes();
             }
             outputDataList.add(bytesToEncrypt);
@@ -449,7 +449,7 @@ public final class ShufflingHome {
             }
         }
 
-        public ShufflingCancellationAttachment revealKeySeeds(final String secretPhrase, long cancellingAccountId, byte[] shufflingStateHash) {
+        public ShufflingCancellationAttachment revealKeySeeds(byte[] privateKey, long cancellingAccountId, byte[] shufflingStateHash) {
             Nxt.getBlockchain().readLock();
             try (DbIterator<ShufflingParticipantHome.ShufflingParticipant> participants = shufflingParticipantHome.getParticipants(this.hash)) {
                 if (cancellingAccountId != this.assigneeAccountId) {
@@ -459,7 +459,7 @@ public final class ShufflingHome {
                 if (shufflingStateHash == null || !Arrays.equals(shufflingStateHash, getStateHash())) {
                     throw new RuntimeException("Current shuffling state hash does not match");
                 }
-                long accountId = Account.getId(Crypto.getPublicKey(secretPhrase));
+                long accountId = Account.getId(Crypto.getPublicKey(privateKey));
                 byte[][] data = null;
                 while (participants.hasNext()) {
                     ShufflingParticipantHome.ShufflingParticipant participant = participants.next();
@@ -477,7 +477,7 @@ public final class ShufflingHome {
                 final byte[] nonce = this.hash;
                 final List<byte[]> keySeeds = new ArrayList<>();
                 byte[] nextParticipantPublicKey = Account.getPublicKey(participants.next().getAccountId());
-                byte[] keySeed = Crypto.getKeySeed(secretPhrase, nextParticipantPublicKey, nonce);
+                byte[] keySeed = Crypto.getKeySeed(privateKey, nextParticipantPublicKey, nonce);
                 keySeeds.add(keySeed);
                 byte[] publicKey = Crypto.getPublicKey(keySeed);
                 byte[] decryptedBytes = null;
@@ -498,7 +498,7 @@ public final class ShufflingHome {
                 // decrypt all iteratively, adding the key seeds to the result
                 while (participants.hasNext()) {
                     nextParticipantPublicKey = Account.getPublicKey(participants.next().getAccountId());
-                    keySeed = Crypto.getKeySeed(secretPhrase, nextParticipantPublicKey, nonce);
+                    keySeed = Crypto.getKeySeed(privateKey, nextParticipantPublicKey, nonce);
                     keySeeds.add(keySeed);
                     AnonymouslyEncryptedData encryptedData = AnonymouslyEncryptedData.readEncryptedData(decryptedBytes);
                     decryptedBytes = encryptedData.decrypt(keySeed, nextParticipantPublicKey);

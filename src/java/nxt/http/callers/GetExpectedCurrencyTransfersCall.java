@@ -8,6 +8,10 @@ public class GetExpectedCurrencyTransfersCall extends APICall.Builder<GetExpecte
         super(ApiSpec.getExpectedCurrencyTransfers);
     }
 
+    public static GetExpectedCurrencyTransfersCall create() {
+        return new GetExpectedCurrencyTransfersCall();
+    }
+
     public static GetExpectedCurrencyTransfersCall create(int chain) {
         return new GetExpectedCurrencyTransfersCall().param("chain", chain);
     }

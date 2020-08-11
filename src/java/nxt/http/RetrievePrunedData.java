@@ -1,6 +1,6 @@
 /*
  * Copyright © 2013-2016 The Nxt Core Developers.
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -17,7 +17,7 @@
 package nxt.http;
 
 import nxt.Nxt;
-import nxt.blockchain.ChildChain;
+import nxt.blockchain.Chain;
 import org.json.simple.JSONObject;
 import org.json.simple.JSONStreamAware;
 
@@ -40,10 +40,10 @@ public class RetrievePrunedData extends APIServlet.APIRequestHandler {
 
     @Override
     protected JSONStreamAware processRequest(HttpServletRequest req) throws ParameterException {
-        ChildChain childChain = ParameterParser.getChildChain(req);
+        Chain chain = ParameterParser.getChain(req);
         JSONObject response = new JSONObject();
         try {
-            int count = Nxt.getBlockchainProcessor().restorePrunedData(childChain);
+            int count = Nxt.getBlockchainProcessor().restorePrunedData(chain);
             response.put("done", true);
             response.put("numberOfPrunedData", count);
         } catch (RuntimeException e) {

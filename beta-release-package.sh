@@ -11,8 +11,9 @@ else
 fi
 
 COMMIT_HASH=$(git log -n1 --format="%h")
+DATE_FORMATTED=$(date '+%Y%m%d-%H%M%S')
 
-PACKAGE_NAME=ardor-beta-${PUBLIC_VERSION}-${COMMIT_HASH}.zip
+PACKAGE_NAME=ardor-beta-${PUBLIC_VERSION}-${DATE_FORMATTED}-${COMMIT_HASH}.zip
 echo PACKAGE_NAME="${PACKAGE_NAME}"
 
 zip -q -X ${PACKAGE_NAME} changelog-full.txt $BUILD_FILES

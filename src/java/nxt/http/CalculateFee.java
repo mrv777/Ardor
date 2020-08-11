@@ -1,6 +1,6 @@
 /*
  * Copyright © 2013-2016 The Nxt Core Developers.
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -20,7 +20,7 @@ import nxt.Constants;
 import nxt.NxtException;
 import nxt.blockchain.FxtChain;
 import nxt.blockchain.Transaction;
-import nxt.peer.Peers;
+import nxt.peer.FeeRateCalculator;
 import nxt.util.Convert;
 import org.json.simple.JSONObject;
 import org.json.simple.JSONStreamAware;
@@ -54,10 +54,14 @@ public final class CalculateFee extends APIServlet.APIRequestHandler {
             if (transaction.getChain() == FxtChain.FXT) {
                 response.put("feeNQT", String.valueOf(minFeeFQT));
             } else {
-                long feeRateNQTPerFXT = Peers.getBestBundlerRate(transaction.getChain(), minBundlerBalanceFXT, Math.max(minFeeFQT, minBundlerFeeLimitFQT), Peers.getBestBundlerRateWhitelist());
+                FeeRateCalculator feeRateCalculator = FeeRateCalculator.create()
+                        .setMinBalance(minBundlerBalanceFXT)
+                        .setMinFeeLimit(Math.max(minFeeFQT, minBundlerFeeLimitFQT))
+                        .build();
+                long feeRateNQTPerFXT = feeRateCalculator.getBestRate(transaction.getChain());
                 BigInteger[] fee = BigInteger.valueOf(minFeeFQT).multiply(BigInteger.valueOf(feeRateNQTPerFXT))
                         .divideAndRemainder(Constants.ONE_FXT_BIG_INTEGER);
-                long feeNQT = fee[0].longValueExact() + (fee[1].equals(BigInteger.ZERO) ? 0 : 1);
+                long feeNQT = Convert.longValueExact(fee[0]) + (fee[1].equals(BigInteger.ZERO) ? 0 : 1);
                 response.put("feeNQT", String.valueOf(feeNQT));
             }
         } catch (NxtException.NotValidException e) {

@@ -8,6 +8,10 @@ public class GetAllOpenBidOrdersCall extends APICall.Builder<GetAllOpenBidOrders
         super(ApiSpec.getAllOpenBidOrders);
     }
 
+    public static GetAllOpenBidOrdersCall create() {
+        return new GetAllOpenBidOrdersCall();
+    }
+
     public static GetAllOpenBidOrdersCall create(int chain) {
         return new GetAllOpenBidOrdersCall().param("chain", chain);
     }

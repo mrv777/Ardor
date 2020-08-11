@@ -1,6 +1,6 @@
 /******************************************************************************
  * Copyright © 2013-2016 The Nxt Core Developers.                             *
- * Copyright © 2016-2019 Jelurida IP B.V.                                     *
+ * Copyright © 2016-2020 Jelurida IP B.V.                                     *
  *                                                                            *
  * See the LICENSE.txt file at the top-level directory of this distribution   *
  * for licensing information.                                                 *
@@ -37,6 +37,9 @@ String.prototype.nl2br = function() {
 };
 
 String.prototype.capitalize = function() {
+	if (this.length === 0) {
+		return this;
+	}
 	return this.charAt(0).toUpperCase() + this.slice(1);
 };
 
@@ -68,12 +71,6 @@ if (typeof Object.keys !== "function") {
 		}
 	})();
 }
-
-$.fn.hasAttr = function(name) {
-	var attr = this.attr(name);
-
-	return attr !== undefined && attr !== false;
-};
 
 //https://github.com/bryanwoods/autolink-js/blob/master/autolink.js
 String.prototype['autoLink'] = function () {

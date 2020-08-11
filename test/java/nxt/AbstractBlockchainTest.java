@@ -1,6 +1,6 @@
 /*
  * Copyright © 2013-2016 The Nxt Core Developers.
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -28,6 +28,7 @@ import nxt.util.Listener;
 import nxt.util.Logger;
 import org.junit.Assert;
 
+import java.security.AccessControlException;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
 import java.util.Properties;
@@ -60,9 +61,25 @@ public abstract class AbstractBlockchainTest {
         return testProperties;
     }
 
+    private static boolean isCause(Class<? extends Throwable> expected, Throwable exc) {
+        return expected.isInstance(exc)
+                || (exc != null && isCause(expected, exc.getCause()));
+    }
+
     protected static void init(Properties testProperties) {
         AccessController.doPrivileged((PrivilegedAction<Void>) () -> {
-            Nxt.init(Setup.UNIT_TEST, testProperties);
+            try {
+                Nxt.init(Setup.UNIT_TEST, testProperties);
+            } catch (Throwable t) {
+                if (isCause(AccessControlException.class, t)) {
+                    throw new AssertionError("Initialization failed due to denied access.\n" +
+                            "The cause is most probably that the compiled classes don't reside in the directories" +
+                            " required by ardor.policy.\n" +
+                            "Make sure that you IDE outputs the classes in same directories as the compile script", t);
+                } else {
+                    throw t;
+                }
+            }
             return null;
         });
         blockchain = BlockchainImpl.getInstance();
@@ -122,7 +139,7 @@ public abstract class AbstractBlockchainTest {
             if (blockchain.getHeight() == endHeight) {
                 synchronized (doneLock) {
                     done = true;
-                    Generator.stopForging(secretPhrase);
+                    Generator.stopForging(Crypto.getPrivateKey(secretPhrase));
                     doneLock.notifyAll();
                 }
             }
@@ -131,7 +148,7 @@ public abstract class AbstractBlockchainTest {
         synchronized (doneLock) {
             done = false;
             Logger.logMessage("Starting forging from height " + blockchain.getHeight());
-            Generator.startForging(secretPhrase);
+            Generator.startForging(Crypto.getPrivateKey(secretPhrase));
             while (! done) {
                 try {
                     doneLock.wait();
@@ -141,7 +158,7 @@ public abstract class AbstractBlockchainTest {
             }
         }
         Assert.assertTrue(blockchain.getHeight() >= endHeight);
-        Assert.assertArrayEquals(Crypto.getPublicKey(secretPhrase), blockchain.getLastBlock().getGeneratorPublicKey());
+        Assert.assertArrayEquals(Crypto.getPublicKey(Crypto.getPrivateKey(secretPhrase)), blockchain.getLastBlock().getGeneratorPublicKey());
         blockchainProcessor.removeListener(stopListener, BlockchainProcessor.Event.BLOCK_PUSHED);
     }
 

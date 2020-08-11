@@ -8,6 +8,10 @@ public class ReadMessageCall extends APICall.Builder<ReadMessageCall> {
         super(ApiSpec.readMessage);
     }
 
+    public static ReadMessageCall create() {
+        return new ReadMessageCall();
+    }
+
     public static ReadMessageCall create(int chain) {
         return new ReadMessageCall().param("chain", chain);
     }

@@ -1,0 +1,101 @@
+<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  ~ Copyright © 2013-2016 The Nxt Core Developers.                            ~
+  ~ Copyright © 2016-2020 Jelurida IP B.V.                                    ~
+  ~                                                                           ~
+  ~ See the LICENSE.txt file at the top-level directory of this distribution  ~
+  ~ for licensing information.                                                ~
+  ~                                                                           ~
+  ~ Unless otherwise agreed in a custom licensing agreement with Jelurida B.V.,
+  ~ no part of this software, including this file, may be copied, modified,   ~
+  ~ propagated, or distributed except according to the terms contained in the ~
+  ~ LICENSE.txt file.                                                         ~
+  ~                                                                           ~
+  ~ Removal or modification of this copyright notice is prohibited.           ~
+  ~                                                                           ~
+  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+
+  <div class="modal fade has-recipient" id="grant_permission_modal" data-transaction-type="1" data-transaction-subtype="0" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button>
+                <h4 class="modal-title" data-i18n="grant_permission">Grant Permission</h4>
+            </div>
+            <div class="modal-body">
+                <form role="form" id="grant_permission_form" autocomplete="off">
+                    <div class="callout callout-danger error_message" style="display:none"></div>
+                    <div data-replace-with-modal-template="recipient_modal_template"></div>
+                    <div class="form-group" id="grant_permission_permissions">
+                        <script type="text/x-handlebars-template">
+                            <label for="permission_type" data-i18n="chain_permission_type">Permission Type</label>
+                            <select class="form-control" name="permission">
+                                    {{#each permissions}}
+                                        <option value="{{value}}">{{label}}</option>
+                                    {{/each}}
+                            </select>
+                        </script>
+                    </div>
+                    <div data-replace-with-modal-template="fee_calculation_modal_template"></div>
+                    <div data-replace-with-modal-template="secret_phrase_modal_template"></div>
+                    <div data-replace-with-modal-template="advanced_deadline_template"></div>
+                    <div data-replace-with-modal-template="advanced_approve_template"></div>
+                    <div data-replace-with-modal-template="advanced_rt_hash_template"></div>
+                    <div data-replace-with-modal-template="advanced_broadcast_template"></div>
+                    <div data-replace-with-modal-template="advanced_note_to_self_template"></div>
+
+                    <div class="callout account_info" style="display:none;margin-bottom: 0;"></div>
+                    <input type="hidden" name="request_type" value="addAccountPermission" data-default="addAccountPermission" />
+                    <input type="hidden" name="converted_account_id" value="" />
+                </form>
+            </div>
+            <div class="modal-footer" style="margin-top:0;">
+                <div class="advanced_info"><a href="#" data-i18n="advanced">advanced</a></div>
+                <button type="button" class="btn btn-default" data-dismiss="modal" data-i18n="cancel">Cancel</button>
+                <button type="button" class="btn btn-primary" data-loading-text="Granting..." data-i18n="grant_permission;[data-loading-text]granting">Grant Permission</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade has-recipient" id="remove_permission_modal" data-transaction-type="1" data-transaction-subtype="0" tabindex="-1" role="dialog" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button>
+                    <h4 class="modal-title" data-i18n="remove_permission">Remove Permission</h4>
+                </div>
+                <div class="modal-body">
+                    <form role="form" id="remove_permission_form" autocomplete="off">
+                        <div class="callout callout-danger error_message" style="display:none"></div>
+                        <div data-replace-with-modal-template="recipient_modal_template"></div>
+                        <div class="form-group" id="remove_permission_permissions">
+                            <script type="text/x-handlebars-template">
+                                <label for="permission_type" data-i18n="chain_permission_type">Permission Type</label>
+                                <select class="form-control" name="permission">
+                                    {{#each permissions}}
+                                        <option value="{{value}}">{{label}}</option>
+                                    {{/each}}
+                                </select>
+                            </script>
+                        </div>
+                        <div data-replace-with-modal-template="fee_calculation_modal_template"></div>
+                        <div data-replace-with-modal-template="secret_phrase_modal_template"></div>
+                        <div data-replace-with-modal-template="advanced_deadline_template"></div>
+                        <div data-replace-with-modal-template="advanced_approve_template"></div>
+                        <div data-replace-with-modal-template="advanced_rt_hash_template"></div>
+                        <div data-replace-with-modal-template="advanced_broadcast_template"></div>
+                        <div data-replace-with-modal-template="advanced_note_to_self_template"></div>
+    
+                        <div class="callout account_info" style="display:none;margin-bottom: 0;"></div>
+                        <input type="hidden" name="request_type" value="removeAccountPermission" data-default="removeAccountPermission" />
+                        <input type="hidden" name="converted_account_id" value="" />
+                    </form>
+                </div>
+                <div class="modal-footer" style="margin-top:0;">
+                    <div class="advanced_info"><a href="#" data-i18n="advanced">advanced</a></div>
+                    <button type="button" class="btn btn-default" data-dismiss="modal" data-i18n="cancel">Cancel</button>
+                    <button type="button" class="btn btn-primary" data-loading-text="Removing..." data-i18n="remove_permission;[data-loading-text]submitting">Remove Permission</button>
+                </div>
+            </div>
+        </div>
+    </div>

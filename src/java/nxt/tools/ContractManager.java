@@ -1,5 +1,5 @@
 /*
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -38,7 +38,6 @@ import nxt.http.callers.GetContractReferencesCall;
 import nxt.http.callers.GetSupportedContractsCall;
 import nxt.http.callers.GetTaggedDataCall;
 import nxt.http.responses.TaggedDataResponse;
-import nxt.http.responses.TaggedDataResponseImpl;
 import nxt.lightcontracts.ContractReferenceAttachment;
 import nxt.lightcontracts.ContractReferenceDeleteAttachment;
 import nxt.taggeddata.TaggedDataAttachment;
@@ -86,7 +85,7 @@ public class ContractManager {
     private static final String CONTRACT_MANAGER_PROPERTY_FORMAT = "contract.%s.%s";
     private static final String CONTRACT_MANAGER_PROPERTY_PARAM_FORMAT = "contract.%s.param.%s";
 
-    private String secretPhrase;
+    private byte[] privateKey;
     private long feeNQT;
     private long feeRateNQTPerFXT;
     private long minBundlerBalanceFXT;
@@ -99,6 +98,7 @@ public class ContractManager {
         PACKAGE('p', "package", true, "package name", false, (OPTION)null),
         HASH('h', "hash", true, "contract full hash", false, (OPTION)null),
         ACCOUNT('a', "account", true, "account id", false, (OPTION)null),
+        PRIVATE_KEY('k', "privateKey", true, "Uploader account private key (64 chars hex string)", false, (OPTION)null),
         SOURCE('s', "source", true, "path to source code file to verify", false, (OPTION)null),
         UPLOAD('u', "upload", false, "upload new contract", true, NAME, PACKAGE),
         REFERENCE('r', "reference", false, "reference existing contract", true, HASH, NAME),
@@ -108,10 +108,10 @@ public class ContractManager {
 
         private final char opt;
         private final String longOpt;
-        private boolean hasArgs;
-        private String description;
-        private boolean isAction;
-        private OPTION[] dependencies;
+        private final boolean hasArgs;
+        private final String description;
+        private final boolean isAction;
+        private final OPTION[] dependencies;
 
         OPTION(char opt, String longOpt, boolean hasArgs, String description, boolean isAction, OPTION... dependencies) {
             this.opt = opt;
@@ -202,7 +202,7 @@ public class ContractManager {
                 return;
             }
             String contractName = cmd.getOptionValue(OPTION.NAME.getOpt());
-            contractManager.init(contractName);
+            contractManager.init(contractName, cmd.getOptionValue(OPTION.PRIVATE_KEY.getOpt()));
             if (action == OPTION.UPLOAD) {
                 ContractData contractData = contractManager.upload(contractName, cmd.getOptionValue(OPTION.PACKAGE.getOpt()));
                 byte[] contractFullHash = contractData.getResponse().parseHexString("fullHash");
@@ -233,10 +233,25 @@ public class ContractManager {
     }
 
     public void init(String contractName) {
-        String secretPhrasePropertyKey = "contract.manager.secretPhrase";
-        secretPhrase = Convert.emptyToNull(Nxt.getStringProperty(secretPhrasePropertyKey, null, true));
-        if (secretPhrase == null) {
-            throw new IllegalArgumentException(String.format("%s not specified in nxt.properties", secretPhrasePropertyKey));
+        init(contractName, null);
+    }
+
+    public void init(String contractName, String cmdPrivateKey) {
+        if (Convert.emptyToNull(cmdPrivateKey) == null) {
+            String privateKeyPropertyKey = "contract.manager.privateKey";
+            String privateKeyStr = Convert.emptyToNull(Nxt.getStringProperty(privateKeyPropertyKey, null, true));
+            if (privateKeyStr == null) {
+                String secretPhrasePropertyKey = "contract.manager.secretPhrase";
+                String secretPhrase = Convert.emptyToNull(Nxt.getStringProperty(secretPhrasePropertyKey, null, true));
+                if (secretPhrase == null) {
+                    throw new IllegalArgumentException(String.format("Uploader private key not passed to command line and %s or %s not specified in nxt.properties", secretPhrasePropertyKey, privateKeyPropertyKey));
+                }
+                privateKey = Crypto.getPrivateKey(secretPhrase);
+            } else {
+                privateKey = Convert.parseHexString(privateKeyStr);
+            }
+        } else {
+            privateKey = Convert.parseHexString(cmdPrivateKey);
         }
         feeNQT = Nxt.getIntProperty("contract.manager.feeNQT", -1);
         feeRateNQTPerFXT = Nxt.getIntProperty("contract.manager.feeRateNQTPerFXT", -1);
@@ -346,7 +361,7 @@ public class ContractManager {
             throw new IllegalStateException("Cannot determine contract mime type i.e. class or jar file");
         }
         ContractData tempContractData = loadContract(fullName, resourceBytes, mimeType, filePath);
-        Contract contract = tempContractData.getContract();
+        Contract<?,?> contract = tempContractData.getContract();
 
         // Log contract annotations
         Annotation[] annotations = contract.getClass().getAnnotations();
@@ -385,7 +400,7 @@ public class ContractManager {
         } catch (NxtException.NotValidException e) {
             throw new IllegalArgumentException(e);
         }
-        JO uploadContractTransaction = LocalSigner.signAndBroadcast(childChain, 0, attachment, secretPhrase, feeNQT, feeRateNQTPerFXT, minBundlerBalanceFXT, null, getUrl());
+        JO uploadContractTransaction = LocalSigner.signAndBroadcast(childChain, 0, attachment, privateKey, feeNQT, feeRateNQTPerFXT, minBundlerBalanceFXT, null, getUrl());
         if (uploadContractTransaction.isExist("fullHash")) {
             Logger.logInfoMessage("Contract class %s uploaded %s", attachment.getName(), uploadContractTransaction.getString("fullHash"));
         } else {
@@ -395,11 +410,10 @@ public class ContractManager {
     }
 
     private ContractData loadContract(String fullName, byte[] resourceBytes, String mimeType, String filePath) {
-        Contract contract;
+        Contract<?,?> contract;
         switch (mimeType) {
             case ContractLoader.CLASS_FILE_MIME_TYPE: {
-                ClassLoader classLoader = new ContractLoader.CloudDataClassLoader();
-                contract = ContractLoader.loadContract(classLoader, fullName, resourceBytes, null, null);
+                contract = ContractLoader.loadContract(fullName, resourceBytes, null, null);
                 if (contract == null) {
                     throw new IllegalStateException("Cannot load contract from file " + fullName);
                 }
@@ -454,11 +468,7 @@ public class ContractManager {
                         target.close();
                         resourceBytes = jarStream.toByteArray();
                         mimeType = ContractLoader.JAR_FILE_MIME_TYPE;
-                        classLoader = new ContractLoader.CloudDataClassLoader();
-                        contract = ContractLoader.loadContractFromJar(classLoader, fullName, resourceBytes, null, null);
-                        if (contract == null) {
-                            throw new IllegalStateException("Cannot load contract " + fullName + " from Jar file");
-                        }
+                        contract = ContractLoader.loadContractFromJar(fullName, resourceBytes, null, null, null);
                     } catch (IOException e) {
                         throw new IllegalStateException(e);
                     }
@@ -466,11 +476,7 @@ public class ContractManager {
                 break;
             }
             case ContractLoader.JAR_FILE_MIME_TYPE: {
-                ClassLoader classLoader = new ContractLoader.CloudDataClassLoader();
-                contract = ContractLoader.loadContractFromJar(classLoader, fullName, resourceBytes, null, null);
-                if (contract == null) {
-                    throw new IllegalStateException("Cannot load contract " + fullName + " from Jar file");
-                }
+                contract = ContractLoader.loadContractFromJar(fullName, resourceBytes, null, null, null);
                 break;
             }
             default:
@@ -489,10 +495,10 @@ public class ContractManager {
 
     public JO reference(ContractData contractData, byte[] fullHash, JO uploaderParams) {
         String contractName = contractData.getContractName();
-        Contract contract = contractData.getContract();
+        Contract<?,?> contract = contractData.getContract();
         if (contract == null) {
             JO response = GetTaggedDataCall.create(ChildChain.IGNIS.getId()).transactionFullHash(fullHash).includeData(true).retrieve(true).remote(getUrl()).call();
-            TaggedDataResponse taggedDataResponse = new TaggedDataResponseImpl(response);
+            TaggedDataResponse taggedDataResponse = TaggedDataResponse.create(response);
             contract = loadContract(taggedDataResponse.getName(), taggedDataResponse.getData(), taggedDataResponse.getType(), null).getContract();
         }
         JO contractParams;
@@ -533,17 +539,18 @@ public class ContractManager {
             setupParamsStr = contractParams.toJSONString();
         }
         ContractReferenceAttachment attachment = new ContractReferenceAttachment(contractName, setupParamsStr, new ChainTransactionId(childChain.getId(), fullHash));
-        JO contractReferenceTransaction = LocalSigner.signAndBroadcast(ChildChain.IGNIS, 0, attachment, secretPhrase, feeNQT, feeRateNQTPerFXT, minBundlerBalanceFXT, null, getUrl());
+        JO contractReferenceTransaction = LocalSigner.signAndBroadcast(ChildChain.IGNIS, 0, attachment, privateKey, feeNQT, feeRateNQTPerFXT, minBundlerBalanceFXT, null, getUrl());
         if (!contractReferenceTransaction.isExist("fullHash")) {
             Logger.logErrorMessage("Contract reference not registered %s response %s", contractName, contractReferenceTransaction.toJSONString());
             return contractReferenceTransaction;
         }
-        Logger.logInfoMessage("Contract reference %s registered with params '%s' for contract %s", attachment.getContractName(), attachment.getContractParams(), attachment.getContractId().toString());
+        Logger.logInfoMessage("Registering contract reference from account %s to contract %s registered with params '%s' for contract %s",
+                Convert.rsAccount(Account.getId(Crypto.getPublicKey(privateKey))), attachment.getContractName(), attachment.getContractParams(), attachment.getContractId().toString());
         return contractReferenceTransaction;
     }
 
     public void delete(String contractName) {
-        String account = Convert.rsAccount(Account.getId(Crypto.getPublicKey(secretPhrase)));
+        String account = Convert.rsAccount(Account.getId(Crypto.getPublicKey(privateKey)));
         JO response = listImpl(account, contractName);
         List<JO> contractReferences = response.getJoList("contractReferences");
         if (contractReferences.size() == 0) {
@@ -552,7 +559,7 @@ public class ContractManager {
         }
         long referenceId = contractReferences.get(0).getEntityId("id");
         ContractReferenceDeleteAttachment attachment = new ContractReferenceDeleteAttachment(referenceId);
-        JO contractReferenceDeleteTransaction = LocalSigner.signAndBroadcast(ChildChain.IGNIS, 0, attachment, secretPhrase, feeNQT, feeRateNQTPerFXT, minBundlerBalanceFXT, null, getUrl());
+        JO contractReferenceDeleteTransaction = LocalSigner.signAndBroadcast(ChildChain.IGNIS, 0, attachment, privateKey, feeNQT, feeRateNQTPerFXT, minBundlerBalanceFXT, null, getUrl());
         if (!contractReferenceDeleteTransaction.isExist("fullHash")) {
             Logger.logErrorMessage("Contract reference delete for %s account %s failed with response %s", contractName, account, contractReferenceDeleteTransaction.toJSONString());
             return;
@@ -573,7 +580,7 @@ public class ContractManager {
             Logger.logErrorMessage("Cannot load cloud data with hash %s transaction is pruned and cannot be retrieved by the current node", hash);
             return false;
         }
-        TaggedDataResponse taggedDataResponse = new TaggedDataResponseImpl(taggedData);
+        TaggedDataResponse taggedDataResponse = TaggedDataResponse.create(taggedData);
         if (taggedDataResponse.getData() == null) {
             Logger.logErrorMessage("Cannot load cloud data with hash %s", hash);
             return false;
@@ -590,7 +597,7 @@ public class ContractManager {
             }
             case ContractLoader.JAR_FILE_MIME_TYPE: {
                 // Load the class files to verify from the cloud data Jar
-                ContractLoader.loadContractFromJar(new ContractLoader.CloudDataClassLoader(), taggedDataResponse.getName(), taggedDataResponse.getData(), null, null, classFileBytes);
+                ContractLoader.loadContractFromJar(taggedDataResponse.getName(), taggedDataResponse.getData(), null, null, classFileBytes);
                 contractBytes = classFileBytes.get(taggedDataResponse.getName());
                 break;
             }
@@ -653,7 +660,10 @@ public class ContractManager {
             HttpsURLConnection.setDefaultSSLSocketFactory(TrustAllSSLProvider.getSslSocketFactory());
             HttpsURLConnection.setDefaultHostnameVerifier(TrustAllSSLProvider.getHostNameVerifier());
         }
-        int port = Constants.isTestnet ? API.TESTNET_API_PORT : Nxt.getIntProperty("nxt.apiServerPort");
+        int port = Nxt.getIntProperty("contract.manager.serverPort");
+        if (port == 0) {
+            port = Constants.isTestnet ? (useHttps ? API.TESTNET_API_SSLPORT : API.TESTNET_API_PORT) : Nxt.getIntProperty("nxt.apiServerPort");
+        }
         try {
             url = new URL(protocol, host, port, "/nxt");
         } catch (MalformedURLException e) {
@@ -706,7 +716,7 @@ public class ContractManager {
         private final JO response;
         private final byte[] bytes;
         private final String mimeType;
-        private final Contract contract;
+        private final Contract<?,?> contract;
         private final byte[] taggedDataHash;
 
         public ContractData(String contractName) {
@@ -719,7 +729,7 @@ public class ContractManager {
             this.taggedDataHash = null;
         }
 
-        public ContractData(String contractName, String fullName, JO response, byte[] bytes, String mimeType, Contract contract, byte[] taggedDataHash) {
+        ContractData(String contractName, String fullName, JO response, byte[] bytes, String mimeType, Contract<?, ?> contract, byte[] taggedDataHash) {
             this.contractName = contractName;
             this.fullName = fullName;
             this.response = response;
@@ -733,7 +743,7 @@ public class ContractManager {
             return contractName;
         }
 
-        public String getFullName() {
+        String getFullName() {
             return fullName;
         }
 
@@ -745,11 +755,11 @@ public class ContractManager {
             return bytes;
         }
 
-        public String getMimeType() {
+        String getMimeType() {
             return mimeType;
         }
 
-        public Contract getContract() {
+        public Contract<?,?> getContract() {
             return contract;
         }
 

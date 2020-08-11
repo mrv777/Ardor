@@ -8,6 +8,10 @@ public class StartStandbyShufflerCall extends APICall.Builder<StartStandbyShuffl
         super(ApiSpec.startStandbyShuffler);
     }
 
+    public static StartStandbyShufflerCall create() {
+        return new StartStandbyShufflerCall();
+    }
+
     public static StartStandbyShufflerCall create(int chain) {
         return new StartStandbyShufflerCall().param("chain", chain);
     }
@@ -22,6 +26,18 @@ public class StartStandbyShufflerCall extends APICall.Builder<StartStandbyShuffl
 
     public StartStandbyShufflerCall holding(long holding) {
         return unsignedLongParam("holding", holding);
+    }
+
+    public StartStandbyShufflerCall startFromChildIndex(int startFromChildIndex) {
+        return param("startFromChildIndex", startFromChildIndex);
+    }
+
+    public StartStandbyShufflerCall serializedMasterPublicKey(String serializedMasterPublicKey) {
+        return param("serializedMasterPublicKey", serializedMasterPublicKey);
+    }
+
+    public StartStandbyShufflerCall serializedMasterPublicKey(byte[] serializedMasterPublicKey) {
+        return param("serializedMasterPublicKey", serializedMasterPublicKey);
     }
 
     public StartStandbyShufflerCall recipientPublicKeys(String recipientPublicKeys) {

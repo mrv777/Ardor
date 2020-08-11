@@ -1,5 +1,5 @@
 /*
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -51,7 +51,6 @@ public class RulesTest extends BundlerTest {
 
     @Test
     public void testRulePriority() {
-        //Assert.fail();
         long publicRate = ChildChain.IGNIS.ONE_COIN * 10;
         long minFeeNQT = getMinFeeNQT(publicRate);
 

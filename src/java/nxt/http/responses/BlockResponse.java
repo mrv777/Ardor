@@ -1,5 +1,5 @@
 /*
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -24,12 +24,12 @@ import java.util.List;
 
 public interface BlockResponse {
 
-    static BlockResponse create(Object object) {
-        if (object instanceof JSONObject) {
-            return new BlockResponseImpl((JSONObject) object);
-        } else {
-            return new BlockResponseImpl((JO) object);
-        }
+    static BlockResponse create(JO object) {
+        return new BlockResponseImpl(object);
+    }
+
+    static BlockResponse create(JSONObject object) {
+        return new BlockResponseImpl(object);
     }
 
     long getBlockId();

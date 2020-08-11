@@ -1,0 +1,12 @@
+{
+  "name": "@Jelurida/ledgerjs-connector",
+  "version": "1.0.0",
+  "description": "Ledger Hardware Wallet Connector for Ardor",
+  "dependencies": {
+    "@ledgerhq/hw-transport-webusb": "^5.13.1",
+    "browser-resolve": "^1.11.3"
+  },
+  "devDependencies": {
+    "esmify": "^2.1.1"
+  }
+}

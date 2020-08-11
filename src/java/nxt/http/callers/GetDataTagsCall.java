@@ -8,6 +8,10 @@ public class GetDataTagsCall extends APICall.Builder<GetDataTagsCall> {
         super(ApiSpec.getDataTags);
     }
 
+    public static GetDataTagsCall create() {
+        return new GetDataTagsCall();
+    }
+
     public static GetDataTagsCall create(int chain) {
         return new GetDataTagsCall().param("chain", chain);
     }

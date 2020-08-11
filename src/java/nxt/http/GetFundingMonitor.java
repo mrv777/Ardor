@@ -1,6 +1,6 @@
 /*
  * Copyright © 2013-2016 The Nxt Core Developers.
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -64,22 +64,22 @@ public class GetFundingMonitor extends APIServlet.APIRequestHandler {
     @Override
     protected JSONStreamAware processRequest(HttpServletRequest req) throws ParameterException {
         Chain chain = ParameterParser.getChain(req, false);
-        String secretPhrase = ParameterParser.getSecretPhrase(req, false);
+        byte[] privateKey = ParameterParser.getPrivateKey(req, false);
         long account = ParameterParser.getAccountId(req, false);
         boolean includeMonitoredAccounts = "true".equalsIgnoreCase(req.getParameter("includeMonitoredAccounts"));
         boolean includeHoldingInfo = "true".equalsIgnoreCase(req.getParameter("includeHoldingInfo"));
-        if (secretPhrase == null) {
+        if (privateKey == null) {
             API.verifyPassword(req);
         }
         List<FundingMonitor> monitors;
-        if (secretPhrase != null || account != 0) {
-            if (secretPhrase != null) {
+        if (privateKey != null || account != 0) {
+            if (privateKey != null) {
                 if (account != 0) {
-                    if (Account.getId(Crypto.getPublicKey(secretPhrase)) != account) {
+                    if (Account.getId(Crypto.getPublicKey(privateKey)) != account) {
                         return JSONResponses.INCORRECT_ACCOUNT;
                     }
                 } else {
-                    account = Account.getId(Crypto.getPublicKey(secretPhrase));
+                    account = Account.getId(Crypto.getPublicKey(privateKey));
                 }
             }
             final long accountId = account;

@@ -8,6 +8,10 @@ public class GetUnconfirmedTransactionsCall extends APICall.Builder<GetUnconfirm
         super(ApiSpec.getUnconfirmedTransactions);
     }
 
+    public static GetUnconfirmedTransactionsCall create() {
+        return new GetUnconfirmedTransactionsCall();
+    }
+
     public static GetUnconfirmedTransactionsCall create(int chain) {
         return new GetUnconfirmedTransactionsCall().param("chain", chain);
     }

@@ -1,6 +1,6 @@
 /*
  * Copyright © 2013-2016 The Nxt Core Developers.
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -208,7 +208,7 @@ public final class PassphraseRecovery {
                     }
                 } else {
                     String secretPhrase = new String(wildcard);
-                    byte[] publicKey = Crypto.getPublicKey(secretPhrase);
+                    byte[] publicKey = Crypto.getPublicKey(Crypto.getPrivateKey(secretPhrase));
                     long id = Account.getId(publicKey);
                     if (publicKeys.keySet().contains(id)) {
                         return new Solution(secretPhrase, publicKeys.get(id), id, Convert.rsAccount(id));

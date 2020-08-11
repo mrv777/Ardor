@@ -12,11 +12,10 @@ build-and-test:
 
     - './beta-release-package.sh || :'
     - chmod +x run-unit-tests.sh
-    - export TEST_SYSTEM_PROPERTIES="-Dnxt.logging.properties.file.name.prefix=gitlab-ci-"
     - ./run-unit-tests.sh
-  only:
-    # add to this list branch name to enable CI on. For example:
-    - develop
+  rules:
+    # add to this expression branch name comparison to enable CI on. For example: $CI_COMMIT_REF_NAME == "develop" || $CI_COMMIT_REF_NAME == "migrate-ci-to-gitlab-13.0.0"
+    - if: $CI_COMMIT_REF_NAME == "develop"
   artifacts:
     when: always
     paths:

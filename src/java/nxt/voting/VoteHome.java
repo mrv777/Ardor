@@ -1,6 +1,6 @@
 /*
  * Copyright © 2013-2016 The Nxt Core Developers.
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -74,10 +74,11 @@ public final class VoteHome {
                         rs.next();
                         int minHeight = rs.getInt("min_height");
                         if (!rs.wasNull()) {
-                            DbIterator<PollHome.Poll> polls = pollHome.getPollsFinishingBetween(minHeight, height, 0, Integer.MAX_VALUE);
-                            for (PollHome.Poll poll : polls) {
-                                pstmt.setLong(1, poll.getId());
-                                pstmt.executeUpdate();
+                            try (DbIterator<PollHome.Poll> polls = pollHome.getPollsFinishingBetween(minHeight, height, 0, Integer.MAX_VALUE)) {
+                                for (PollHome.Poll poll : polls) {
+                                    pstmt.setLong(1, poll.getId());
+                                    pstmt.executeUpdate();
+                                }
                             }
                         }
                     } catch (SQLException e) {

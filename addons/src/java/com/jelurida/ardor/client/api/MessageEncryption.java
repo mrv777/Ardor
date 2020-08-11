@@ -1,5 +1,5 @@
 /*
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -49,15 +49,15 @@ public class MessageEncryption {
         return EncryptToCall.create().recipient("NXT-KX2S-UULA-7YZ7-F3R8L").messageToEncrypt("Hello World").messageToEncryptIsText(true).secretPhrase(SECRET_PHRASE).call();
     }
 
-    private void submit(JO encrytpedData, URL url) {
+    private void submit(JO encryptedData, URL url) {
         JO signedTransactionResponse = SendMoneyCall.create(1).
                 recipient("NXT-KX2S-UULA-7YZ7-F3R8L").
                 amountNQT(12345678).
                 secretPhrase(SECRET_PHRASE).
                 deadline(15).
                 feeNQT(100000000). // See other examples for fee calculation
-                encryptedMessageData(encrytpedData.getString("data")).
-                encryptedMessageNonce(encrytpedData.getString("nonce")).
+                encryptedMessageData(encryptedData.getString("data")).
+                encryptedMessageNonce(encryptedData.getString("nonce")).
                 encryptedMessageIsPrunable(true).
                 remote(url).
                 call();

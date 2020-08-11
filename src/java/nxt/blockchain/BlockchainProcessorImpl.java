@@ -1,6 +1,6 @@
 /*
  * Copyright © 2013-2016 The Nxt Core Developers.
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -22,7 +22,6 @@ import nxt.NxtException;
 import nxt.account.Account;
 import nxt.account.AccountLedger;
 import nxt.crypto.Crypto;
-import nxt.db.DbIterator;
 import nxt.db.DerivedDbTable;
 import nxt.db.FilteringIterator;
 import nxt.db.FullTextTrigger;
@@ -80,53 +79,53 @@ public final class BlockchainProcessorImpl implements BlockchainProcessor {
         map.put(0, null);
         map.put(Constants.CHECKSUM_BLOCK_1, Constants.isTestnet ?
                 new byte[] {
-                        91, 30, -58, 23, 95, -59, -78, 22, -13, 31, -16, 102, 79, -87, 83, 64, 27,
-                        97, -67, -32, -96, 109, 103, 35, -87, 35, -16, -119, -25, 72, -128, 18
+                        -98, 12, -116, -59, -2, -109, 8, 99, -8, 36, -118, -124, 115, 41, -113, -111,
+                        -24, -32, -112, 54, -15, 61, 79, -14, -102, 84, 127, -91, -53, -52, -91, -108
                 }
                 :
                 new byte[] {
-                        58, -59, 105, -15, 37, -75, 102, 83, -11, 89, 67, 44, 92, -70, -82, 123,
-                        83, 76, 44, 39, -41, 14, -17, 85, -80, 2, -67, -19, 28, -66, -2, -7
+                        37, -118, 81, 17, 116, 42, -118, 78, -98, -18, -85, -60, 75, 74, 24, -19,
+                        -43, -90, 7, 30, -38, 62, -53, 106, -7, 68, -82, 46, 125, -120, -77, -110
                 });
         map.put(Constants.CHECKSUM_BLOCK_2, Constants.isTestnet ?
                 new byte[] {
-                        65, -59, 8, -10, 76, 62, 69, -65, -19, 4, 107, 109, 5, 79, 5, 90, 45,
-                        -45, 2, 23, -74, -92, 90, 18, 52, -31, -15, 1, 40, -124, 6, -124
+                        -36, -43, 78, 34, 116, -90, 82, 32, 115, 54, -104, 22, -98, -123, 77, 17,
+                        77, 81, 97, -105, -39, 25, 18, -67, 55, 57, 102, -105, -98, -30, 105, -87
                 }
                 :
                 new byte[] {
-                        -63, 125, 46, -107, 86, -81, -17, -44, 50, -90, -51, 78, -10, -41, -104,
-                        -32, 96, 0, 2, -76, 3, 82, -69, -62, 112, 98, -107, 83, 25, -123, -119, -78
+                        1, -76, -47, 35, -49, 41, 105, -127, -104, 43, -19, -24, -68, -116, 57, 15,
+                        -69, -88, -10, 62, 7, -84, -7, 123, 103, 89, -125, 62, 100, -113, 127, 77
                 });
         map.put(Constants.CHECKSUM_BLOCK_3, Constants.isTestnet ?
                 new byte[] {
-                        -7, -58, 83, 26, 80, 57, 38, -8, -73, 16, -35, 56, -33, 0, -18, -21, 11,
-                        -80, -6, -58, -83, -2, 22, -82, 70, 61, 81, -34, 22, -114, 41, 104
+                        -66, -104, -17, 86, -96, 56, -86, 63, 61, -116, -41, -1, -101, 69, 29, 21,
+                        -65, 43, -55, 96, -115, -99, -51, 32, 91, 10, -36, 53, 83, 29, -8, -102
                 }
                 :
                 new byte[] {
-                        66, 95, 48, 11, 62, 26, -44, -98, -114, 66, 3, 13, -84, 88, -67, 71, -23,
-                        -46, -120, -19, 98, 23, 81, -22, 37, 122, -113, 9, -103, 55, -126, -77
+                        -102, -80, 32, 31, -73, -104, 109, 59, 46, 91, -34, 43, -61, -64, 120, -93,
+                        92, 122, 80, -109, 113, -91, -93, -48, 0, -80, 10, 117, 79, -114, 25, 100
                 });
         map.put(Constants.CHECKSUM_BLOCK_4, Constants.isTestnet ?
                 new byte[] {
-                        110, -17, -104, 34, 42, 12, 109, -97, 58, 6, -122, 114, 16, 14, -97, -107,
-                        -46, 72, 54, 44, 11, -63, 8, 74, 113, -60, -26, 63, -32, -108, -101, -103
+                        105, -5, 26, -38, -64, 58, -14, 12, -84, -119, -7, -110, -73, 107, -15, -114,
+                        96, -36, 20, 72, 55, 110, -34, 84, 123, -23, -95, 80, -111, -72, 45, -63
                 }
                 :
                 new byte[] {
-                        124, -116, -24, 26, -123, 86, 36, 38, 119, -125, 87, 52, -51, -28, 63, -97,
-                        -64, -86, 9, 7, 125, -6, -112, 118, 120, -5, -50, 111, -35, -88, -68, -46
+                        33, -91, 51, -15, 7, -117, 73, -55, -8, 36, -38, -107, 9, -50, 93, -58,
+                        14, -42, -68, 21, 13, 120, -117, 20, 111, 80, -93, -67, 21, 83, 15, -20
                 });
         map.put(Constants.CHECKSUM_BLOCK_5, Constants.isTestnet ?
                 new byte[] {
-                        17, 100, -128, 7, 55, -78, -101, 54, 52, -13, 82, -126, 39, -110, 82, -100,
-                        -43, -14, -98, -108, -82, 12, 94, 28, -120, -74, -48, 82, 115, -77, 42, -52
+                        28, 73, -86, 2, -82, -24, -125, 78, 86, 20, 71, 112, -26, 70, 116, -51,
+                        76, -17, 24, 120, 84, 12, 120, -41, 77, -10, 105, -28, -85, 48, 64, -17
                 }
                 :
                 new byte[] {
-                        126, -110, 56, -35, 87, 2, 55, 29, -113, 35, -11, 112, -90, 36, 107, 53,
-                        3, 126, -10, 94, 23, 117, 69, 67, 79, 52, -117, -45, 56, 15, 48, -78
+                        -65, -75, 6, -41, 36, 125, -64, -100, -50, 93, -67, -39, -41, -83, 18, -105,
+                        109, 82, -70, -75, -109, 20, 64, 45, -116, -42, 105, -56, -42, 21, -123, -58
                 });
         checksums = Collections.unmodifiableNavigableMap(map);
     }
@@ -154,13 +153,14 @@ public final class BlockchainProcessorImpl implements BlockchainProcessor {
     private int initialScanHeight;
     private volatile int lastTrimHeight;
     private volatile int lastRestoreTime = 0;
-    private final Set<ChainTransactionId> prunableTransactions = new HashSet<>();
+    private final Set<ChainTransactionId> prunableTransactions = Collections.synchronizedSet(new HashSet<>());
 
     private final Listeners<Block, Event> blockListeners = new Listeners<>();
     private volatile Peer lastBlockchainFeeder;
     private volatile int lastBlockchainFeederHeight;
     private volatile boolean getMoreBlocks = true;
 
+    private volatile boolean isShuttingDown;
     private volatile boolean isDownloadSuspended = false;
     private volatile boolean isTrimming;
     private volatile boolean isScanning;
@@ -185,18 +185,15 @@ public final class BlockchainProcessorImpl implements BlockchainProcessor {
         private List<Peer> connectedPublicPeers;
         private List<Long> chainBlockIds;
         private long totalTime = 1;
-        private int totalBlocks;
+        private long totalBlocks;
 
         @Override
         public void run() {
             try {
-                if (isDownloadSuspended) {
-                    return;
-                }
                 //
                 // Download blocks until we are up-to-date
                 //
-                while (true) {
+                while (!isDownloadSuspended) {
                     if (!getMoreBlocks) {
                         return;
                     }
@@ -214,7 +211,11 @@ public final class BlockchainProcessorImpl implements BlockchainProcessor {
                 // Restore prunable data
                 //
                 int now = Nxt.getEpochTime();
-                if (!isRestoring && !prunableTransactions.isEmpty() && now - lastRestoreTime > 60 * 60) {
+                boolean shouldStartRestorePrunableDataTask;
+                synchronized (prunableTransactions) {
+                    shouldStartRestorePrunableDataTask = !isRestoring && !prunableTransactions.isEmpty() && now - lastRestoreTime > 60 * 60;
+                }
+                if (shouldStartRestorePrunableDataTask) {
                     isRestoring = true;
                     lastRestoreTime = now;
                     networkService.submit(new RestorePrunableDataTask());
@@ -340,7 +341,7 @@ public final class BlockchainProcessorImpl implements BlockchainProcessor {
                         totalBlocks += numBlocks;
                         Logger.logMessage("Downloaded " + numBlocks + " blocks in "
                                 + time / 1000 + " s, " + (totalBlocks * 1000) / totalTime + " per s, "
-                                + totalTime * (lastBlockchainFeederHeight - blockchain.getHeight()) / ((long) totalBlocks * 1000 * 60) + " min left");
+                                + totalTime * (lastBlockchainFeederHeight - blockchain.getHeight()) / (totalBlocks * 1000 * 60) + " min left");
                     } else {
                         Logger.logDebugMessage("Did not accept peer's blocks, back to our own fork");
                     }
@@ -581,6 +582,9 @@ public final class BlockchainProcessorImpl implements BlockchainProcessor {
                     PeerBlock peerBlock = blockMap.get(chainBlockIds.get(index));
                     if (peerBlock == null) {
                         Logger.logDebugMessage("No peer block found for block " + Long.toUnsignedString(chainBlockIds.get(index)));
+                        break;
+                    }
+                    if (!getMoreBlocks) {
                         break;
                     }
                     BlockImpl block = peerBlock.getBlock();
@@ -867,91 +871,38 @@ public final class BlockchainProcessorImpl implements BlockchainProcessor {
 
         @Override
         public void run() {
-            Peer peer = null;
             try {
-                //
-                // Locate an archive peer
-                //
-                List<Peer> peers = Peers.getPeers(chkPeer -> chkPeer.providesService(Peer.Service.PRUNABLE) &&
-                        !chkPeer.isBlacklisted() &&
-                        (chkPeer.getState() == Peer.State.CONNECTED ||
-                            (chkPeer.getAnnouncedAddress() != null && chkPeer.shareAddress())));
-                while (!peers.isEmpty()) {
-                    if (!Peers.isNetworkingEnabled()) {
-                        return;
-                    }
-                    int index = ThreadLocalRandom.current().nextInt(peers.size());
-                    Peer chkPeer = peers.get(index);
-                    if (chkPeer.getState() != Peer.State.CONNECTED) {
-                        chkPeer.connectPeer();
-                    }
-                    if (chkPeer.getState() == Peer.State.CONNECTED) {
-                        peer = chkPeer;
-                        break;
-                    }
-                    peers.remove(index);
-                }
-                if (peer == null) {
-                    Logger.logDebugMessage("Cannot find any archive peers");
+                List<Peer> peers = buildArchivalPeerListForRetrieval();
+                if (peers.isEmpty()) {
                     return;
                 }
-                Logger.logDebugMessage("Connected to archive peer " + peer.getHost());
-                //
-                // Make a copy of the prunable transaction list so we can remove entries
-                // as we process them while still retaining the entry if we need to
-                // retry later using a different archive peer
-                //
-                Set<ChainTransactionId> processing;
-                synchronized (prunableTransactions) {
-                    processing = new HashSet<>(prunableTransactions.size());
-                    processing.addAll(prunableTransactions);
-                }
-                Logger.logDebugMessage("Need to restore " + processing.size() + " pruned data");
-                //
-                // Request transactions in batches of 100 until all transactions have been processed
-                //
-                while (!processing.isEmpty()) {
+                int currentPeer = 0;
+
+                while (currentPeer < peers.size() && !Thread.currentThread().isInterrupted()) {
                     if (!Peers.isNetworkingEnabled()) {
                         Logger.logDebugMessage("Peers networking was disabled while retrieving prunable data");
                         return;
                     }
                     //
-                    // Get the pruned transactions from the archive peer
+                    // Request transactions in batches of 100 until all transactions have been processed
                     //
-                    List<ChainTransactionId>requestList = new ArrayList<>(100);
+                    List<ChainTransactionId> requestList = new ArrayList<>(100);
                     synchronized (prunableTransactions) {
-                        Iterator<ChainTransactionId> it = processing.iterator();
-                        while (it.hasNext()) {
-                            requestList.add(it.next());
-                            it.remove();
-                            if (requestList.size() == 100)
-                                break;
+                        Logger.logDebugMessage("Need to restore " + prunableTransactions.size() + " pruned data");
+                        Iterator<ChainTransactionId> iterator = prunableTransactions.iterator();
+                        while (iterator.hasNext() && requestList.size() < 100) {
+                            requestList.add(iterator.next());
                         }
                     }
-                    NetworkMessage.TransactionsMessage response = (NetworkMessage.TransactionsMessage)peer.sendRequest(
-                            new NetworkMessage.GetTransactionsMessage(requestList));
-                    if (response == null) {
+                    if (requestList.isEmpty()) {
+                        Logger.logDebugMessage("Done retrieving prunable transactions from %d peers.", currentPeer + 1);
                         return;
                     }
-                    //
-                    // Restore the prunable data
-                    //
-                    List<Transaction> transactions = response.getTransactions();
-                    if (transactions.isEmpty()) {
-                        return;
-                    }
-                    List<Transaction> processed = Nxt.getTransactionProcessor().restorePrunableData(transactions);
-                    //
-                    // Remove transactions that have been successfully processed
-                    //
-                    synchronized (prunableTransactions) {
-                        processed.forEach(transaction -> prunableTransactions.remove(ChainTransactionId.getChainTransactionId(transaction)));
+                    List<Transaction> processed = restorePrunedTransactions(peers.get(currentPeer), requestList);
+                    if (processed.isEmpty()) {
+                        currentPeer++;
                     }
                 }
-                Logger.logDebugMessage("Done retrieving prunable transactions from " + peer.getHost());
-            } catch (NxtException.NotValidException e) {
-                Logger.logErrorMessage("Peer " + peer.getHost() + " returned invalid prunable transaction", e);
-                peer.blacklist(e);
             } catch (RuntimeException e) {
                 Logger.logErrorMessage("Unable to restore prunable data", e);
             } finally {
@@ -968,21 +919,7 @@ public final class BlockchainProcessorImpl implements BlockchainProcessor {
         }
         int height = block.getHeight();
         int fromHeight = checksums.lowerKey(height);
-        MessageDigest digest = Crypto.sha256();
-        try (Connection con = Db.getConnection();
-             PreparedStatement pstmt = con.prepareStatement(
-                     "SELECT * FROM transaction_fxt WHERE height > ? AND height <= ? ORDER BY id ASC, timestamp ASC")) {
-            pstmt.setInt(1, fromHeight);
-            pstmt.setInt(2, height);
-            try (DbIterator<FxtTransactionImpl> iterator = blockchain.getTransactions(FxtChain.FXT, con, pstmt)) {
-                while (iterator.hasNext()) {
-                    digest.update(iterator.next().bytes());
-                }
-            }
-        } catch (SQLException e) {
-            throw new RuntimeException(e.toString(), e);
-        }
-        byte[] checksum = digest.digest();
+        byte[] checksum = Crypto.sha256().digest(block.getBytes());
         if (validChecksum.length == 0) {
             Logger.logMessage("Checksum calculated:\n" + Arrays.toString(checksum));
         } else if (!Arrays.equals(checksum, validChecksum)) {
@@ -1012,8 +949,11 @@ public final class BlockchainProcessorImpl implements BlockchainProcessor {
             if (trimDerivedTables && block.getHeight() % trimFrequency == 0 && !isTrimming) {
                 isTrimming = true;
                 networkService.submit(() -> {
-                    trimDerivedTables();
-                    isTrimming = false;
+                    try {
+                        trimDerivedTables();
+                    } finally {
+                        isTrimming = false;
+                    }
                 });
             }
             if (block.getHeight() % 5000 == 0) {
@@ -1028,8 +968,21 @@ public final class BlockchainProcessorImpl implements BlockchainProcessor {
 
         blockListeners.addListener(block -> Db.db.analyzeTables(), Event.RESCAN_END);
 
+        final int stopHeight = Nxt.getIntProperty("nxt.stopDownloadHeight");
+        if (stopHeight > 0) {
+            blockListeners.addListener(block -> {
+                if (block.getHeight() == stopHeight) {
+                    setGetMoreBlocks(false);
+                    Peers.disableNetworking();
+                    throw new NxtException.StopException(String.format("Reached height %d, stopping download and going offline", stopHeight));
+                }
+            }, BlockchainProcessor.Event.BLOCK_PUSHED);
+        }
         ThreadPool.runBeforeStart(() -> {
             alreadyInitialized = true;
+            for (DerivedDbTable table : derivedTables) {
+                table.init();
+            }
             addGenesisBlock();
             if (Nxt.getBooleanProperty("nxt.forceScan")) {
                 scan(0, Nxt.getBooleanProperty("nxt.forceValidate"));
@@ -1061,6 +1014,13 @@ public final class BlockchainProcessorImpl implements BlockchainProcessor {
         //
         if (!Constants.isLightClient && !Constants.isOffline) {
             ThreadPool.scheduleThread("GetMoreBlocks", getMoreBlocksThread, 5);
+        }
+
+        if (!Constants.ENABLE_PRUNING) {
+            ThreadPool.runAfterStart(() -> {
+                ChildChain.getAll().forEach(this::restorePrunedData);
+                restorePrunedData(FxtChain.FXT);
+            });
         }
 
     }
@@ -1102,6 +1062,9 @@ public final class BlockchainProcessorImpl implements BlockchainProcessor {
         lastTrimHeight = Math.max(blockchain.getHeight() - Constants.MAX_ROLLBACK, 0);
         if (lastTrimHeight > 0) {
             for (DerivedDbTable table : derivedTables) {
+                if (isShuttingDown) {
+                    break;
+                }
                 blockchain.readLock();
                 try {
                     table.trim(lastTrimHeight);
@@ -1278,9 +1241,7 @@ public final class BlockchainProcessorImpl implements BlockchainProcessor {
                 byte[] fullHash = prunableTransaction.getFullHash();
                 if ((prunableTransaction.hasPrunableAttachment() && prunableTransaction.getTransactionType().isPruned(chain, fullHash)) ||
                         chain.getPrunableMessageHome().isPruned(fullHash, prunableTransaction.hasPrunablePlainMessage(), prunableTransaction.hasPrunableEncryptedMessage())) {
-                    synchronized (prunableTransactions) {
-                        prunableTransactions.add(new ChainTransactionId(chain.getId(), fullHash));
-                    }
+                    prunableTransactions.add(new ChainTransactionId(chain.getId(), fullHash));
                 }
             });
             if (!prunableTransactions.isEmpty()) {
@@ -1291,9 +1252,7 @@ public final class BlockchainProcessorImpl implements BlockchainProcessor {
         } finally {
             Db.db.endTransaction();
         }
-        synchronized (prunableTransactions) {
-            return prunableTransactions.size();
-        }
+        return prunableTransactions.size();
     }
 
     @Override
@@ -1313,51 +1272,77 @@ public final class BlockchainProcessorImpl implements BlockchainProcessor {
         if (!isPruned) {
             return transaction;
         }
-        List<Peer> peers = Peers.getPeers(chkPeer -> chkPeer.providesService(Peer.Service.PRUNABLE) &&
-                !chkPeer.isBlacklisted() &&
-                (chkPeer.getState() == Peer.State.CONNECTED ||
-                    (chkPeer.getAnnouncedAddress() != null && chkPeer.shareAddress())));
+        List<Peer> peers = buildArchivalPeerListForRetrieval();
         if (peers.isEmpty()) {
-            Logger.logDebugMessage("Cannot find any archive peers");
             return null;
         }
         ChainTransactionId chainTransactionId = ChainTransactionId.getChainTransactionId(transaction);
-        List<ChainTransactionId> requestList = Collections.singletonList(chainTransactionId);
         for (Peer peer : peers) {
-            if (peer.getState() != Peer.State.CONNECTED) {
-                peer.connectPeer();
-            }
-            if (peer.getState() != Peer.State.CONNECTED) {
-                continue;
-            }
-            Logger.logDebugMessage("Connected to archive peer " + peer.getHost());
-            NetworkMessage.TransactionsMessage response = (NetworkMessage.TransactionsMessage)peer.sendRequest(
-                    new NetworkMessage.GetTransactionsMessage(requestList));
-            if (response == null) {
-                continue;
-            }
-            if (response.getTransactionCount() == 0) {
-                continue;
-            }
-            try {
-                List<Transaction> transactions = response.getTransactions();
-                List<Transaction> processed = Nxt.getTransactionProcessor().restorePrunableData(transactions);
-                if (processed.isEmpty()) {
-                    continue;
-                }
-                synchronized (prunableTransactions) {
-                    prunableTransactions.remove(chainTransactionId);
-                }
-                return processed.get(0);
-            } catch (NxtException.NotValidException e) {
-                Logger.logErrorMessage("Peer " + peer.getHost() + " returned invalid prunable transaction", e);
-                peer.blacklist(e);
+            Transaction tx = restorePrunedTransaction(peer, chainTransactionId);
+            if (tx != null) {
+                return tx;
             }
         }
         return null;
     }
 
+    private List<Peer> buildArchivalPeerListForRetrieval() {
+        // first the connected archival peers, shuffled
+        List<Peer> peers = Peers.getPeers(chkPeer -> chkPeer.providesService(Peer.Service.PRUNABLE) &&
+                !chkPeer.isBlacklisted() && chkPeer.getState() == Peer.State.CONNECTED);
+        Collections.shuffle(peers);
+        // then the rest of archival peers, shuffled
+        List<Peer> nonConnectedPeers = Peers.getPeers(chkPeer -> chkPeer.providesService(Peer.Service.PRUNABLE) &&
+                !chkPeer.isBlacklisted() && chkPeer.getState() != Peer.State.CONNECTED &&
+                chkPeer.getAnnouncedAddress() != null && chkPeer.shareAddress());
+        Collections.shuffle(nonConnectedPeers);
+        Logger.logDebugMessage("Archival peers for restoring pruned data: %d connected and %d non-connected",
+                peers.size(), nonConnectedPeers.size());
+        peers.addAll(nonConnectedPeers);
+        return peers;
+    }
+
+    private Transaction restorePrunedTransaction(Peer peer, ChainTransactionId chainTransactionId) {
+        List<Transaction> transactions = restorePrunedTransactions(peer, Collections.singletonList(chainTransactionId));
+        return transactions.isEmpty() ? null : transactions.get(0);
+    }
+
+    private List<Transaction> restorePrunedTransactions(Peer peer, List<ChainTransactionId> transactionIdList) {
+        if (peer.getState() != Peer.State.CONNECTED) {
+            peer.connectPeer();
+        }
+        if (peer.getState() != Peer.State.CONNECTED) {
+            return Collections.emptyList();
+        }
+        if (transactionIdList.size() == 1) {
+            Logger.logDebugMessage("Connected to archive peer %s to retrieve transaction %s",
+                    peer.getHost(), transactionIdList.get(0).getStringId());
+        } else {
+            Logger.logDebugMessage("Connected to archive peer %s to retrieve %d transactions",
+                    peer.getHost(), transactionIdList.size());
+        }
+        NetworkMessage.TransactionsMessage response = (NetworkMessage.TransactionsMessage)peer.sendRequest(
+                new NetworkMessage.GetTransactionsMessage(transactionIdList));
+        if (response == null || response.getTransactionCount() == 0) {
+            return Collections.emptyList();
+        }
+        try {
+            List<Transaction> transactions = response.getTransactions();
+            List<Transaction> processed = Nxt.getTransactionProcessor().restorePrunableData(transactions);
+            synchronized (prunableTransactions) {
+                processed.forEach(transaction -> prunableTransactions.remove(ChainTransactionId.getChainTransactionId(transaction)));
+            }
+            Logger.logDebugMessage("Retrieved %d prunable data from peer %s", processed.size(), peer.getHost());
+            return processed;
+        } catch (NxtException.NotValidException e) {
+            Logger.logErrorMessage("Peer " + peer.getHost() + " returned invalid prunable transaction", e);
+            peer.blacklist(e);
+            return Collections.emptyList();
+        }
+    }
+
     public void shutdown() {
+        isShuttingDown = true;
         ThreadPool.shutdownExecutor("networkService", networkService, 5);
     }
 
@@ -1388,12 +1373,12 @@ public final class BlockchainProcessorImpl implements BlockchainProcessor {
         Logger.logMessage("Genesis block not in database, starting from scratch");
         BlockImpl genesisBlock = new BlockImpl(Genesis.generationSignature);
         genesisBlockId = genesisBlock.getId();
+        blockchain.setLastBlock(genesisBlock);
         if (Constants.isLightClient) {
-            blockchain.setLastBlock(genesisBlock);
             return;
         }
         try (Connection con = Db.db.beginTransaction()) {
-            addBlock(genesisBlock);
+            derivedTables.forEach(DerivedDbTable::truncate);
             byte[] generationSignature = Genesis.apply();
             if (!Arrays.equals(generationSignature, genesisBlock.getGenerationSignature())) {
                 scheduleScan(0, true);
@@ -1405,6 +1390,7 @@ public final class BlockchainProcessorImpl implements BlockchainProcessor {
                     table.createSearchIndex(con);
                 }
             }
+            addBlock(genesisBlock);
             Db.db.commitTransaction();
         } catch (SQLException e) {
             Db.db.rollbackTransaction();
@@ -1735,9 +1721,7 @@ public final class BlockchainProcessorImpl implements BlockchainProcessor {
             for (Appendix.AbstractAppendix appendage : transaction.getAppendages(true)) {
                 if ((appendage instanceof Appendix.Prunable) &&
                         !((Appendix.Prunable)appendage).hasPrunableData()) {
-                    synchronized (prunableTransactions) {
-                        prunableTransactions.add(ChainTransactionId.getChainTransactionId(transaction));
-                    }
+                    prunableTransactions.add(ChainTransactionId.getChainTransactionId(transaction));
                     lastRestoreTime = 0;
                     break;
                 }
@@ -1831,7 +1815,7 @@ public final class BlockchainProcessorImpl implements BlockchainProcessor {
         return 1;
     }
 
-    SortedSet<UnconfirmedFxtTransaction> selectUnconfirmedFxtTransactions(Map<TransactionType, Map<String, Integer>> duplicates, Block previousBlock, int blockTimestamp) {
+    private SortedSet<UnconfirmedFxtTransaction> selectUnconfirmedFxtTransactions(Map<TransactionType, Map<String, Integer>> duplicates, Block previousBlock, int blockTimestamp) {
         List<UnconfirmedFxtTransaction> orderedUnconfirmedTransactions = new ArrayList<>();
         try (FilteringIterator<UnconfirmedTransaction> unconfirmedTransactions = new FilteringIterator<>(
                 TransactionProcessorImpl.getInstance().getUnconfirmedFxtTransactions(),
@@ -1880,7 +1864,7 @@ public final class BlockchainProcessorImpl implements BlockchainProcessor {
             .thenComparingInt(UnconfirmedTransaction::getHeight)
             .thenComparingLong(UnconfirmedTransaction::getId);
 
-    public void generateBlock(String secretPhrase, int blockTimestamp) throws BlockNotAcceptedException {
+    public void generateBlock(byte[] privateKey, int blockTimestamp) throws BlockNotAcceptedException {
 
         Map<TransactionType, Map<String, Integer>> duplicates = new HashMap<>();
         for (ChildTransaction phasedTransaction : PhasingPollHome.getFinishingTransactions(blockchain.getHeight() + 1)) {
@@ -1904,12 +1888,12 @@ public final class BlockchainProcessorImpl implements BlockchainProcessor {
         }
         byte[] payloadHash = digest.digest();
         digest.update(previousBlock.getGenerationSignature());
-        final byte[] publicKey = Crypto.getPublicKey(secretPhrase);
+        final byte[] publicKey = Crypto.getPublicKey(privateKey);
         byte[] generationSignature = digest.digest(publicKey);
         byte[] previousBlockHash = Crypto.sha256().digest(previousBlock.bytes());
 
         BlockImpl block = new BlockImpl(getBlockVersion(previousBlock.getHeight()), blockTimestamp, previousBlock.getId(), totalFeeFQT,
-                payloadHash, publicKey, generationSignature, previousBlockHash, blockTransactions, secretPhrase);
+                payloadHash, publicKey, generationSignature, previousBlockHash, blockTransactions, privateKey);
 
         try {
             pushBlock(block);

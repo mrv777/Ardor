@@ -14,7 +14,7 @@ public class IssueAssetCall extends CreateTransactionCallBuilder<IssueAssetCall>
         return param("quantityQNT", quantityQNT);
     }
 
-    public IssueAssetCall decimals(String decimals) {
+    public IssueAssetCall decimals(int decimals) {
         return param("decimals", decimals);
     }
 

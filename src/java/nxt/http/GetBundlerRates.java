@@ -1,6 +1,6 @@
 /*
  * Copyright © 2013-2016 The Nxt Core Developers.
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -19,7 +19,7 @@ package nxt.http;
 import nxt.Constants;
 import nxt.NxtException;
 import nxt.peer.BundlerRate;
-import nxt.peer.Peers;
+import nxt.peer.FeeRateCalculator;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.json.simple.JSONStreamAware;
@@ -27,22 +27,28 @@ import org.json.simple.JSONStreamAware;
 import javax.servlet.http.HttpServletRequest;
 import java.util.List;
 
+import static nxt.peer.FeeRateCalculator.TransactionPriority.NORMAL;
+
 public final class GetBundlerRates extends APIServlet.APIRequestHandler {
 
     static final GetBundlerRates instance = new GetBundlerRates();
 
     private GetBundlerRates() {
-        super(new APITag[]{APITag.FORGING}, "minBundlerBalanceFXT", "minBundlerFeeLimitFQT");
+        super(new APITag[]{APITag.FORGING}, "minBundlerBalanceFXT", "minBundlerFeeLimitFQT",
+                "transactionPriority");
     }
 
     @Override
     protected JSONStreamAware processRequest(HttpServletRequest req) throws NxtException {
-        long minBundlerBalanceFXT = ParameterParser.getLong(req, "minBundlerBalanceFXT", 0, Constants.MAX_BALANCE_FXT, Constants.minBundlerBalanceFXT);
-        long minBundlerFeeLimitFQT = ParameterParser.getLong(req, "minBundlerFeeLimitFQT", 0, Constants.MAX_BALANCE_FXT * Constants.ONE_FXT, Constants.minBundlerFeeLimitFXT * Constants.ONE_FXT);
+        FeeRateCalculator feeRateCalculator = FeeRateCalculator.create()
+                .setMinBalance(ParameterParser.getLong(req, "minBundlerBalanceFXT", 0, Constants.MAX_BALANCE_FXT, Constants.minBundlerBalanceFXT))
+                .setMinFeeLimit(ParameterParser.getLong(req, "minBundlerFeeLimitFQT", 0, Constants.MAX_BALANCE_FXT * Constants.ONE_FXT, Constants.minBundlerFeeLimitFXT * Constants.ONE_FXT))
+                .setPriority(ParameterParser.getPriority(req, "transactionPriority", NORMAL))
+                .build();
+        List<BundlerRate> rates = feeRateCalculator.getBestRates();
 
         JSONObject response = new JSONObject();
         JSONArray ratesJSON = new JSONArray();
-        List<BundlerRate> rates = Peers.getBestBundlerRates(minBundlerBalanceFXT, minBundlerFeeLimitFQT, Peers.getBestBundlerRateWhitelist());
         rates.forEach(rate -> {
             JSONObject rateJSON = new JSONObject();
             rateJSON.put("chain", rate.getChain().getId());

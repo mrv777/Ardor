@@ -1,6 +1,6 @@
 /******************************************************************************
  * Copyright © 2013-2016 The Nxt Core Developers.                             *
- * Copyright © 2016-2019 Jelurida IP B.V.                                     *
+ * Copyright © 2016-2020 Jelurida IP B.V.                                     *
  *                                                                            *
  * See the LICENSE.txt file at the top-level directory of this distribution   *
  * for licensing information.                                                 *
@@ -18,33 +18,35 @@
  * @depends {nrs.js}
  * @depends {nrs.modals.js}
  */
-var NRS = (function(NRS, $, undefined) {
-	NRS.forms.leaseBalanceComplete = function(response, data) {
-		NRS.getAccountInfo();
-	};
+NRS.onSiteBuildDone().then(() => {
+    NRS = (function(NRS, $, undefined) {
+        NRS.forms.leaseBalanceComplete = function(response, data) {
+            NRS.getAccountInfo();
+        };
 
-    function setLeaseBalanceHelp(period) {
-        var days = Math.round(period / 1440);
-        $("#lease_balance_help").html($.t("lease_balance_help_var", {
-            "blocks": String(period).escapeHTML(),
-            "days": String(Math.round(days)).escapeHTML()
-        }));
-    }
-
-	$("#lease_balance_modal").on("show.bs.modal", function() {
-        var leaseBalancePeriod = $("#lease_balance_period");
-        leaseBalancePeriod.attr('min', NRS.constants.LEASING_DELAY);
-        leaseBalancePeriod.attr('max', NRS.constants.MAX_UNSIGNED_SHORT_JAVA);
-		setLeaseBalanceHelp(NRS.constants.MAX_UNSIGNED_SHORT_JAVA);
-	});
-
-    $("#lease_balance_period").on("change", function() {
-		if (this.value > NRS.constants.MAX_UNSIGNED_SHORT_JAVA) {
-			$("#lease_balance_help").html($.t("error_lease_balance_period"));
-		} else {
-            setLeaseBalanceHelp(this.value);
+        function setLeaseBalanceHelp(period) {
+            var days = Math.round(period / 1440);
+            $("#lease_balance_help").html($.t("lease_balance_help_var", {
+                "blocks": String(period).escapeHTML(),
+                "days": String(Math.round(days)).escapeHTML()
+            }));
         }
-	});
 
-	return NRS;
-}(NRS || {}, jQuery));
+        $("#lease_balance_modal").on("show.bs.modal", function() {
+            var leaseBalancePeriod = $("#lease_balance_period");
+            leaseBalancePeriod.attr('min', NRS.constants.LEASING_DELAY);
+            leaseBalancePeriod.attr('max', NRS.constants.MAX_UNSIGNED_SHORT_JAVA);
+            setLeaseBalanceHelp(NRS.constants.MAX_UNSIGNED_SHORT_JAVA);
+        });
+
+        $("#lease_balance_period").on("change", function() {
+            if (this.value > NRS.constants.MAX_UNSIGNED_SHORT_JAVA) {
+                $("#lease_balance_help").html($.t("error_lease_balance_period"));
+            } else {
+                setLeaseBalanceHelp(this.value);
+            }
+        });
+
+        return NRS;
+    }(NRS || {}, jQuery));
+});

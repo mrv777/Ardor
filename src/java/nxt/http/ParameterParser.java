@@ -1,6 +1,6 @@
 /*
  * Copyright © 2013-2016 The Nxt Core Developers.
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -29,9 +29,11 @@ import nxt.blockchain.Chain;
 import nxt.blockchain.ChainTransactionId;
 import nxt.blockchain.ChildChain;
 import nxt.blockchain.Transaction;
+import nxt.blockchain.chaincontrol.PermissionType;
 import nxt.crypto.Crypto;
 import nxt.crypto.EncryptedData;
 import nxt.crypto.SecretSharingGenerator;
+import nxt.crypto.SerializedMasterPublicKey;
 import nxt.dgs.DigitalGoodsHome;
 import nxt.messaging.EncryptToSelfMessageAppendix;
 import nxt.messaging.EncryptedMessageAppendix;
@@ -43,8 +45,10 @@ import nxt.messaging.UnencryptedEncryptedMessageAppendix;
 import nxt.messaging.UnencryptedPrunableEncryptedMessageAppendix;
 import nxt.ms.Currency;
 import nxt.ms.ExchangeOfferHome;
+import nxt.peer.FeeRateCalculator.TransactionPriority;
 import nxt.shuffling.ShufflingHome;
 import nxt.taggeddata.TaggedDataAttachment;
+import nxt.util.Bip32Path;
 import nxt.util.BooleanExpression;
 import nxt.util.Convert;
 import nxt.util.JSON;
@@ -99,9 +103,10 @@ import static nxt.http.JSONResponses.MISSING_ACCOUNT;
 import static nxt.http.JSONResponses.MISSING_ALIAS_OR_ALIAS_NAME;
 import static nxt.http.JSONResponses.MISSING_CHAIN;
 import static nxt.http.JSONResponses.MISSING_NAME;
+import static nxt.http.JSONResponses.MISSING_PERMISSION;
 import static nxt.http.JSONResponses.MISSING_PROPERTY;
 import static nxt.http.JSONResponses.MISSING_RECIPIENT_PUBLIC_KEY;
-import static nxt.http.JSONResponses.MISSING_SECRET_PHRASE;
+import static nxt.http.JSONResponses.MISSING_SECRET_PHRASE_OR_PRIVATE_KEY;
 import static nxt.http.JSONResponses.MISSING_TRANSACTION_BYTES_OR_JSON;
 import static nxt.http.JSONResponses.UNKNOWN_ACCOUNT;
 import static nxt.http.JSONResponses.UNKNOWN_ALIAS;
@@ -110,6 +115,7 @@ import static nxt.http.JSONResponses.UNKNOWN_CHAIN;
 import static nxt.http.JSONResponses.UNKNOWN_CURRENCY;
 import static nxt.http.JSONResponses.UNKNOWN_GOODS;
 import static nxt.http.JSONResponses.UNKNOWN_OFFER;
+import static nxt.http.JSONResponses.UNKNOWN_PERMISSION;
 import static nxt.http.JSONResponses.UNKNOWN_POLL;
 import static nxt.http.JSONResponses.UNKNOWN_SHUFFLING;
 import static nxt.http.JSONResponses.either;
@@ -266,6 +272,18 @@ public final class ParameterParser {
             return Convert.EMPTY_BYTE;
         }
         return Convert.parseHexString(paramValue);
+    }
+
+    public static SerializedMasterPublicKey getSerializedMasterPublicKey(HttpServletRequest req, String name, boolean isMandatory) throws ParameterException {
+        byte[] bytes = getBytes(req, name, isMandatory);
+        if (bytes.length == 0 && !isMandatory) {
+            return null;
+        }
+        try {
+            return new SerializedMasterPublicKey(bytes);
+        } catch (Exception e) {
+            throw new ParameterException(incorrect(name));
+        }
     }
 
     public static JSONObject getJson(HttpServletRequest req, String name) {
@@ -464,6 +482,14 @@ public final class ParameterParser {
         return getInt(req, "quantity", 0, Constants.MAX_DGS_LISTING_QUANTITY, true);
     }
 
+    public static int[] getBip32Path(HttpServletRequest req, String name) {
+        String pathStr = Convert.emptyToNull(req.getParameter(name));
+        if (pathStr == null) {
+            return Constants.getBip32RootPath().toPathArray();
+        }
+        return Bip32Path.bip32StrToPath(pathStr);
+    }
+
     public static EncryptedData getEncryptedData(HttpServletRequest req, String messageType) throws ParameterException {
         String dataString = Convert.emptyToNull(req.getParameter(messageType + "Data"));
         String nonceString = Convert.emptyToNull(req.getParameter(messageType + "Nonce"));
@@ -508,10 +534,10 @@ public final class ParameterParser {
             } catch (RuntimeException e) {
                 throw new ParameterException(INCORRECT_MESSAGE_TO_ENCRYPT);
             }
-            String secretPhrase = getSecretPhrase(req, false);
-            if (secretPhrase != null) {
-                byte[] publicKey = Crypto.getPublicKey(secretPhrase);
-                encryptedData = Account.encryptTo(publicKey, plainMessageBytes, secretPhrase, compress);
+            byte[] privateKey = getPrivateKey(req, false);
+            if (privateKey != null) {
+                byte[] publicKey = Crypto.getPublicKey(privateKey);
+                encryptedData = Account.encryptTo(privateKey, publicKey, plainMessageBytes, compress);
             }
         }
         if (encryptedData != null) {
@@ -530,11 +556,55 @@ public final class ParameterParser {
         return purchase;
     }
 
+    public static byte[] getPrivateKey(HttpServletRequest req, boolean isMandatory) throws ParameterException {
+        return getPrivateKey(req, null, isMandatory);
+    }
+
+    @SuppressWarnings("DuplicatedCode")
+    public static byte[] getPrivateKey(HttpServletRequest req, String prefix, boolean isMandatory) throws ParameterException {
+        String privateKeyParam = prefix == null ? "privateKey" : (prefix + "PrivateKey");
+        byte[] privateKey = Convert.parseHexString(Convert.emptyToNull(req.getParameter(privateKeyParam)));
+        if (privateKey != null) {
+            return privateKey;
+        }
+        String[] sharedPieces = req.getParameterValues("sharedPiece");
+        if (sharedPieces != null && SecretSharingGenerator.isPrivateKeySecret(sharedPieces)) {
+            List<String> clientSharedPieces = Arrays.asList(sharedPieces);
+            long accountId = getAccountId(req, "sharedPieceAccount", false);
+            String sharedSecretAccount = Convert.rsAccount(accountId);
+            List<String> serverSharedPieces = Nxt.getStringListProperty("nxt.privateKeyPieces." + sharedSecretAccount);
+            List<String> allSharedPieces = Stream.concat(clientSharedPieces.stream(), serverSharedPieces.stream()).distinct().collect(Collectors.toList());
+            privateKey = SecretSharingGenerator.combinePrivateKey(allSharedPieces.toArray(new String[]{}));
+            if (accountId != 0 && Account.getId(Crypto.getPublicKey(privateKey)) != accountId) {
+                throw new ParameterException(JSONResponses.error(String.format("Combined secret does not reproduce private key for account %s", sharedSecretAccount)));
+            }
+            return privateKey;
+        }
+        String secretPhrase = getSecretPhrase(req, prefix, isMandatory);
+        if (secretPhrase != null) {
+            return Crypto.getPrivateKey(secretPhrase);
+        }
+        if (isMandatory) {
+            throw new ParameterException(MISSING_SECRET_PHRASE_OR_PRIVATE_KEY);
+        } else {
+            return null;
+        }
+    }
+
+    /**
+     * @param req {@link HttpServletRequest}
+     * @param isMandatory true if the secret phrase is mandatory
+     * @return The extracted from the request secret phrase
+     * @deprecated use getPrivateKey instead.
+     * @throws ParameterException If missing or other error
+     */
+    @SuppressWarnings("DeprecatedIsStillUsed")
     public static String getSecretPhrase(HttpServletRequest req, boolean isMandatory) throws ParameterException {
         return getSecretPhrase(req, null, isMandatory);
     }
 
-    public static String getSecretPhrase(HttpServletRequest req, String prefix, boolean isMandatory) throws ParameterException {
+    @SuppressWarnings("DuplicatedCode")
+    private static String getSecretPhrase(HttpServletRequest req, String prefix, boolean isMandatory) throws ParameterException {
         String secretPhraseParam = prefix == null ? "secretPhrase" : (prefix + "SecretPhrase");
         String secretPhrase = Convert.emptyToNull(req.getParameter(secretPhraseParam));
         if (secretPhrase != null) {
@@ -543,10 +613,13 @@ public final class ParameterParser {
         String[] sharedPieces = req.getParameterValues("sharedPiece");
         if (sharedPieces == null || prefix != null) {
             if (isMandatory) {
-                throw new ParameterException(MISSING_SECRET_PHRASE);
+                throw new ParameterException(MISSING_SECRET_PHRASE_OR_PRIVATE_KEY);
             } else {
                 return null;
             }
+        }
+        if (SecretSharingGenerator.isPrivateKeySecret(sharedPieces)) {
+            throw new ParameterException(JSONResponses.error("Combined secret phrase is of type PRIVATE_KEY, use getPrivateKey()"));
         }
         List<String> clientSharedPieces = Arrays.asList(sharedPieces);
         long accountId = getAccountId(req, "sharedPieceAccount", false);
@@ -554,7 +627,7 @@ public final class ParameterParser {
         List<String> serverSharedPieces = Nxt.getStringListProperty("nxt.secretPhrasePieces." + sharedSecretAccount);
         List<String> allSharedPieces = Stream.concat(clientSharedPieces.stream(), serverSharedPieces.stream()).distinct().collect(Collectors.toList());
         secretPhrase = SecretSharingGenerator.combine(allSharedPieces.toArray(new String[]{}));
-        if (accountId != 0 && Account.getId(Crypto.getPublicKey(secretPhrase)) != accountId) {
+        if (accountId != 0 && Account.getId(Crypto.getPublicKey(Crypto.getPrivateKey(secretPhrase))) != accountId) {
             throw new ParameterException(JSONResponses.error(String.format("Combined secret phrase does not reproduce secret phrase for account %s", sharedSecretAccount)));
         }
         return secretPhrase;
@@ -565,15 +638,21 @@ public final class ParameterParser {
     }
 
     public static byte[] getPublicKey(HttpServletRequest req, String prefix) throws ParameterException {
-        String secretPhraseParam = prefix == null ? "secretPhrase" : (prefix + "SecretPhrase");
         String publicKeyParam = prefix == null ? "publicKey" : (prefix + "PublicKey");
-        String secretPhrase = getSecretPhrase(req, prefix, false);
+        byte[] privateKey = getPrivateKey(req, prefix, false);
         boolean isVoucher = "true".equalsIgnoreCase(req.getParameter("voucher"));
-        if (secretPhrase == null || isVoucher) {
+        if (privateKey == null || isVoucher) {
             try {
                 byte[] publicKey = Convert.parseHexString(Convert.emptyToNull(req.getParameter(publicKeyParam)));
                 if (publicKey == null) {
-                    throw new ParameterException(missing(secretPhraseParam, publicKeyParam));
+                    if (isVoucher) {
+                        throw new ParameterException(missing(publicKeyParam));
+                    } else {
+                        throw new ParameterException(missing(
+                                prefix == null ? "secretPhrase" : (prefix + "SecretPhrase"),
+                                prefix == null ? "privateKey" : (prefix + "privateKey"),
+                                publicKeyParam));
+                    }
                 }
                 if (!Crypto.isCanonicalPublicKey(publicKey)) {
                     throw new ParameterException(incorrect(publicKeyParam));
@@ -583,7 +662,7 @@ public final class ParameterParser {
                 throw new ParameterException(incorrect(publicKeyParam));
             }
         } else {
-            return Crypto.getPublicKey(secretPhrase);
+            return Crypto.getPublicKey(privateKey);
         }
     }
 
@@ -637,6 +716,7 @@ public final class ParameterParser {
         return account;
     }
 
+    @SuppressWarnings("unused")
     public static List<Account> getAccounts(HttpServletRequest req) throws ParameterException {
         String[] accountValues = req.getParameterValues("account");
         if (accountValues == null || accountValues.length == 0) {
@@ -667,10 +747,7 @@ public final class ParameterParser {
     public static int getFirstIndex(HttpServletRequest req) {
         try {
             int firstIndex = Integer.parseInt(req.getParameter("firstIndex"));
-            if (firstIndex < 0) {
-                return 0;
-            }
-            return firstIndex;
+            return Math.max(firstIndex, 0);
         } catch (NumberFormatException e) {
             return 0;
         }
@@ -811,9 +888,14 @@ public final class ParameterParser {
         }
     }
 
+    public static Appendix getPlainMessage(HttpServletRequest req) throws ParameterException {
+        return getPlainMessage(req, "true".equalsIgnoreCase(req.getParameter("messageIsPrunable")));
+    }
+
     public static Appendix getPlainMessage(HttpServletRequest req, boolean prunable) throws ParameterException {
         String messageValue = Convert.emptyToNull(req.getParameter("message"));
-        boolean messageIsText = !"false".equalsIgnoreCase(req.getParameter("messageIsText"));
+        String messageIsTextStr = Convert.emptyToNull(req.getParameter("messageIsText"));
+        boolean messageIsText = !"false".equalsIgnoreCase(messageIsTextStr);
         if (messageValue != null) {
             try {
                 if (prunable) {
@@ -833,12 +915,19 @@ public final class ParameterParser {
             return null;
         }
         byte[] message = fileData.getData();
-        String detectedMimeType = Search.detectMimeType(message);
-        if (detectedMimeType != null) {
-            messageIsText = detectedMimeType.startsWith("text/");
-        }
-        if (messageIsText && !Arrays.equals(message, Convert.toBytes(Convert.toString(message)))) {
-            messageIsText = false;
+        if (messageIsTextStr == null) {
+            String detectedMimeType = Search.detectMimeType(message);
+            if (detectedMimeType != null) {
+                messageIsText = detectedMimeType.startsWith("text/");
+            }
+            if (messageIsText && !Convert.isUtf8Text(message)) {
+                messageIsText = false;
+            }
+        } else {
+            if (messageIsText && !Convert.isUtf8Text(message)) {
+                throw new ParameterException(JSONResponses.incorrect("messageFile",
+                        "does not contain UTF-8 text"));
+            }
         }
         if (prunable) {
             return new PrunablePlainMessageAppendix(message, messageIsText);
@@ -847,8 +936,13 @@ public final class ParameterParser {
         }
     }
 
+    public static Appendix getEncryptedMessage(HttpServletRequest req, Account recipient) throws ParameterException {
+        return getEncryptedMessage(req, recipient, "true".equalsIgnoreCase(req.getParameter("encryptedMessageIsPrunable")));
+    }
+
     public static Appendix getEncryptedMessage(HttpServletRequest req, Account recipient, boolean prunable) throws ParameterException {
-        boolean isText = !"false".equalsIgnoreCase(req.getParameter("messageToEncryptIsText"));
+        String isTextStr = Convert.emptyToNull(req.getParameter("messageToEncryptIsText"));
+        boolean isText = !"false".equalsIgnoreCase(isTextStr);
         boolean compress = !"false".equalsIgnoreCase(req.getParameter("compressMessageToEncrypt"));
         byte[] plainMessageBytes = null;
         byte[] recipientPublicKey = null;
@@ -864,12 +958,19 @@ public final class ParameterParser {
                     return null;
                 }
                 plainMessageBytes = fileData.getData();
-                String detectedMimeType = Search.detectMimeType(plainMessageBytes);
-                if (detectedMimeType != null) {
-                    isText = detectedMimeType.startsWith("text/");
-                }
-                if (isText && !Arrays.equals(plainMessageBytes, Convert.toBytes(Convert.toString(plainMessageBytes)))) {
-                    isText = false;
+                if (isTextStr == null) {
+                    String detectedMimeType = Search.detectMimeType(plainMessageBytes);
+                    if (detectedMimeType != null) {
+                        isText = detectedMimeType.startsWith("text/");
+                    }
+                    if (isText && !Convert.isUtf8Text(plainMessageBytes)) {
+                        isText = false;
+                    }
+                } else {
+                    if (isText && !Convert.isUtf8Text(plainMessageBytes)) {
+                        throw new ParameterException(JSONResponses.incorrect("messageToEncryptFile",
+                                "does not contain UTF-8 text"));
+                    }
                 }
             } else {
                 try {
@@ -887,9 +988,9 @@ public final class ParameterParser {
             if (recipientPublicKey == null) {
                 throw new ParameterException(MISSING_RECIPIENT_PUBLIC_KEY);
             }
-            String secretPhrase = getSecretPhrase(req, false);
-            if (secretPhrase != null) {
-                encryptedData = Account.encryptTo(recipientPublicKey, plainMessageBytes, secretPhrase, compress);
+            byte[] privateKey = getPrivateKey(req, false);
+            if (privateKey != null) {
+                encryptedData = Account.encryptTo(privateKey, recipientPublicKey, plainMessageBytes, compress);
             }
         }
         if (encryptedData != null) {
@@ -1012,23 +1113,7 @@ public final class ParameterParser {
     }
 
     public static Chain getChain(HttpServletRequest request, boolean isMandatory) throws ParameterException {
-        String chainName = Convert.emptyToNull(request.getParameter("chain"));
-        if (chainName != null) {
-            Chain chain = Chain.getChain(chainName.toUpperCase(Locale.ROOT));
-            if (chain == null) {
-                try {
-                    chain = Chain.getChain(Integer.valueOf(chainName));
-                } catch (NumberFormatException ignore) {}
-                if (chain == null) {
-                    throw new ParameterException(UNKNOWN_CHAIN);
-                }
-            }
-            return chain;
-        } else if (isMandatory) {
-            throw new ParameterException(MISSING_CHAIN);
-        } else {
-            return null;
-        }
+        return getChain(request, "chain", isMandatory);
     }
 
     public static Chain getChain(HttpServletRequest request, String name, boolean isMandatory) throws ParameterException {
@@ -1037,7 +1122,7 @@ public final class ParameterParser {
             Chain chain = Chain.getChain(chainName.toUpperCase(Locale.ROOT));
             if (chain == null) {
                 try {
-                    chain = Chain.getChain(Integer.valueOf(chainName));
+                    chain = Chain.getChain(Integer.parseInt(chainName));
                 } catch (NumberFormatException ignore) {}
                 if (chain == null) {
                     throw new ParameterException(JSONResponses.unknown(name));
@@ -1060,7 +1145,7 @@ public final class ParameterParser {
             ChildChain chain = ChildChain.getChildChain(chainName.toUpperCase(Locale.ROOT));
             if (chain == null) {
                 try {
-                    chain = ChildChain.getChildChain(Integer.valueOf(chainName));
+                    chain = ChildChain.getChildChain(Integer.parseInt(chainName));
                 } catch (NumberFormatException ignore) {}
                 if (chain == null) {
                     throw new ParameterException(UNKNOWN_CHAIN);
@@ -1069,16 +1154,29 @@ public final class ParameterParser {
             return chain;
         } else if (isMandatory) {
             throw new ParameterException(MISSING_CHAIN);
-        } else {
-            return null;
         }
+        return null;
+    }
+
+    public static PermissionType getPermissionName(HttpServletRequest request, boolean isMandatory) throws ParameterException {
+        String string = Convert.emptyToNull(request.getParameter("permission"));
+        if (string != null) {
+            try {
+                return PermissionType.valueOf(string.toUpperCase(Locale.ROOT));
+            } catch (IllegalArgumentException ignore) {
+                throw new ParameterException(UNKNOWN_PERMISSION);
+            }
+        } else if (isMandatory) {
+            throw new ParameterException(MISSING_PERMISSION);
+        }
+        return null;
     }
 
     private ParameterParser() {} // never
 
     public static class FileData {
-        private String filename;
-        private byte[] data;
+        private final String filename;
+        private final byte[] data;
 
         public FileData(Part part) throws ParameterException {
             try {
@@ -1285,5 +1383,41 @@ public final class ParameterParser {
             filters = Collections.emptyList();
         }
         return filters;
+    }
+
+    public static TransactionPriority getPriority(HttpServletRequest req, String name, TransactionPriority defaultValue) throws ParameterException {
+        String paramValue = Convert.emptyToNull(req.getParameter(name));
+        if (paramValue == null) {
+            return defaultValue;
+        }
+        try {
+            int ordinal = Integer.parseInt(paramValue);
+            if (ordinal >= 0 && ordinal < TransactionPriority.values().length) {
+                return TransactionPriority.values()[ordinal];
+            } else {
+                throw new ParameterException(incorrect(name, String.format("value %s not in range [0, %d]",
+                        paramValue, TransactionPriority.values().length - 1)));
+            }
+        } catch (NumberFormatException nfe) {
+            try {
+                return TransactionPriority.valueOf(paramValue);
+            } catch (IllegalArgumentException iae) {
+                throw new ParameterException(incorrect(name, String.format("value %s is not one of %s",
+                        paramValue, Arrays.toString(TransactionPriority.values()))));
+            }
+        }
+    }
+
+    private static final int[] MINIMUM_VERSION = new int[] { 0,0,0 };
+
+    public static int[] parseVersionParameter(String version) {
+        if (version.equals("")) {
+            return MINIMUM_VERSION;
+        } else {
+            if (version.endsWith("e")) {
+                version = version.substring(0, version.length() - 1);
+            }
+            return Arrays.stream((version.split("\\."))).mapToInt(Integer::parseInt).toArray();
+        }
     }
 }

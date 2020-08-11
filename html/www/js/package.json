@@ -1,17 +1,11 @@
 {
-  "name": "ardor-blockchain",
-  "version": "2.2.6",
+  "name": "ardor",
+  "version": "2.3.14",
   "description": "Client API library for the Ardor Blockchain",
   "main": "nrs.node.bridge.js",
-  "directories": {
-    "test": "test"
-  },
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
   "repository": {
     "type": "git",
-    "url": "git+https://bitbucket.org/Jelurida/ardor.git"
+    "url": "https://bitbucket.org/Jelurida/ardor.git"
   },
   "keywords": [
     "blockchain",
@@ -20,14 +14,16 @@
   ],
   "author": "Jelurida",
   "license": "MIT",
-  "homepage": "https://bitbucket.org/Jelurida/ardor#readme",
+  "homepage": "https://ardordocs.jelurida.com/Node_JS_module",
   "dependencies": {
-    "async": "^2.6.0",
-    "big.js": "^5.2.2",
-    "crypto-js": "^3.1.9-1",
-    "jquery": "^3.2.1",
-    "jsbn": "^0.1.1",
-    "jsdom": "^9.12.0",
-    "pako": "^1.0.6"
+    "async": "2.6.3",
+    "big-integer": "1.6.48",
+    "big.js": "5.2.2",
+    "bip32-path": "0.4.2",
+    "crc-32": "1.2.0",
+    "crypto-js": "3.3.0",
+    "jsbn": "0.1.1",
+    "node-fetch": "2.6.0",
+    "pako": "1.0.11"
   }
 }

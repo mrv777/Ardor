@@ -1,6 +1,6 @@
 /*
  * Copyright © 2013-2016 The Nxt Core Developers.
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -20,19 +20,27 @@ import nxt.Nxt;
 import nxt.NxtException;
 import nxt.crypto.Crypto;
 import nxt.util.Convert;
+import nxt.util.Logger;
 
 import java.security.MessageDigest;
 import java.sql.Connection;
 import java.sql.SQLException;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
+import java.util.SortedMap;
+import java.util.TreeMap;
 
 final class ChildBlockFxtTransactionImpl extends FxtTransactionImpl implements ChildBlockFxtTransaction {
 
     private volatile List<ChildTransactionImpl> childTransactions;
     private volatile List<ChildTransactionImpl> sortedChildTransactions;
+    private volatile byte[] sortedChildTransactionsBlockHash;
 
-    ChildBlockFxtTransactionImpl(BuilderImpl builder, String secretPhrase, boolean isVoucher) throws NxtException.NotValidException {
-        super(builder, secretPhrase, isVoucher);
+    ChildBlockFxtTransactionImpl(BuilderImpl builder, byte[] privateKey, boolean isVoucher) throws NxtException.NotValidException {
+        super(builder, privateKey, isVoucher);
     }
 
     @Override
@@ -64,6 +72,7 @@ final class ChildBlockFxtTransactionImpl extends FxtTransactionImpl implements C
         synchronized (this) {
             childTransactions = null;
             sortedChildTransactions = null;
+            sortedChildTransactionsBlockHash = null;
         }
     }
 
@@ -105,6 +114,7 @@ final class ChildBlockFxtTransactionImpl extends FxtTransactionImpl implements C
                     childTransaction.setBlock(block);
                 }
                 sortedChildTransactions = Collections.unmodifiableList(list);
+                sortedChildTransactionsBlockHash = Crypto.sha256().digest(block.bytes());
                 childTransactions = sortedChildTransactions;
             } else {
                 TransactionProcessorImpl transactionProcessor = TransactionProcessorImpl.getInstance();
@@ -122,6 +132,7 @@ final class ChildBlockFxtTransactionImpl extends FxtTransactionImpl implements C
                 }
                 childTransactions = Collections.unmodifiableList(list);
                 sortedChildTransactions = null;
+                sortedChildTransactionsBlockHash = null;
             }
         }  finally {
             BlockchainImpl.getInstance().writeUnlock();
@@ -136,15 +147,19 @@ final class ChildBlockFxtTransactionImpl extends FxtTransactionImpl implements C
     @Override
     public List<ChildTransactionImpl> getSortedChildTransactions() {
         getChildTransactions();
-        List<ChildTransactionImpl> sortedChildTransactions = this.sortedChildTransactions;
-        if (sortedChildTransactions != null) {
-            return sortedChildTransactions;
-        }
         BlockImpl block = getBlock();
         if (block == null || block.getBlockSignature() == null) {
             throw new IllegalStateException("Can't sort child transactions if not in a signed block yet");
         }
         byte[] blockHash = Crypto.sha256().digest(block.bytes());
+        List<ChildTransactionImpl> sortedChildTransactions = this.sortedChildTransactions;
+        if (sortedChildTransactions != null) {
+            if (Arrays.equals(blockHash, sortedChildTransactionsBlockHash)) {
+                return sortedChildTransactions;
+            } else {
+                Logger.logInfoMessage("Re-sorting already sorted child transactions since block hash has changed");
+            }
+        }
         SortedMap<byte[], ChildTransactionImpl> sortedMap = new TreeMap<>(Convert.byteArrayComparator);
         this.childTransactions.forEach(childTransaction -> {
             MessageDigest digest = Crypto.sha256();
@@ -155,6 +170,7 @@ final class ChildBlockFxtTransactionImpl extends FxtTransactionImpl implements C
         sortedChildTransactions = Collections.unmodifiableList(new ArrayList<>(sortedMap.values()));
         synchronized (this) {
             this.sortedChildTransactions = sortedChildTransactions;
+            this.sortedChildTransactionsBlockHash = blockHash;
             this.childTransactions = this.sortedChildTransactions;
         }
         return sortedChildTransactions;
@@ -188,6 +204,7 @@ final class ChildBlockFxtTransactionImpl extends FxtTransactionImpl implements C
         }
         synchronized (this) {
             this.sortedChildTransactions = Collections.unmodifiableList(list);
+            this.sortedChildTransactionsBlockHash = blockHash;
             this.childTransactions = this.sortedChildTransactions;
         }
     }
@@ -206,8 +223,8 @@ final class ChildBlockFxtTransactionImpl extends FxtTransactionImpl implements C
         short index = this.getIndex();
         for (ChildTransactionImpl childTransaction : getSortedChildTransactions()) {
             if (childTransaction.getFxtTransactionId() != this.getId()) {
-                throw new IllegalStateException(String.format("Child transaction fxtTransactionId set to %s, must be %s",
-                        Long.toUnsignedString(childTransaction.getFxtTransactionId()), Long.toUnsignedString(this.getId())));
+                throw new IllegalStateException(String.format("Child transaction fxtTransactionId set to %s, must be %s block id %s",
+                        Long.toUnsignedString(childTransaction.getFxtTransactionId()), Long.toUnsignedString(this.getId()), Convert.toHexString(blockHash)));
             }
             if (childTransaction.getBlockId() != block.getId()) {
                 throw new IllegalStateException(String.format("Child transaction blockId set to %s, must be %s",
@@ -234,6 +251,15 @@ final class ChildBlockFxtTransactionImpl extends FxtTransactionImpl implements C
     public long[] getBackFees() {
         long backFee = getFee() / 4;
         return new long[] {backFee, backFee, backFee};
+    }
+
+    @Override
+    public long getChildTransactionsFee() {
+        long totalFee = 0;
+        for (ChildTransactionImpl childTransaction : getChildTransactions()) {
+            totalFee = Math.addExact(totalFee, childTransaction.getFee());
+        }
+        return totalFee;
     }
 
     @Override

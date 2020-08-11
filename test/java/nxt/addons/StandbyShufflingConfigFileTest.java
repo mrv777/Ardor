@@ -1,6 +1,6 @@
 /*
  * Copyright © 2013-2016 The Nxt Core Developers.
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -20,6 +20,8 @@ import nxt.BlockchainTest;
 import nxt.Constants;
 import nxt.account.HoldingType;
 import nxt.http.APICall;
+import nxt.http.callers.GetStandbyShufflersCall;
+import nxt.http.callers.StartStandbyShufflerCall;
 import nxt.util.Logger;
 import org.junit.After;
 import org.junit.Assert;
@@ -48,7 +50,7 @@ public class StandbyShufflingConfigFileTest extends BlockchainTest {
 
     @After
     public void stopAll() {
-        JO response = new APICall.Builder("stopStandbyShuffler").call();
+        JO response = new APICall.Builder<>("stopStandbyShuffler").call();
         Logger.logDebugMessage("Stopped %d StandbyShufflers.", response.get("stopped"));
         Assert.assertNotNull(response.get("stopped"));
     }
@@ -57,8 +59,7 @@ public class StandbyShufflingConfigFileTest extends BlockchainTest {
     public void test() {
         String recipientPublicKey = "285c4f326fffd59460d1374888ae0219f3f4706586db3510b514353f8a410306";
 
-        JO response = new APICall.Builder("startStandbyShuffler")
-                .chain(IGNIS.getId())
+        JO response = StartStandbyShufflerCall.create(IGNIS.getId())
                 .secretPhrase(ALICE.getSecretPhrase())
                 .param("holdingType", HoldingType.COIN.getCode())
                 .param("holding", IGNIS.getId())
@@ -69,8 +70,7 @@ public class StandbyShufflingConfigFileTest extends BlockchainTest {
         Assert.assertNull(response.get("errorCode"));
         Assert.assertTrue(response.getBoolean("started"));
 
-        JO standbyShufflersJSON = new APICall.Builder("getStandbyShufflers")
-                .chain(IGNIS.getId())
+        JO standbyShufflersJSON = GetStandbyShufflersCall.create(IGNIS.getId())
                 .unsignedLongParam("account", ALICE.getId())
                 .secretPhrase(ALICE.getSecretPhrase())
                 .param("holdingType", HoldingType.COIN.getCode())
@@ -84,15 +84,14 @@ public class StandbyShufflingConfigFileTest extends BlockchainTest {
         JO standbyShuffler = standbyShufflers.get(0);
         Assert.assertNotNull(standbyShuffler);
 
-        response = new APICall.Builder("stopStandbyShuffler").call();
+        response = new APICall.Builder<>("stopStandbyShuffler").call();
         Assert.assertNull(response.get("errorCode"));
         Assert.assertEquals(1, response.getInt("stopped"));
 
         standbyShuffler.put("secretPhrase", ALICE.getSecretPhrase());
         StartStandbyShuffling.startStandbyShufflers(standbyShufflersJSON.toJSONObject());
 
-        response = new APICall.Builder("getStandbyShufflers")
-                .chain(IGNIS.getId())
+        response = GetStandbyShufflersCall.create(IGNIS.getId())
                 .unsignedLongParam("account", ALICE.getId())
                 .secretPhrase(ALICE.getSecretPhrase())
                 .param("holdingType", HoldingType.COIN.getCode())

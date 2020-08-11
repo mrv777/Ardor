@@ -1,6 +1,6 @@
 /*
  * Copyright © 2013-2016 The Nxt Core Developers.
- * Copyright © 2016-2019 Jelurida IP B.V.
+ * Copyright © 2016-2020 Jelurida IP B.V.
  *
  * See the LICENSE.txt file at the top-level directory of this distribution
  * for licensing information.
@@ -38,7 +38,14 @@ import java.security.MessageDigest;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.SortedMap;
+import java.util.TreeMap;
 
 public abstract class TransactionImpl implements Transaction {
 
@@ -93,7 +100,7 @@ public abstract class TransactionImpl implements Transaction {
             this.appendageList = appendages;
         }
 
-        final void preBuild(String secretPhrase, boolean isVoucher) throws NxtException.NotValidException {
+        final void preBuild(byte[] privateKey, boolean isVoucher) throws NxtException.NotValidException {
             if (appendageMap != null) {
                 appendageList = new ArrayList<>(appendageMap.values());
             }
@@ -107,11 +114,11 @@ public abstract class TransactionImpl implements Transaction {
             }
             int appendagesSize = 0;
             for (Appendix appendage : appendageList) {
-                if (secretPhrase != null && appendage instanceof Appendix.Encryptable) {
+                if (privateKey != null && appendage instanceof Appendix.Encryptable) {
                     if (isVoucher) {
                         throw new NxtException.NotValidException("Voucher cannot contain data to encrypt");
                     }
-                    ((Appendix.Encryptable) appendage).encrypt(secretPhrase);
+                    ((Appendix.Encryptable) appendage).encrypt(privateKey);
                 }
                 appendagesSize += appendage.getSize();
             }
@@ -122,7 +129,7 @@ public abstract class TransactionImpl implements Transaction {
         public abstract TransactionImpl build() throws NxtException.NotValidException;
 
         @Override
-        public abstract TransactionImpl build(String secretPhrase) throws NxtException.NotValidException;
+        public abstract TransactionImpl build(byte[] privateKey) throws NxtException.NotValidException;
 
         @Override
         public final BuilderImpl recipientId(long recipientId) {
@@ -672,6 +679,11 @@ public abstract class TransactionImpl implements Transaction {
             throw new NxtException.NotValidException(String.format("Burn account %s not allowed to send transactions", Convert.rsAccount(senderId)));
         }
 
+        for (ChildChain chain : getType().getInvolvedChildChains(this)) {
+            if (!chain.isEnabled()) {
+                throw new NxtException.NotYetEnabledException("Child chain " + chain.getName() + " not yet enabled for transactions");
+            }
+        }
     }
 
     void validateId() throws NxtException.ValidationException {
@@ -714,10 +726,13 @@ public abstract class TransactionImpl implements Transaction {
             Fee fee = appendage.getFee(this, blockchainHeight);
             totalFee = Math.addExact(totalFee, fee.getFee(this, appendage));
         }
-        if (recipientId != 0
-                && ! (Nxt.getBlockchainProcessor().isScanning() && blockchainHeight < Nxt.getBlockchainProcessor().getInitialScanHeight() - Constants.MAX_ROLLBACK)
-                && ! Account.hasAccount(recipientId, blockchainHeight)) {
-            totalFee += Fee.NEW_ACCOUNT_FEE;
+        if (! (Nxt.getBlockchainProcessor().isScanning() && blockchainHeight < Nxt.getBlockchainProcessor().getInitialScanHeight() - Constants.MAX_ROLLBACK)) {
+            if (recipientId != 0 && ! Account.hasAccount(recipientId, blockchainHeight)) {
+                totalFee += Fee.NEW_ACCOUNT_FEE;
+            }
+            if (blockchainHeight >= Constants.CHILD_CHAIN_CONTROL_BLOCK && recipientId != getSenderId() && ! Account.hasAccount(senderId, blockchainHeight)) {
+                totalFee += Fee.NEW_ACCOUNT_FEE;
+            }
         }
         return totalFee;
     }
